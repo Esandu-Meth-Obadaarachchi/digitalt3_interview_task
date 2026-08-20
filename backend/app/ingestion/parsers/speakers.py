@@ -7,19 +7,35 @@ behavioural rule forbids outright.
 Two signals, in order of confidence:
 
   1. the candidate matches a participant named in the source metadata
-  2. the candidate looks like a name: one to four tokens, each capitalised,
-     no sentence punctuation, short enough to be a name
+  2. the candidate is name-shaped: two to four capitalised tokens, no sentence
+     punctuation, short enough to be a name, and not a document-structure word
 
-When neither holds, the whole line is treated as unlabelled speech and the
-speaker is left None. Leaving it None is always safe. Guessing is not.
+A single capitalised word is accepted only on signal 1. On its own it is too
+weak: "Note: the deadline moved" would otherwise produce a speaker called Note.
+When metadata names the participants there is ground truth to check against,
+and when it does not, leaving the line unattributed is the safe failure.
+
+When neither signal holds, the whole line is treated as unlabelled speech and
+the speaker is left None. Leaving it None is always safe. Guessing is not.
 """
 
 from __future__ import annotations
 
 import re
 
-_NAME_SHAPED = re.compile(r"^[A-Z][\w.'’-]*(?:\s+[A-Z][\w.'’-]*){0,3}$")
+#: Two to four capitalised tokens. One token alone is not enough (see above).
+_NAME_SHAPED = re.compile(r"^[A-Z][\w.'’-]*(?:\s+[A-Z][\w.'’-]*){1,3}$")
 _MAX_LABEL_LENGTH = 48
+
+#: Capitalised phrases that structure a document rather than name a person.
+#: "Action Items: ..." is a heading, not somebody speaking.
+_NOT_A_NAME = {
+    "action", "actions", "agenda", "answer", "attendees", "background", "blocker",
+    "blockers", "conclusion", "context", "decision", "decisions", "example", "follow",
+    "issue", "issues", "item", "items", "next", "nb", "note", "notes", "outcome",
+    "present", "question", "questions", "recap", "reminder", "risk", "risks",
+    "status", "summary", "todo", "topic", "update", "updates", "warning",
+}
 
 
 def _canonical(name: str) -> str:
@@ -73,7 +89,12 @@ def split_speaker(line: str, speaker_lookup: dict[str, str] | None = None) -> tu
         if known is not None:
             return known, rest
 
-    if _NAME_SHAPED.match(candidate) and not candidate.endswith((".", "!", "?")):
+    first_token = candidate.split()[0].lower().strip(".,'’-")
+    if (
+        _NAME_SHAPED.match(candidate)
+        and first_token not in _NOT_A_NAME
+        and not candidate.endswith((".", "!", "?"))
+    ):
         return candidate, rest
 
     return None, line.strip()
