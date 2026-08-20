@@ -13,9 +13,46 @@ from __future__ import annotations
 import json
 from collections import deque
 from collections.abc import Callable
+from typing import Any
 
-from app.errors import ProviderUnavailable
 from app.extraction.llm.base import LLMProvider, LLMRequest, LLMResponse
+
+
+def minimal_instance(schema: dict[str, Any], defs: dict[str, Any] | None = None) -> Any:
+    """Build the smallest document that satisfies a JSON schema.
+
+    Used as the unscripted default so the whole pipeline can be exercised
+    offline with no key and no network: every extraction comes back empty,
+    which is a valid answer, and the plumbing either works or it does not.
+    """
+    defs = defs if defs is not None else schema.get("$defs", {})
+
+    if "$ref" in schema:
+        return minimal_instance(defs.get(schema["$ref"].rsplit("/", 1)[-1], {}), defs)
+    if "anyOf" in schema:
+        return minimal_instance(schema["anyOf"][0], defs)
+    if "enum" in schema:
+        return schema["enum"][0]
+
+    kind = schema.get("type")
+    if kind == "object":
+        properties = schema.get("properties", {})
+        return {
+            name: minimal_instance(sub, defs)
+            for name, sub in properties.items()
+            if name in schema.get("required", list(properties))
+        }
+    if kind == "array":
+        return []
+    if kind == "string":
+        return ""
+    if kind == "integer":
+        return 0
+    if kind == "number":
+        return 0.0
+    if kind == "boolean":
+        return False
+    return None
 
 
 class FakeProvider(LLMProvider):
@@ -37,7 +74,8 @@ class FakeProvider(LLMProvider):
         return self
 
     def default(self, factory: Callable[[LLMRequest], str]) -> FakeProvider:
-        """Answer any unscripted call by deriving a response from the request."""
+        """Override the unscripted behaviour with a response derived from the
+        request, for tests that need something other than an empty result."""
         self._default = factory
         return self
 
@@ -49,7 +87,8 @@ class FakeProvider(LLMProvider):
         elif self._default is not None:
             text = self._default(request)
         else:
-            raise ProviderUnavailable("FakeProvider has no scripted response left")
+            # Unscripted: answer with the smallest document the schema allows.
+            text = json.dumps(minimal_instance(request.json_schema))
 
         return LLMResponse(
             text=text,

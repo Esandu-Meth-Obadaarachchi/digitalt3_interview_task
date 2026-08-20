@@ -148,7 +148,7 @@ def test_a_markdown_fence_around_the_json_is_tolerated(settings):
 
 
 def test_exhausting_every_attempt_raises_with_each_failure_named(settings):
-    provider = FakeProvider().queue("nope", "still nope", "nope again")
+    provider = FakeProvider().default(lambda request: "nope, still not json")
 
     with pytest.raises(SchemaValidationError) as excinfo:
         _call(provider, settings, max_retries=3)
@@ -242,7 +242,9 @@ def test_a_cached_response_is_reused_and_flagged_as_a_hit(settings, monkeypatch)
     call_structured("extract_actions", "same prompt", ItemList, provider=provider, settings=cfg)
     assert len(provider.calls) == 1
 
-    # Nothing left in the queue: a second live call would raise.
+    # The queue is empty, so an uncached call would fall through to the
+    # schema default and return zero items. Getting Priya back proves the
+    # response came from the cache.
     result = call_structured("extract_actions", "same prompt", ItemList, provider=provider, settings=cfg)
     assert result.items[0].owner == "Priya Sharma"
     assert len(provider.calls) == 1
@@ -251,3 +253,11 @@ def test_a_cached_response_is_reused_and_flagged_as_a_hit(settings, monkeypatch)
         assert llm_call_repo.summarise(conn).cache_hits == 1
 
     assert ResponseCache(cfg.llm_cache_dir).size() == 1
+
+
+def test_an_unscripted_fake_answers_from_the_schema(settings):
+    """Lets the whole pipeline run offline with no key: every extraction comes
+    back empty, which is a valid answer, and the plumbing either works or does
+    not."""
+    result = _call(FakeProvider(), settings)
+    assert result.items == []

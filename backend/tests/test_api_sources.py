@@ -20,8 +20,8 @@ def test_health_reports_configuration_without_leaking_the_key(client):
     assert body["schema_version"] == "1"
     assert body["llm_provider"] == "fake"
     assert set(body) == {
-        "status", "schema_version", "llm_provider", "llm_model",
-        "llm_key_present", "retrieval_mode", "tracker_provider",
+        "status", "schema_version", "llm_provider", "llm_model", "llm_key_present",
+        "llm_available", "llm_detail", "retrieval_mode", "tracker_provider",
     }
     assert isinstance(body["llm_key_present"], bool)
 
