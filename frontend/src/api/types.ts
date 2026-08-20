@@ -1,0 +1,161 @@
+/**
+ * Types mirroring the backend's Pydantic contracts.
+ *
+ * Hand-written rather than generated: the surface is small, and a hand-written
+ * type that is read alongside the Python contract is easier to keep honest
+ * than a generation step nobody re-runs.
+ */
+
+export type SourceStatus = "ingested" | "refused" | "error";
+export type ReviewStatus = "pending" | "approved" | "rejected" | "expired";
+export type ExtractionType = "action" | "decision" | "risk" | "signal";
+export type DefectSeverity = "error" | "warning";
+
+export interface Health {
+  status: string;
+  schema_version: string | null;
+  llm_provider: string;
+  llm_model: string;
+  llm_key_present: boolean;
+  llm_available: boolean;
+  llm_detail: string;
+  retrieval_mode: string;
+  tracker_provider: string;
+}
+
+export interface Source {
+  id: string;
+  title: string;
+  source_type: string;
+  meeting_date: string | null;
+  participants: string[];
+  consent_flag: boolean;
+  origin_format: string | null;
+  file_path: string | null;
+  content_hash: string | null;
+  ingested_at: string;
+  status: SourceStatus;
+  refusal_reason: string | null;
+  error_detail: string | null;
+}
+
+export interface Defect {
+  code: string;
+  severity: DefectSeverity;
+  detail: string;
+  line_number: number | null;
+  excerpt: string | null;
+}
+
+export interface ConsentDecision {
+  source_id: string;
+  granted: boolean;
+  reason: string;
+  checked_at: string;
+}
+
+export interface IngestionReport {
+  source_id: string;
+  ok: boolean;
+  status: SourceStatus;
+  consent: ConsentDecision | null;
+  origin_format: string | null;
+  encoding: string | null;
+  bytes_read: number;
+  content_hash: string | null;
+  segments_parsed: number;
+  messages_parsed: number;
+  direct_messages_excluded: number;
+  speakers: string[];
+  silent_participants: string[];
+  duration_seconds: number | null;
+  defects: Defect[];
+  rejection_reason: string | null;
+}
+
+export interface Segment {
+  id: string;
+  source_id: string;
+  segment_index: number;
+  speaker: string | null;
+  start_ts: string | null;
+  text: string;
+  char_start: number;
+  char_end: number;
+}
+
+export interface QuoteLocation {
+  char_start: number;
+  char_end: number;
+  segment_id: string | null;
+}
+
+export interface Extraction {
+  id: string;
+  source_id: string;
+  extraction_type: ExtractionType;
+  payload: Record<string, unknown>;
+  original_payload: Record<string, unknown>;
+  verbatim_quote: string;
+  quote_verified: boolean;
+  quote_location: QuoteLocation | null;
+  speaker: string | null;
+  timestamp: string | null;
+  confidence: number | null;
+  dedup_key: string | null;
+  chunk_id: string | null;
+  merged_from: string[];
+  provider: string | null;
+  model_name: string | null;
+  prompt_version: string | null;
+  status: ReviewStatus;
+  reviewer: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface ReviewEvent {
+  id: string;
+  extraction_id: string;
+  event_type: "created" | "edited" | "approved" | "rejected" | "expired";
+  actor: string;
+  status_before: ReviewStatus | null;
+  status_after: ReviewStatus | null;
+  payload_before: Record<string, unknown> | null;
+  payload_after: Record<string, unknown> | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface QueueSummary {
+  pending: number;
+  approved: number;
+  rejected: number;
+  expired: number;
+  unverified_pending: number;
+}
+
+export interface ExtractionRun {
+  source_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  chunks: number;
+  candidates: number;
+  duplicates_removed: number;
+  stored: number;
+  verified_quotes: number;
+  unverified_quotes: number;
+  unspecified_owner: number;
+  unspecified_due_date: number;
+  dates_resolved: number;
+  failed_chunks: string[];
+  duration_ms: number;
+}
+
+export interface ApiError {
+  error: string;
+  detail: string;
+}

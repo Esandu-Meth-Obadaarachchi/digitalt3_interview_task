@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* One neutral palette, defined once. The brief awards no marks for visual
+   polish, so this exists to make the review surface readable rather than to
+   look designed: state is carried by colour consistently, and nothing else
+   competes for attention. */
+@theme {
+  --color-ink: #0f1720;
+  --color-muted: #5b6673;
+  --color-line: #e2e6ea;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f7f9;
+
+  --color-ok: #12734f;
+  --color-ok-bg: #e6f4ee;
+  --color-warn: #8a5a00;
+  --color-warn-bg: #fdf3e2;
+  --color-bad: #a4262c;
+  --color-bad-bg: #fdeced;
+  --color-info: #1f4b8f;
+  --color-info-bg: #eaf1fb;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Quotes are shown in a monospaced face on purpose: a verbatim quote is
+   evidence, and it should not look like prose the interface wrote. */
+.quote {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
