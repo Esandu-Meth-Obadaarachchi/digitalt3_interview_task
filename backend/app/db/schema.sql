@@ -479,8 +479,13 @@ CREATE TABLE IF NOT EXISTS outcome_records (
 -- =============================================================================
 -- One row per attempt, retries included. Gives the retry rate, the cache hit
 -- rate, and per-source cost and latency without any extra bookkeeping.
+-- One row per ATTEMPT. `id` identifies the attempt, `call_id` groups the
+-- attempts belonging to one logical request, so the retry rate is
+--     (attempts - distinct call_ids) / attempts
+-- rather than something inferred.
 CREATE TABLE IF NOT EXISTS llm_calls (
     id                 TEXT PRIMARY KEY,
+    call_id            TEXT NOT NULL,
     source_id          TEXT,
     capability         TEXT NOT NULL,                      -- extract_actions | answer_question | ...
     provider           TEXT NOT NULL,
@@ -500,6 +505,7 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 
 CREATE INDEX IF NOT EXISTS idx_llm_calls_source     ON llm_calls (source_id, capability);
 CREATE INDEX IF NOT EXISTS idx_llm_calls_outcome    ON llm_calls (outcome);
+CREATE INDEX IF NOT EXISTS idx_llm_calls_call       ON llm_calls (call_id, attempt);
 
 -- =============================================================================
 -- SCHEMA VERSION

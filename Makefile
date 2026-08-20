@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed run api ui test eval lint clean distclean check-env
+.PHONY: help setup seed run api ui test eval llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -53,11 +53,16 @@ setup: $(VENV)/bin/python ## Install backend and frontend dependencies
 	@if [ ! -f .env ]; then cp .env.example .env; printf "created .env from .env.example, add your key\n"; fi
 	@printf "\nsetup complete. Next: $(BOLD)make seed$(OFF)\n"
 
-check-env: ## Report which configuration the system will run with
-	@$(PY) -c "import sys; sys.path.insert(0,'backend'); from app.config import settings as s; \
-print(f'provider={s.llm_provider} model={s.gemini_model if s.llm_provider==\"gemini\" else s.ollama_model}'); \
-print(f'key_present={bool(s.gemini_api_key)} retrieval={s.retrieval_mode} tracker={s.tracker_provider}'); \
-print(f'db={s.db_path}')"
+check-env: ## Report configuration and whether each provider is reachable
+	@$(PY) scripts/check_env.py
+
+llm-smoke: ## Send one real chunk to the configured model and show the result
+	$(PY) scripts/llm_smoke.py $(if $(PROVIDER),--provider $(PROVIDER),)
+
+cache-clear: ## Drop the cached model responses
+	@$(PY) -c "import sys; sys.path.insert(0,'backend'); \
+from app.config import get_settings; from app.extraction.llm.cache import ResponseCache; \
+s=get_settings(); print(f'removed {ResponseCache(s.llm_cache_dir).clear()} cached response(s)')"
 
 seed: ## Rebuild the database from schema.sql and load sample data
 	$(PY) scripts/seed.py

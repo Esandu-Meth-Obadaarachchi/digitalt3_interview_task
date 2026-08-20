@@ -214,3 +214,128 @@ from the source or are absent. Nothing infers who spoke.
 
 **L5.** Audio ingestion is not built yet. M1 is marked Partial in the README
 for that reason, and audio arrives in Phase 9.
+
+---
+
+## Phase 2 — The model layer
+
+### Decisions
+
+**D19. Structured output is constrained at the decoder, then validated anyway.**
+Gemini receives the JSON schema through `response_json_schema` with
+`response_mime_type="application/json"`. Ollama receives the same schema in its
+`format` field. Every response is still parsed and validated against the
+Pydantic contract.
+*Why both:* a constrained decoder makes malformed output unlikely rather than
+impossible, and the wrapper has to behave identically on a provider without
+that feature. The brief names schema-validated output with a retry loop as
+mandatory, not as one or the other.
+
+**D20. Failures feed the actual error back, not a generic retry.**
+A missing field produces `owner: Field required`. An out-of-range confidence
+names the field and the bound. A rejected quote produces the quote itself and
+an instruction to copy exact text. The repair prompt truncates the offending
+response to 1500 characters, because a long malformed answer pushes the
+instructions out of the model's attention and makes the repair less likely.
+
+**D21. Quote verification is a validator inside the retry loop, not a filter
+after it.**
+The brief calls the substring check "cheap and decisive" and says to retry the
+model with the failure fed back before giving up on an item. Wiring it as one
+of the wrapper's `validators` means a fabricated quote is a validation failure
+like any other, so it is repaired by the same mechanism that repairs a missing
+field. Phase 3 supplies the validator; Phase 2 built the slot.
+
+**D22. `extra="forbid"` on every contract.**
+A model that invents a field is a model drifting from the schema. Forbidding
+extras turns that into a validation failure that triggers a repair, rather than
+silently discarding output that might have mattered.
+
+**D23. One row per attempt in `llm_calls`, grouped by a logical call id.**
+Retry rate, cache hit rate and per-source token cost then come from the store
+rather than from an estimate. A test caught the first version of this: every
+attempt wrote with the same primary key, so retries collided and the retry rate
+silently read as zero. The telemetry writer swallows exceptions by design, so
+the failure was invisible until asserted on.
+*Consequence:* the swallow now logs at warning rather than debug.
+
+**D24. Prompts are versioned files carrying a declared version and a body hash.**
+The anti-pattern the brief names is prompts scattered inline, already drifted,
+impossible to version or evaluate. One file per capability, loaded at runtime,
+with a header declaring version, capability and what changed. The loader also
+hashes the body, and the stored tag is `version+hash6`.
+*Why both:* the declared version is what a human talks about in a walkthrough;
+the hash means an edit made without bumping the version still changes the tag,
+so a measured result cannot be attributed to a prompt that did not produce it.
+
+**D25. Chunking: whole segments, whole-segment overlap, context header.**
+1. Chunks are built from whole segments, never split mid-segment. A segment is
+   one person's turn, and splitting it separates a commitment from the words
+   that make it one and produces a quote that is not a substring of any line.
+2. Overlap is whole segments, not a character count. A commitment is usually
+   made across two turns, one person asking and another agreeing. A boundary
+   between them leaves both chunks wrong in the same way. Repeating the last
+   few whole turns means the pair appears complete in at least one chunk.
+3. Every chunk carries a non-quotable context header naming the meeting, date,
+   full participant list and time range. Owner attribution is golden case 3,
+   and without the participant list the model cannot resolve "James" to James
+   Liu or know that two people called Priya are present.
+4. Timestamps and speaker labels are rendered into the chunk text, since the
+   model must return them. An unlabelled speaker renders as `UNSPECIFIED`, the
+   same token the model must output for an unknown owner, so the transcript and
+   the prompt agree on what "not stated" looks like.
+*Cost:* overlap causes the same commitment to be extracted more than once.
+Deduplication in Phase 3 is the accepted price.
+
+**D26. Token counts are estimated as characters / 4.**
+Naming the approximation is more honest than importing a tokeniser built for a
+different model family and implying a precision that is not there. Chunks are
+sized well below any provider's context window, so the estimate has room to be
+wrong.
+
+**D27. Response caching on by default, keyed by everything that could change
+the answer.**
+Provider, model, prompt text, prompt version, temperature and the JSON schema.
+Editing a prompt therefore misses the cache automatically.
+*Risk acknowledged:* caching makes an eval run reproducible and could also hide
+a model that has become unreliable. Guarded by reporting the hit rate in the
+eval output and by a cache bypass that proves the committed numbers reproduce
+against live calls.
+
+**D28. A token bucket in front of the provider, not just backoff.**
+The Gemini free tier allows 15 requests per minute. Staying under a known limit
+is better than discovering it. Backoff remains for the case where the limit is
+hit anyway, for instance because another process shares the key.
+
+**D29. `FakeProvider` is a real implementation, not a mock.**
+Tests exercise the entire wrapper, including retry and repair, with no network
+and no key. Scripting a malformed response is the only way to test the repair
+loop at all, since a live model cannot be made to return broken JSON on demand.
+An unscripted call answers with the smallest document its schema allows, which
+lets the whole pipeline be dry-run offline with `make llm-smoke PROVIDER=fake`.
+
+**D30. Two providers were written, not one plus a claim.**
+The adapter contract asks whether a real integration could be dropped in by
+writing one class and changing one line of wiring. Gemini and Ollama both
+implement `LLMProvider`, and the factory is the only place that knows the
+difference.
+
+### Assumptions
+
+**A5.** Temperature 0 for extraction. Repeatable output matters more than
+variety, and every golden metric assumes the same input gives the same answer.
+
+**A6.** Gemini's free tier limit is 15 requests per minute. Configurable via
+`GEMINI_REQUESTS_PER_MINUTE` if that changes.
+
+### Known limitations
+
+**L6.** Token counts are estimates. See D26.
+
+**L7.** The response cache is not bounded. A long build could accumulate a
+large `data/llm_cache/`. `make cache-clear` empties it.
+
+**L8.** Ollama has not been exercised against a live daemon on this machine
+(8 GB of RAM, and a 7-8B model alongside FAISS and Whisper is tight). The
+provider is written, its unreachable path is tested, and the README says so
+rather than implying it has been run.

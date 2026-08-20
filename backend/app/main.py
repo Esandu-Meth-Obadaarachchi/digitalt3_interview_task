@@ -80,13 +80,20 @@ def health() -> dict[str, object]:
     `llm_key_present` reports whether a key is configured without ever
     returning the key itself.
     """
+    from app.extraction.llm.factory import get_llm_provider
+
     settings = get_settings()
+    provider = get_llm_provider(settings)
+    usable, reason = provider.available()
+
     return {
         "status": "ok",
         "schema_version": database.schema_version(settings),
         "llm_provider": settings.llm_provider,
-        "llm_model": settings.gemini_model if settings.llm_provider == "gemini" else settings.ollama_model,
+        "llm_model": provider.model,
         "llm_key_present": bool(settings.gemini_api_key),
+        "llm_available": usable,
+        "llm_detail": reason,
         "retrieval_mode": settings.retrieval_mode,
         "tracker_provider": settings.tracker_provider,
     }

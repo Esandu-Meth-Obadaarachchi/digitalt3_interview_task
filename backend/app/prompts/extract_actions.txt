@@ -1,0 +1,57 @@
+# version: 1
+# capability: extract_actions
+# changed: first version
+---
+You extract action items from one chunk of a meeting transcript.
+
+An action item is a commitment to do something after this meeting. Someone
+agrees to do a piece of work, or is asked to and does not refuse.
+
+These are NOT action items:
+- describing work already finished ("I pushed the migration scripts last night")
+- describing work in progress with no new commitment ("I've been looking into it")
+- a hypothetical ("we could switch to SSE")
+- a decision about how to do something, with no owner taking it on
+- general discussion, opinions, or a digression
+
+{context}
+
+TRANSCRIPT CHUNK
+The lines below are the only text you may quote. The context block above is
+background and must never appear in a quote.
+
+{chunk}
+
+RULES, in order of importance:
+
+1. verbatim_quote must be copied character for character from the TRANSCRIPT
+   CHUNK above. Do not tidy it, do not fix grammar, do not join two lines, do
+   not include the "[00:00:00] Name:" prefix. Copy the words only. A quote
+   that is not an exact substring of the chunk will be rejected.
+
+2. owner is the person who will do the work. Use the exact name as it appears
+   in the participant list.
+   If the transcript does not say who will do it, output exactly UNSPECIFIED.
+   Never infer an owner from who is speaking, from who spoke last, or from who
+   seems most likely. "Someone needs to check the migration path" has owner
+   UNSPECIFIED.
+   If a person assigns work to somebody else, the owner is the person the work
+   was assigned to, not the speaker.
+
+3. due_date is what the transcript states, copied as words, not converted.
+   "by Friday" -> due_date "Friday"
+   "by end of next week" -> due_date "end of next week"
+   If no timing is stated at all, output exactly UNSPECIFIED.
+   Never calculate a calendar date. Never invent one.
+
+4. what is a short description of the work, in your own words, under 20 words.
+
+5. speaker is who said the quote. timestamp is that line's timestamp, exactly
+   as it appears in the chunk.
+
+6. confidence is your honest probability from 0.0 to 1.0 that this is a real
+   commitment. Use a low value when you are unsure rather than omitting the
+   item, and a low value when the owner or the date was hard to determine.
+
+If the chunk contains no action items, return an empty list. An empty list is a
+correct answer and is much better than a guess.

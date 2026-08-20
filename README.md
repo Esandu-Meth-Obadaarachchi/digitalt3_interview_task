@@ -8,7 +8,7 @@ approves it.
 Built for the DigitalT3 intern selection challenge. The brief is committed at
 [`docs/challenge/`](docs/challenge/).
 
-> **Status: Phase 1 of 12 complete.** This README is rewritten from the code at
+> **Status: Phase 2 of 12 complete.** This README is rewritten from the code at
 > the end of every phase. The table below reports what runs today, not what is
 > planned. Nothing is marked Done until it runs end to end on the sample data.
 
@@ -20,7 +20,7 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 |-----|----------------------------------|----------|-----------|------|
 | M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription at Phase 9 |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, and again by database trigger |
-| M3  | Extract action items             | MUST     | Not built | Phase 3 |
+| M3  | Extract action items             | MUST     | Not built | Phase 3. The model layer, prompt and chunker it needs are built and tested |
 | M4  | Extract decisions                | MUST     | Not built | Phase 5 |
 | M5  | Extract risks and blockers       | SHOULD   | Not built | Phase 5 |
 | M6  | Review and approval queue        | MUST     | Not built | Approval and audit triggers written and tested, no queue yet |
@@ -46,28 +46,33 @@ backend/app/errors.py                domain errors, sqlite error translation
 backend/app/db/database.py           connection, transaction, init, reset
 backend/app/db/repositories/         all SQL, one module per entity
 backend/app/models/                  Pydantic contracts
-backend/app/ingestion/
-  consent.py                         M2, the gate
-  reader.py                          bytes, strict UTF-8, encoding defects
-  parsers/txt.py vtt.py json_...     M1, three formats, one internal shape
-  parsers/speakers.py                is this prefix really a speaker label
-  validator.py                       severity-graded defects
-  normaliser.py                      segments with citable char offsets
-  service.py                         the pipeline, one transaction per source
+backend/app/ingestion/               M1 parsers, M2 consent gate, validation
+backend/app/extraction/
+  prompts.py                         versioned prompt loading
+  chunker.py                         segment-boundary chunks with context
+  llm/base.py                        the provider interface
+  llm/gemini.py  llm/ollama.py       two real providers, one interface
+  llm/fake.py                        deterministic stub for the test suite
+  llm/factory.py                     config to provider, one function
+  llm/cache.py  llm/rate_limit.py    free-tier survival
+  llm/client.py                      the one wrapper: retry, repair, account
+backend/app/prompts/*.txt            one versioned file per capability
 backend/app/main.py                  FastAPI app, one error-to-status mapping
 backend/app/routers/sources.py       thin HTTP surface
-backend/tests/                       71 passing tests
+backend/tests/                       114 passing tests
 scripts/seed.py                      rebuild the store and ingest sample data
-scripts/make_format_fixtures.py      generates the vtt/json/defect fixtures
+scripts/check_env.py                 configuration and provider reachability
+scripts/llm_smoke.py                 one real chunk through the live model
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```
 
 Try it:
 
 ```bash
-make seed                                     # ingests, refuses and rejects, and says which
-curl localhost:8000/api/sources | jq          # after `make run`
-curl localhost:8000/api/sources/meeting-team-sync-2024-11-15/report | jq .bytes_read   # 0
+make seed                     # ingests, refuses and rejects, and says which
+make check-env                # which providers are reachable, which prompts exist
+make llm-smoke PROVIDER=fake  # the whole model path offline, no key needed
+make llm-smoke                # the same chunk against the live model
 ```
 
 ## Setup
@@ -95,44 +100,58 @@ the database, not only in Python.** The rubric asks whether gating is enforced
 in code or by convention, and flags "approval exists in the UI but is
 bypassable via the API" as a failure. Three SQL triggers and one unique
 constraint mean the rules hold against the API, against the service layer, and
-against someone opening the file with the `sqlite3` CLI. The service layer
-repeats the same checks to return friendly errors. See
-[`backend/app/db/schema.sql`](backend/app/db/schema.sql).
+against someone opening the file with the `sqlite3` CLI.
 
 **The consent gate fires on metadata, before the file is opened.** A refused
 source's ingestion report carries `bytes_read: 0`, which is machine-checkable
-evidence that the content was never read, never parsed and never sent to a
-model. Checking after parsing would satisfy the wording while the content sat
-in memory and in the store.
+evidence the content was never read, parsed or sent to a model.
 
-**Ambiguity is never resolved by guessing.** An unlabelled transcript line
-keeps `speaker: null` and records a warning saying why, rather than inheriting
-the speaker from the line above. A first name shared by two participants
-(the sample data contains both a Priya Sharma and a Priya Menon) is left
-unresolved. `UNSPECIFIED` is a first-class typed value, so the model always
-has a correct thing to output.
+**Ambiguity is surfaced, never resolved by guessing.** An unlabelled transcript
+line keeps `speaker: null` and records a warning saying why. A first name shared
+by two participants is left unresolved. `UNSPECIFIED` is a first-class typed
+value, so the model always has a correct thing to output.
 
-**Malformed files are graded, not binary.** Truncation, undecodable bytes and
-an unrecognisable format reject the whole file and store nothing. A missing
-speaker label or a missing timestamp travels with the source as a warning. The
-brief requires the deliberately broken sample be rejected with a clear reason;
-it does not require rejecting every imperfect file.
+**Malformed files are graded, not binary.** Truncation, undecodable bytes and an
+unrecognisable format reject the whole file. A missing speaker label travels
+with the source as a warning.
 
-**Direct messages are excluded by construction.** `chat_messages` carries
-`CHECK (is_direct_message = 0)`, so a DM is physically unstorable rather than
-merely filtered by a code path. `noise` is likewise absent from the
-classification constraint, because noise is discarded and not stored.
+**Structured output is constrained at the decoder, then validated anyway.**
+Gemini receives the JSON schema through `response_json_schema`; Ollama receives
+the same schema in its `format` field. Every response is still validated
+against the Pydantic contract, because a constrained decoder makes malformed
+output unlikely rather than impossible.
 
-**Raw `sqlite3` rather than an ORM.** The brief requires the schema be visible
-in the repo. `schema.sql` is then literally the schema a reviewer reads. FTS5
-virtual tables and their sync triggers are native SQL and would need a
-hand-written migration under an ORM anyway, and Pydantic already supplies the
-typed contracts.
+**Failures feed the actual error back to the model.** A missing field produces
+`owner: Field required`. A rejected quote produces the quote that failed and an
+instruction to use exact text. Quote verification plugs into the same loop as a
+validator, so a fabricated quote is repaired rather than merely rejected.
 
-**One definition of "the text of a source".** Segments are joined by single
-spaces after whitespace normalisation. Quote verification checks against that
-string and every character offset indexes into it, so a citation points at a
-location inside a source rather than at the source, and can be checked by hand.
+**Every attempt is accounted for.** One row per attempt in `llm_calls`, grouped
+by a logical call id, so the retry rate, the cache hit rate and the per-source
+token cost are measured rather than estimated.
+
+**Prompts are versioned files with a content hash.** One file per capability
+with a declared version, plus a SHA-256 of the body. Both are recorded on every
+extraction, so an edit made without bumping the version still changes the tag
+and a measured result can never be attributed to the wrong prompt.
+
+**Chunking is by whole segments, with whole-segment overlap and a context
+header.** A segment is one person's turn, so splitting it would separate a
+commitment from the words that make it one. A commitment is usually made across
+two turns, so overlap keeps the pair intact in at least one chunk. The context
+header names every participant, because without it the model cannot tell that
+"James" is James Liu, or that two people called Priya are in the room.
+
+**Two providers, one interface.** Gemini and Ollama both implement
+`LLMProvider`, and the factory is the only place that knows the difference.
+The adapter contract asks whether a real integration could be dropped in by
+writing one class and changing one line of wiring. Having written the second
+class is the honest way to answer that.
+
+**One definition of "the text of a source".** Segments joined by single spaces
+after whitespace normalisation. Quote verification checks against that string
+and every character offset indexes into it, so a citation points at a location
+inside a source and can be checked by hand.
 
 Fuller reasoning, including what has been cut, lives in
 [`decision_log.md`](decision_log.md).

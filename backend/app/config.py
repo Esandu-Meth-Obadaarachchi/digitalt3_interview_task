@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
 
+    # Gemini's free tier allows 15 requests per minute. Staying under a known
+    # limit is better than discovering it and backing off.
+    gemini_requests_per_minute: int = 15
+
     llm_temperature: float = 0.0
     llm_max_retries: int = 3
     llm_timeout_seconds: int = 90
