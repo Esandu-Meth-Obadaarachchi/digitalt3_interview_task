@@ -65,7 +65,7 @@ def main() -> int:
 
     # --- JSON, using key spellings a speech-to-text tool would emit ----------
     document = {
-        "meeting_id": "meeting-client-status-2024-11-18",
+        "meeting_id": "meeting-client-status-2024-08-19",
         "generated_by": "scripts/make_format_fixtures.py",
         "segments": [
             {

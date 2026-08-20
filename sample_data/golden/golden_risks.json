@@ -14,7 +14,7 @@
     },
     {
       "id": "risk_cs_01",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "description": "Compliance audit is scheduled for October 15th and the encryption module may not be complete by then, which would require postponement and delay go-live by at least a month",
       "severity": "high",
       "affected_area": "Compliance and encryption module",

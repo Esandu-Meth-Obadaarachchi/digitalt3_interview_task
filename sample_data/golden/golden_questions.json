@@ -4,7 +4,7 @@
     {
       "id": "q_01",
       "question": "When did we decide to start Phase 2?",
-      "expected_source_id": "meeting-client-status-2024-11-18",
+      "expected_source_id": "meeting-client-status-2024-08-19",
       "expected_answer_contains": "September first",
       "expected_timestamp": "00:03:14",
       "answerable": true
@@ -36,7 +36,7 @@
     {
       "id": "q_05",
       "question": "When is the compliance audit scheduled?",
-      "expected_source_id": "meeting-client-status-2024-11-18",
+      "expected_source_id": "meeting-client-status-2024-08-19",
       "expected_answer_contains": "October fifteenth",
       "expected_timestamp": "00:07:46",
       "answerable": true

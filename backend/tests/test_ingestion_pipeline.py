@@ -119,7 +119,7 @@ def test_every_golden_quote_is_a_substring_of_the_normalised_source_text():
     by_id = {s["id"]: s for s in manifest["sources"]}
 
     texts = {}
-    for source_id in ("meeting-sprint-planning-2024-11-18", "meeting-client-status-2024-11-18"):
+    for source_id in ("meeting-sprint-planning-2024-11-18", "meeting-client-status-2024-08-19"):
         entry = by_id[source_id]
         path = REPO_ROOT / "sample_data" / entry["file_path"]
         read = read_source_text(path)
@@ -149,12 +149,12 @@ def test_the_four_supplied_meetings_ingest_to_their_expected_outcomes(settings):
     outcomes = {o.source.id: o for o in ingest_from_manifest(settings)}
 
     assert outcomes["meeting-sprint-planning-2024-11-18"].source.status is SourceStatus.INGESTED
-    assert outcomes["meeting-client-status-2024-11-18"].source.status is SourceStatus.INGESTED
+    assert outcomes["meeting-client-status-2024-08-19"].source.status is SourceStatus.INGESTED
     assert outcomes["meeting-team-sync-2024-11-15"].source.status is SourceStatus.REFUSED
     assert outcomes["meeting-design-review-2024-11-17"].source.status is SourceStatus.ERROR
 
     assert outcomes["meeting-sprint-planning-2024-11-18"].report.segments_parsed == 55
-    assert outcomes["meeting-client-status-2024-11-18"].report.segments_parsed == 51
+    assert outcomes["meeting-client-status-2024-08-19"].report.segments_parsed == 51
 
 
 def test_a_rejected_source_leaves_no_segments_behind(settings):
