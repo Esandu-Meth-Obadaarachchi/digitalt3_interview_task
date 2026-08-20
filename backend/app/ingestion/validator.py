@@ -21,6 +21,20 @@ _TERMINAL_PUNCTUATION = ('.', '!', '?', '"', "'", ")", "]", "…", "”", "’")
 #: Below this many segments a "transcript" is not a meeting.
 _MIN_SEGMENTS = 2
 
+#: Order in which blocking defects are reported. A file often trips more than
+#: one check at once, and the reason a human is shown should be the most
+#: diagnostic of them. NO_PARSEABLE_SEGMENTS is the vaguest, so it comes last:
+#: telling someone "only 1 segment parsed" when the real problem is a truncated
+#: recording sends them looking in the wrong place.
+_REPORT_PRIORITY = (
+    DefectCode.UNDECODABLE_BYTES,
+    DefectCode.EMPTY_FILE,
+    DefectCode.UNKNOWN_FORMAT,
+    DefectCode.MALFORMED_STRUCTURE,
+    DefectCode.TRUNCATED_MID_SENTENCE,
+    DefectCode.NO_PARSEABLE_SEGMENTS,
+)
+
 
 def validate(result: ParseResult, *, check_truncation: bool = True) -> ParseResult:
     """Return the result with any additional defects appended."""
@@ -118,11 +132,22 @@ def _check_monotonic_timestamps(result: ParseResult) -> list[Defect]:
 
 
 def summarise(result: ParseResult) -> str:
-    """One line naming why a source was rejected, for the refusal record."""
+    """One line naming why a source was rejected, for the refusal record.
+
+    Leads with the most diagnostic blocking defect rather than the first one
+    found, and says how many others there were.
+    """
     blocking = result.blocking_defects
     if not blocking:
         return ""
-    head = blocking[0]
+
+    def rank(defect: Defect) -> int:
+        try:
+            return _REPORT_PRIORITY.index(defect.code)
+        except ValueError:
+            return len(_REPORT_PRIORITY)
+
+    head = min(blocking, key=rank)
     location = f" at line {head.line_number}" if head.line_number else ""
     extra = f" (and {len(blocking) - 1} further blocking defect(s))" if len(blocking) > 1 else ""
     return f"{head.code.value}{location}: {head.detail}{extra}"
