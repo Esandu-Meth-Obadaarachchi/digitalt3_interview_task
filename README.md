@@ -19,21 +19,95 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | ID  | Capability                       | Priority | Status    | Note |
 |-----|----------------------------------|----------|-----------|------|
 | M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription at Phase 9 |
-| M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, and again by database trigger |
-| M3  | Extract action items             | MUST     | Not built | Phase 3. The model layer, prompt and chunker it needs are built and tested |
+| M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
+| M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
 | M4  | Extract decisions                | MUST     | Not built | Phase 5 |
 | M5  | Extract risks and blockers       | SHOULD   | Not built | Phase 5 |
-| M6  | Review and approval queue        | MUST     | Not built | Approval and audit triggers written and tested, no queue yet |
-| M7  | Write approved items to tracker  | MUST     | Not built | Idempotency constraint written and tested, no adapter yet |
-| M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is already populated at ingestion |
+| M6  | Review and approval queue        | MUST     | Partial   | Queue, edit, approve, reject, expiry and audit trail all work. The downstream write it gates arrives with M7 |
+| M7  | Write approved items to tracker  | MUST     | Not built | Phase 4. Idempotency constraint written and tested |
+| M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
 | M9  | Chat signal classification       | SHOULD   | Not built | DM exclusion enforced by schema, no parser yet |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Not built | Phase 8 |
 | M11 | Structured outcome record        | SHOULD   | Not built | Phase 8 |
 | M12 | Follow-up message draft          | COULD    | Not built | Phase 8 |
 | M13 | Per-person digest                | COULD    | Not built | Phase 8 |
 
-**Evaluation results:** none yet. The harness arrives in Phase 3. No number
-appears in this README until `make eval` reproduces it.
+---
+
+## Measured quality
+
+Produced by `make eval`, committed at [`eval/results.txt`](eval/results.txt).
+Reproduce with `make eval-fresh`, which bypasses the response cache.
+
+**gemini-3.6-flash, prompt `extract_actions` v2, 13 hand-labelled actions across
+the two valid transcripts.**
+
+| # | Metric | Measured | Target | |
+|---|---|---|---|---|
+| 1  | Action recall | **0.92** | ≥ 0.70 | pass |
+| 1b | Precision | 0.63 | reported | see below |
+| 2  | **Fabricated quotes** | **0** | 0 | pass |
+| 3a | Owner accuracy where named | 0.90 | ≥ 0.90 | pass |
+| 3b | UNSPECIFIED compliance | 2/2 | all | pass |
+| 4  | Invented dates | **0** | 0 | pass |
+| 4b | Relative dates resolved | 5 | reported | each carries the rule that produced it |
+
+### What the harness found, and what was done about it
+
+The first real run failed two targets and mismeasured a third. All three are in
+the git history as one commit.
+
+**The closing recap was re-extracted as new commitments.** A meeting ending
+"so to recap, Priya is finishing the auth refactor, James is setting up the
+pipeline" restates every commitment thousands of characters from where it was
+made, and span-based deduplication cannot see that far. Five of ten false
+positives. Fixed in two places: the deduplicator gained a rule for the same
+named owner committing to the same task anywhere in the meeting, and the prompt
+now says a recap is not a new commitment.
+
+**A date stated for one commitment was attached to another.** "I'll send out a
+poll by end of day. Lisa to coordinate the demo scheduling" gave the
+coordinating work the poll's deadline. Two invented dates. Prompt v2 states the
+timing must belong to this commitment and uses that passage as its example.
+Invented dates went to zero. The date rules were left alone: weakening them to
+make the metric pass would have been gaming the measurement.
+
+**The harness mis-assigned matches.** A single greedy pass let an early golden
+action claim an extraction on the weak signal that a later one would have
+claimed on the strong signal. Pairing is now two-pass, quote overlap first.
+
+| | before | after |
+|---|---|---|
+| Recall | 0.85 | **0.92** |
+| Precision | 0.52 | **0.63** |
+| Invented dates | 2 (fail) | **0** (pass) |
+| UNSPECIFIED compliance | not measured | **2/2** (pass) |
+| Owner accuracy | 1.00 | 0.90 |
+
+### The weakest part of this build
+
+**Precision of 0.63 is the number to be sceptical about, and it is not what it
+looks like.** Reading all seven remaining false positives by hand: six are
+genuine commitments that the hand-labelled golden set simply does not contain
+("I'll send the notes around within the hour", "I'll share the link in the team
+channel", "I'll send you her contact details"). One is a matching artefact: the
+golden set quotes a request and the model quoted the acceptance of it.
+
+So the measured precision is a lower bound, and the golden set is incomplete
+rather than the extractor being noisy. **Those six were deliberately not added
+to the golden set**, because labelling ground truth after seeing what the model
+produced is fitting the labels to the output. With more time the right fix is a
+second person labelling both transcripts blind.
+
+**Owner accuracy fell from 1.00 to 0.90 with prompt v2 and is reported as such.**
+The single failure returns UNSPECIFIED for a commitment whose owner the golden
+set names. An abstention where attribution was possible is the safe direction to
+be wrong in, but it is still wrong.
+
+**Gemini is not deterministic at temperature 0.** Two runs minutes apart over
+the same chunk with the same prompt returned different action sets. This is why
+responses are cached, why the cache key covers the prompt version, and why
+`make eval-fresh` exists to prove the committed numbers reproduce.
 
 ---
 
@@ -41,28 +115,25 @@ appears in this README until `make eval` reproduces it.
 
 ```
 backend/app/db/schema.sql            13 tables, 3 FTS5 indexes, 20 triggers
-backend/app/config.py                typed configuration from .env
-backend/app/errors.py                domain errors, sqlite error translation
-backend/app/db/database.py           connection, transaction, init, reset
-backend/app/db/repositories/         all SQL, one module per entity
+backend/app/config.py errors.py      typed settings, domain errors
+backend/app/db/                      connection, transaction, repositories
 backend/app/models/                  Pydantic contracts
 backend/app/ingestion/               M1 parsers, M2 consent gate, validation
 backend/app/extraction/
   prompts.py                         versioned prompt loading
   chunker.py                         segment-boundary chunks with context
-  llm/base.py                        the provider interface
-  llm/gemini.py  llm/ollama.py       two real providers, one interface
-  llm/fake.py                        deterministic stub for the test suite
-  llm/factory.py                     config to provider, one function
-  llm/cache.py  llm/rate_limit.py    free-tier survival
-  llm/client.py                      the one wrapper: retry, repair, account
+  quote_verifier.py                  the substring check and where the quote sits
+  dates.py                           relative dates, anchored to the meeting
+  deduplicator.py                    two rules, within a region and across one
+  actions.py                         M3, the extraction pipeline
+  llm/                               two providers, one interface, retry, cache
 backend/app/prompts/*.txt            one versioned file per capability
-backend/app/main.py                  FastAPI app, one error-to-status mapping
-backend/app/routers/sources.py       thin HTTP surface
-backend/tests/                       114 passing tests
-scripts/seed.py                      rebuild the store and ingest sample data
-scripts/check_env.py                 configuration and provider reachability
-scripts/llm_smoke.py                 one real chunk through the live model
+backend/app/review/queue.py          M6 rules: edit, approve, reject, expire
+backend/app/routers/                 thin HTTP: sources, extractions, review
+frontend/                            React 19 + TypeScript + Tailwind
+eval/harness.py golden.py            the golden cases and the scoring
+backend/tests/ eval/test_harness.py  209 passing tests
+scripts/                             seed, check-env, llm-smoke, fixtures
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```
 
@@ -72,7 +143,9 @@ Try it:
 make seed                     # ingests, refuses and rejects, and says which
 make check-env                # which providers are reachable, which prompts exist
 make llm-smoke PROVIDER=fake  # the whole model path offline, no key needed
-make llm-smoke                # the same chunk against the live model
+make eval                     # the golden cases against the live model
+make run                      # API on :8000
+make ui                       # review interface on :5173
 ```
 
 ## Setup

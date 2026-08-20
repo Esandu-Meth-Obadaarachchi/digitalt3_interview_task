@@ -339,3 +339,130 @@ large `data/llm_cache/`. `make cache-clear` empties it.
 (8 GB of RAM, and a 7-8B model alongside FAISS and Whisper is tight). The
 provider is written, its unreachable path is tested, and the README says so
 rather than implying it has been run.
+
+---
+
+## Phase 3 — Action extraction, the review queue, and the first measurement
+
+### Decisions
+
+**D31. Quote verification runs inside the retry loop, not after it.**
+The validator is handed to the model wrapper, so a quote that is not a literal
+substring of the transcript is a validation failure like a missing field, and
+the model is told which quote failed and how far into it the text stopped
+matching. The brief calls the substring check "cheap and decisive" and asks
+that the model be retried with the failure fed back before an item is given up
+on.
+
+**D32. A quote that cannot be verified is flagged, not discarded.**
+The validator gets the full retry budget. If the model still cannot produce a
+literal quote, the last schema-valid response is taken and the offending items
+are stored with `quote_verified = 0`, sorted to the top of the queue, and
+blocked from approval without an explicit override and a written reason.
+*Why not discard:* it would make the fabricated-quote metric zero by
+construction. The brief warns that a harness reporting everything passing
+usually means the cases were too easy. The number has to be able to be non-zero
+or it is not a measurement.
+*Cost:* the extra call to retrieve the flagged items is free, because the same
+prompt is served from the response cache.
+
+**D33. Deduplication needs two different rules, because duplication has two
+different causes.**
+*Within a region:* chunk overlap causes the same words to be read twice. Caught
+by quote-span overlap of at least half the shorter span AND task-description
+containment of at least 0.4. Both are required. Span alone would merge two
+commitments made in one sentence ("I'll write the tests and Priya will review
+the schema"); task alone would merge two people committing to similar work in
+different parts of a meeting.
+*Across the meeting:* a closing recap restates every commitment thousands of
+characters from where it was made. Span comparison cannot see that far. Caught
+instead by the same NAMED owner and task containment of at least 0.7, with no
+span requirement. The threshold is higher because there is no span evidence
+supporting it, only the wording.
+*Measured, not guessed:* on the sample data 0.7 merges every recap restatement
+and merges nothing it should not. The nearest non-duplicate pair by the same
+owner scores 0.0. UNSPECIFIED owners are excluded, because "the same owner" is
+meaningless when nobody was named.
+*Containment rather than Jaccard,* because the model describes the same
+commitment at different lengths in different chunks and Jaccard penalises that.
+*When the rules disagree, both candidates are kept.* A duplicate in the review
+queue is visible and dismissed in one click. A wrong merge is invisible and has
+destroyed a real commitment.
+*The survivor is kept whole.* Fields are never mixed between two candidates,
+because a record assembled from two model outputs is one that no model produced,
+and neither its quote nor its owner could then be traced to a single place.
+Confidence ties break toward the earlier quote, so a recap never wins over the
+moment the commitment was made.
+
+**D34. Dates resolve in place to ISO, with provenance kept alongside.**
+`due_date` holds an ISO date or UNSPECIFIED, which is the clean contract for
+anything downstream. `due_date_type`, `due_date_stated` and `due_date_rule` sit
+beside it.
+*Why the provenance is not optional:* golden case 4 measures invented dates, and
+a resolved date is otherwise indistinguishable from one the transcript stated.
+Without provenance the metric cannot be computed at all.
+*Anchored to the meeting date, never to today,* so re-running the harness next
+month produces the same answer.
+*What no rule covers is not resolved.* "Early October", "soon", "next sprint"
+and "after the audit" stay UNSPECIFIED. An approximate date presented as a real
+one is exactly the failure golden case 4 probes for.
+
+**D35. `expired` is the safe default, and the expiry sweep takes an injectable
+clock.** The rubric asks for "a safe default on timeout or no response". An
+unreviewed item ages out to `expired`, which the approval-gate trigger treats
+exactly like `pending`: not writable. The clock is injectable so the behaviour
+is demonstrable without waiting three days.
+
+**D36. An unverified quote needs an override and a written reason.**
+The database would accept the row. A distracted click should not. The reason is
+recorded in the audit trail prefixed as an override, so a later reader can tell
+a considered acceptance from an ordinary approval.
+
+**D37. The fabricated-quote count is recomputed, not read.**
+The harness re-checks each stored quote against the stored transcript rather
+than trusting `quote_verified`, so the most important number in the submission
+does not depend on the code path that set the flag.
+
+**D38. A stub run refuses to be mistaken for a measurement.**
+Running the harness against the deterministic provider prints a NOT A
+MEASUREMENT banner and writes no results file, because that provider answers
+from the golden file itself. Its perfect scores prove the pipeline and the
+scoring code and say nothing about model quality.
+
+**D39. The model is pinned to an exact version.**
+`gemini-2.0-flash` returned 404 mid-build: Google had retired it. Replaced with
+`gemini-3.6-flash`, pinned rather than using the `gemini-flash-latest` alias, so
+a committed evaluation result names the model that produced it.
+
+**D40. Golden labels were not added after seeing model output.**
+Six of the seven remaining false positives are genuine commitments the
+hand-labelled set does not contain. Adding them now would be fitting ground
+truth to output, so precision is reported as a lower bound instead, with the
+reason stated in the README.
+
+### Assumptions
+
+**A7.** A commitment restated by the same named person later in the same
+meeting is the same commitment, not a second one. This is what makes the
+cross-region deduplication rule safe.
+
+**A8.** Temperature 0 is requested but not relied upon. Gemini returned
+different action sets for the same chunk minutes apart, so the response cache
+is what makes an evaluation run reproducible, not the temperature setting.
+
+### Known limitations
+
+**L9.** Precision measures 0.63 and is a lower bound. The golden set is
+incomplete. With more time, a second person would label both transcripts blind.
+
+**L10.** Owner accuracy is 0.90, not 1.00. One commitment whose owner the
+golden set names comes back UNSPECIFIED. Abstaining where attribution was
+possible is the safe direction to be wrong in, and it is still wrong.
+
+**L11.** The extraction pipeline is not deterministic, because the model is not.
+See A8.
+
+**L12.** Extraction takes roughly 140 seconds for two transcripts across six
+chunks against the hosted free tier. Acceptable for a batch tool, and the
+per-source cost and latency are recorded in `llm_calls` for anyone who wants to
+optimise it.
