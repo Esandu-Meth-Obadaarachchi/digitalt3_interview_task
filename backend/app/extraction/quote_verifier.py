@@ -20,6 +20,10 @@ from app.ingestion.normaliser import normalise_text
 from app.models.extraction import QuoteLocation
 from app.models.source import Segment
 
+#: Below this many characters, a matching prefix says nothing useful about
+#: where the model drifted.
+MIN_USEFUL_PREFIX = 12
+
 
 def verify_quote(quote: str, source_text: str) -> bool:
     """Is this quote a literal substring of the source?
@@ -64,12 +68,14 @@ def rejection_message(quote: str, source_text: str) -> str:
 
     Includes the longest prefix of the quote that IS present in the source, so
     the model can see where it began to drift rather than being told only that
-    it was wrong.
+    it was wrong. A prefix shorter than MIN_USEFUL_PREFIX is not reported: "the
+    first 1 characters match" is noise, and the quote is better described as
+    absent.
     """
     normalised = normalise_text(quote)
 
     longest = 0
-    for length in range(min(len(normalised), 200), 0, -1):
+    for length in range(min(len(normalised), 200), MIN_USEFUL_PREFIX - 1, -1):
         if normalised[:length] in source_text:
             longest = length
             break

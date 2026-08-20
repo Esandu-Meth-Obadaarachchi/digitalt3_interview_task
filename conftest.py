@@ -1,4 +1,9 @@
-"""Shared test fixtures.
+"""Shared test fixtures, at the repository root.
+
+At the root rather than under backend/tests/ so that the eval harness's own
+tests, which live in eval/, use exactly the same temporary database and the
+same scripted model as the unit tests. A harness tested against a different
+fixture than the code it scores is not testing much.
 
 Every test runs against a throwaway database built from the real schema.sql,
 never against a hand-written test schema. If a constraint is dropped from the
@@ -83,3 +88,56 @@ def client(settings: Settings):
 @pytest.fixture()
 def sample_data_dir() -> Path:
     return REPO_ROOT / "sample_data"
+
+
+@pytest.fixture()
+def golden_actions() -> list[dict]:
+    import json
+
+    raw = (REPO_ROOT / "sample_data" / "golden" / "golden_actions.json").read_text(encoding="utf-8")
+    return json.loads(raw)["actions"]
+
+
+@pytest.fixture()
+def scripted_model(golden_actions):
+    """A provider that answers a chunk with the golden actions it contains.
+
+    Simulates a model that gets everything right, which is what makes the
+    pipeline and the scoring code testable without a network. Tests that need a
+    model to get something *wrong* script the failure explicitly instead.
+    """
+    import json
+
+    from app.extraction.llm.factory import set_provider_override
+    from app.extraction.llm.fake import FakeProvider
+    from app.ingestion.normaliser import normalise_text
+
+    installed: list = []
+
+    def install(transform=None):
+        def respond(request):
+            chunk = normalise_text(request.prompt)
+            actions = [
+                {
+                    "what": g["what"],
+                    "owner": g["owner"],
+                    "due_date": g["due_date"],
+                    "verbatim_quote": g["verbatim_quote"],
+                    "speaker": g["speaker"],
+                    "timestamp": g["timestamp"],
+                    "confidence": 0.85,
+                }
+                for g in golden_actions
+                if normalise_text(g["verbatim_quote"]) in chunk
+            ]
+            if transform is not None:
+                actions = transform(actions)
+            return json.dumps({"actions": actions})
+
+        provider = FakeProvider().default(respond)
+        set_provider_override(provider)
+        installed.append(provider)
+        return provider
+
+    yield install
+    set_provider_override(None)
