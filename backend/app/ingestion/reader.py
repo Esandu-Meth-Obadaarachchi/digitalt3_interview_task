@@ -7,16 +7,17 @@ mojibake into the store and later into a "verbatim" quote.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
-from app.models.ingestion import Defect, DefectCode, DefectSeverity
+from app.models.ingestion import Defect, DefectCode, DefectSeverity, ReadResult
 
 # Bytes read either side of a decode failure when building the excerpt.
 _EXCERPT_RADIUS = 40
 
 
-def read_source_text(path: Path) -> tuple[str, str, int, list[Defect]]:
-    """Return (text, encoding, bytes_read, defects).
+def read_source_text(path: Path) -> ReadResult:
+    """Read a source file and report any encoding problem as a defect.
 
     On a decode failure the text is still returned, lossily decoded, so the
     caller can build a readable excerpt for the rejection message. The
@@ -25,16 +26,23 @@ def read_source_text(path: Path) -> tuple[str, str, int, list[Defect]]:
     defects: list[Defect] = []
 
     if not path.exists():
-        return "", "unknown", 0, [
-            Defect(
-                code=DefectCode.EMPTY_FILE,
-                severity=DefectSeverity.ERROR,
-                detail=f"file does not exist: {path}",
-            )
-        ]
+        return ReadResult(
+            text="",
+            encoding="unknown",
+            bytes_read=0,
+            defects=[
+                Defect(
+                    code=DefectCode.EMPTY_FILE,
+                    severity=DefectSeverity.ERROR,
+                    detail=f"file does not exist: {path}",
+                )
+            ],
+        )
 
     raw = path.read_bytes()
     bytes_read = len(raw)
+    # Hash of the raw bytes, so a changed file is detectable without a diff.
+    content_hash = hashlib.sha256(raw).hexdigest()
 
     if bytes_read == 0 or not raw.strip():
         defects.append(
@@ -44,7 +52,9 @@ def read_source_text(path: Path) -> tuple[str, str, int, list[Defect]]:
                 detail=f"file is empty ({bytes_read} bytes), nothing to ingest",
             )
         )
-        return "", "utf-8", bytes_read, defects
+        return ReadResult(
+            text="", encoding="utf-8", bytes_read=bytes_read, content_hash=content_hash, defects=defects
+        )
 
     try:
         text = raw.decode("utf-8")
@@ -80,4 +90,6 @@ def read_source_text(path: Path) -> tuple[str, str, int, list[Defect]]:
             )
         )
 
-    return text, encoding, bytes_read, defects
+    return ReadResult(
+        text=text, encoding=encoding, bytes_read=bytes_read, content_hash=content_hash, defects=defects
+    )
