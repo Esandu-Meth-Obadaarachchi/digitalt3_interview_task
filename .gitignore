@@ -51,3 +51,4 @@ models/
 .idea/
 .vscode/
 *.swp
+claude_skills/
