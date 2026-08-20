@@ -1,0 +1,49 @@
+
+Meeting & Channel Intelligence Agent - evaluation
+2026-08-20T17:51:43+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
+13 hand-labelled actions, 19 extracted
+
+      Metric                        Measured   Target     Status
+  --------------------------------------------------------------------
+  1   Action recall                     0.92   >= 0.70    PASS
+      12/13 hand-labelled actions found
+  1b  Precision                         0.63   reported   reported
+      7 extraction(s) matched no golden action
+  2   Fabricated quotes                    0   = 0        PASS
+      recomputed against the stored transcript, not read from the stored flag
+  3a  Owner accuracy (named)            0.90   >= 0.90    PASS
+      9/10 matched actions where an owner is stated
+  3b  UNSPECIFIED compliance             2/2   all        PASS
+      a guessed owner counts as a failure, not a near-miss. action_cs_02: expected 'David Park', got 'UNSPECIFIED'
+  4   Invented dates                       0   = 0        PASS
+      no date was produced without support
+  4b  Relative dates resolved              5   reported   reported
+      e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19
+
+  Confidence calibration  does the model's own confidence predict correctness
+  threshold     kept  correct  precision   recall
+  >= 0.00         19       12       0.63     0.92
+  >= 0.50         19       12       0.63     0.92
+  >= 0.70         19       12       0.63     0.92
+  >= 0.80         19       12       0.63     0.92
+  >= 0.90         17       11       0.65     0.85
+
+  Model usage  6 attempt(s) for 6 call(s), retry rate 0%, 0 cache hit(s)
+  11543 prompt + 2433 completion tokens, 143145 ms total
+  outcomes: {'ok': 6}
+
+  Missed (in the golden set, not extracted)
+    action_sp_03
+
+  False positives (extracted, matching no golden action)
+    meeting-client-status-2024-08-19::action::a7ffd7af
+    meeting-client-status-2024-08-19::action::ac545671
+    meeting-client-status-2024-08-19::action::037b9830
+    meeting-sprint-planning-2024-11-18::action::f2cfee1f
+    meeting-sprint-planning-2024-11-18::action::c33aa793
+    meeting-sprint-planning-2024-11-18::action::3c26f3d0
+    meeting-sprint-planning-2024-11-18::action::c89c248d
+
+  every targeted metric met
+

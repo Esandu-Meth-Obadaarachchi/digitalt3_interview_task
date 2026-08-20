@@ -1,0 +1,234 @@
+/**
+ * M1 and M2 made visible.
+ *
+ * Refused and errored sources are listed alongside successful ones, because a
+ * refusal is a record rather than an omission and the demo has to show the
+ * non-consented meeting being seen and declined. The refused source's
+ * "0 bytes read" is the evidence that its file was never opened.
+ */
+
+import { useEffect, useState } from "react";
+import { api, ApiFailure } from "../api/client";
+import type { ExtractionRun, IngestionReport, Source } from "../api/types";
+import { Badge, Button, Empty, ErrorNote, Field, Panel } from "../components/ui";
+
+const STATUS_TONE = { ingested: "ok", refused: "bad", error: "warn" } as const;
+
+export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
+  const [sources, setSources] = useState<Source[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [report, setReport] = useState<IngestionReport | null>(null);
+  const [run, setRun] = useState<ExtractionRun | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ code?: string; message: string } | null>(null);
+
+  const load = () => api.sources().then(setSources).catch(fail);
+
+  const fail = (exc: unknown) =>
+    setError(
+      exc instanceof ApiFailure
+        ? { code: exc.code, message: exc.message }
+        : { message: String(exc) },
+    );
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  useEffect(() => {
+    setReport(null);
+    setRun(null);
+    if (selected) api.report(selected).then(setReport).catch(() => setReport(null));
+  }, [selected]);
+
+  const seed = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.seed();
+      await load();
+    } catch (exc) {
+      fail(exc);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const extract = async (id: string) => {
+    setBusy(true);
+    setError(null);
+    setRun(null);
+    try {
+      setRun(await api.extractActions(id));
+      onExtracted();
+    } catch (exc) {
+      fail(exc);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const active = sources.find((s) => s.id === selected) ?? null;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="space-y-4">
+        <Panel
+          title="Sources"
+          subtitle={`${sources.length} ingested, refused or rejected`}
+          actions={
+            <Button onClick={seed} disabled={busy}>
+              {busy ? "working…" : "Seed sample data"}
+            </Button>
+          }
+        >
+          {sources.length === 0 ? (
+            <Empty>Nothing ingested yet. Seed the committed sample data to begin.</Empty>
+          ) : (
+            <ul className="divide-y divide-[var(--color-line)]">
+              {sources.map((source) => (
+                <li key={source.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(source.id)}
+                    className={`w-full px-4 py-3 text-left transition-colors hover:bg-[var(--color-canvas)] ${
+                      selected === source.id ? "bg-[var(--color-canvas)]" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-medium">{source.title}</span>
+                      <Badge tone={STATUS_TONE[source.status]}>{source.status}</Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
+                      <span>{source.meeting_date ?? "no date"}</span>
+                      <span>·</span>
+                      <span>{source.participants.length} participant(s)</span>
+                      {!source.consent_flag && (
+                        <>
+                          <span>·</span>
+                          <span className="font-medium text-[var(--color-bad)]">consent withheld</span>
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <ErrorNote error={error} />
+      </div>
+
+      <div className="space-y-4">
+        {!active ? (
+          <Panel title="Ingestion report">
+            <Empty>Select a source to see what ingestion did with it.</Empty>
+          </Panel>
+        ) : (
+          <>
+            <Panel
+              title={active.title}
+              subtitle={active.id}
+              actions={
+                active.status === "ingested" ? (
+                  <Button tone="info" disabled={busy} onClick={() => extract(active.id)}>
+                    Extract actions
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    title={
+                      active.status === "refused"
+                        ? "Consent was withheld. Nothing may be sent to a model."
+                        : "This source was rejected at ingestion and has no stored segments."
+                    }
+                  >
+                    Extract actions
+                  </Button>
+                )
+              }
+            >
+              <div className="grid grid-cols-2 gap-4 px-4 py-3 sm:grid-cols-3">
+                <Field label="Status">
+                  <Badge tone={STATUS_TONE[active.status]}>{active.status}</Badge>
+                </Field>
+                <Field label="Consent">
+                  {active.consent_flag ? (
+                    <Badge tone="ok">granted</Badge>
+                  ) : (
+                    <Badge tone="bad">withheld</Badge>
+                  )}
+                </Field>
+                <Field label="Format">{active.origin_format ?? "not read"}</Field>
+                <Field label="Bytes read">
+                  <span className={report?.bytes_read === 0 ? "font-semibold text-[var(--color-bad)]" : ""}>
+                    {report ? report.bytes_read.toLocaleString() : "—"}
+                  </span>
+                </Field>
+                <Field label="Segments">{report?.segments_parsed ?? "—"}</Field>
+                <Field label="Speakers">{report?.speakers.length ?? "—"}</Field>
+              </div>
+
+              {(active.refusal_reason || active.error_detail) && (
+                <div className="border-t border-[var(--color-line)] px-4 py-3">
+                  <ErrorNote
+                    error={{
+                      code: active.status === "refused" ? "consent refused" : "rejected at ingestion",
+                      message: active.refusal_reason ?? active.error_detail ?? "",
+                    }}
+                  />
+                </div>
+              )}
+
+              {report?.silent_participants.length ? (
+                <div className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+                  Listed as present but never spoke: {report.silent_participants.join(", ")}
+                </div>
+              ) : null}
+            </Panel>
+
+            {report && report.defects.length > 0 && (
+              <Panel title="Defects found" subtitle="Errors block ingestion. Warnings travel with the source.">
+                <ul className="divide-y divide-[var(--color-line)]">
+                  {report.defects.map((defect, index) => (
+                    <li key={index} className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Badge tone={defect.severity === "error" ? "bad" : "warn"}>{defect.severity}</Badge>
+                        <span className="text-xs font-medium">{defect.code}</span>
+                        {defect.line_number && (
+                          <span className="text-xs text-[var(--color-muted)]">line {defect.line_number}</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">{defect.detail}</p>
+                      {defect.excerpt && <p className="quote mt-1 text-[var(--color-muted)]">“{defect.excerpt}”</p>}
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
+
+            {run && (
+              <Panel title="Extraction run" subtitle={`prompt v${run.prompt_version} · ${run.provider}:${run.model}`}>
+                <div className="grid grid-cols-3 gap-4 px-4 py-3">
+                  <Field label="Chunks">{run.chunks}</Field>
+                  <Field label="Candidates">{run.candidates}</Field>
+                  <Field label="Duplicates removed">{run.duplicates_removed}</Field>
+                  <Field label="Stored">{run.stored}</Field>
+                  <Field label="Quotes verified">
+                    <span className="text-[var(--color-ok)]">{run.verified_quotes}</span>
+                    {run.unverified_quotes > 0 && (
+                      <span className="text-[var(--color-bad)]"> · {run.unverified_quotes} unverified</span>
+                    )}
+                  </Field>
+                  <Field label="Abstentions">
+                    {run.unspecified_owner} owner · {run.unspecified_due_date} date
+                  </Field>
+                </div>
+              </Panel>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

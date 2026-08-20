@@ -33,7 +33,7 @@ def test_seed_endpoint_ingests_the_committed_sample_data(client):
     statuses = {o["source"]["id"]: o["source"]["status"] for o in response.json()}
     assert statuses == {
         "meeting-sprint-planning-2024-11-18": "ingested",
-        "meeting-client-status-2024-11-18": "ingested",
+        "meeting-client-status-2024-08-19": "ingested",
         "meeting-team-sync-2024-11-15": "refused",
         "meeting-design-review-2024-11-17": "error",
     }
@@ -61,7 +61,7 @@ def test_sources_can_be_filtered_by_status(client):
     ingested = client.get("/api/sources", params={"status": "ingested"}).json()
     assert {s["id"] for s in ingested} == {
         "meeting-sprint-planning-2024-11-18",
-        "meeting-client-status-2024-11-18",
+        "meeting-client-status-2024-08-19",
     }
 
 

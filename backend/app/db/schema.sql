@@ -223,6 +223,8 @@ CREATE TABLE IF NOT EXISTS extractions (
     confidence        REAL CHECK (confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)),
     dedup_key         TEXT,                                -- stable hash, cross-chunk deduplication
     chunk_id          TEXT,
+    merged_from       TEXT NOT NULL DEFAULT '[]',          -- JSON array of absorbed candidate keys
+    merge_reason      TEXT,                                -- why the deduplicator merged them
     provider          TEXT,
     model_name        TEXT,
     prompt_version    TEXT,

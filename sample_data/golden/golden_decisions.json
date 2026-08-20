@@ -23,7 +23,7 @@
     },
     {
       "id": "decision_cs_01",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what_was_decided": "Proceed with Phase 2 starting September first",
       "stated_rationale": "Gives two weeks of buffer after Phase 1 demo, and the reporting module can be delivered by end of October which leaves two weeks before the November 15th board presentation",
       "who_stated_it": "David Park",
@@ -35,7 +35,7 @@
   "deferred_decisions": [
     {
       "id": "deferred_cs_01",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what_was_proposed": "Switch to a new analytics provider (Amplitude or Mixpanel) instead of the current one",
       "why_deferred": "Not enough information to decide. Q3 usage numbers needed to determine if the issue is the provider or just a preference. Numbers come out in early October.",
       "who_deferred_it": "Sarah Chen",

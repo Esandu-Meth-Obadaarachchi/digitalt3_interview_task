@@ -92,7 +92,7 @@
     },
     {
       "id": "action_cs_01",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what": "Send the security architecture document to David",
       "owner": "Priya Sharma",
       "due_date": "Wednesday",
@@ -103,7 +103,7 @@
     },
     {
       "id": "action_cs_02",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what": "Share the updated patient portal requirements document with Sarah",
       "owner": "David Park",
       "due_date": "UNSPECIFIED",
@@ -114,7 +114,7 @@
     },
     {
       "id": "action_cs_03",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what": "Prepare the technical feasibility report for the real-time sync feature",
       "owner": "Priya Sharma",
       "due_date": "UNSPECIFIED",
@@ -125,7 +125,7 @@
     },
     {
       "id": "action_cs_04",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what": "Schedule a follow-up meeting with the Helios compliance team",
       "owner": "Lisa Tran",
       "due_date": "UNSPECIFIED",
@@ -136,7 +136,7 @@
     },
     {
       "id": "action_cs_05",
-      "source_id": "meeting-client-status-2024-11-18",
+      "source_id": "meeting-client-status-2024-08-19",
       "what": "Coordinate the Phase 1 demo scheduling for last week of August",
       "owner": "Lisa Tran",
       "due_date": "UNSPECIFIED",
