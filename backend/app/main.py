@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.db import database
 from app.errors import AgentError
-from app.routers import sources
+from app.routers import extractions, review, sources
 
 logger = logging.getLogger("agent")
 
@@ -100,3 +100,5 @@ def health() -> dict[str, object]:
 
 
 app.include_router(sources.router)
+app.include_router(extractions.router)
+app.include_router(review.router)
