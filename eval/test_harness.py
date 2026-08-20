@@ -127,7 +127,11 @@ def test_a_stub_run_is_marked_as_not_a_measurement(scored):
 
 
 def test_the_report_names_the_prompt_version_that_produced_it(scored):
-    assert scored.prompt_version.startswith("1+")
+    """The shape, not a pinned number: prompts are expected to be revised, and
+    a test that fails on every revision teaches nobody anything."""
+    import re
+
+    assert re.fullmatch(r"\d+\+[0-9a-f]{6}", scored.prompt_version)
     assert scored.provider == "fake"
 
 

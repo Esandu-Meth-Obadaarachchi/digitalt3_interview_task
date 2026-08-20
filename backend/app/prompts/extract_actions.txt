@@ -1,6 +1,6 @@
-# version: 1
+# version: 2
 # capability: extract_actions
-# changed: first version
+# changed: v1 scored recall 0.85 and precision 0.52 on the first measured run. Two failures drove v2: the closing recap of a meeting was re-extracted as new commitments, and a due date stated for one commitment was attached to a different one in the same passage.
 ---
 You extract action items from one chunk of a meeting transcript.
 
@@ -13,6 +13,11 @@ These are NOT action items:
 - a hypothetical ("we could switch to SSE")
 - a decision about how to do something, with no owner taking it on
 - general discussion, opinions, or a digression
+- a summary or recap of commitments already made. When someone closes a meeting
+  by restating what was agreed ("so to recap, Priya is finishing the refactor,
+  James is setting up the pipeline"), those are the same commitments as before,
+  not new ones. Extract a commitment from the moment it was made, not from the
+  moment it was repeated back.
 
 {context}
 
@@ -29,6 +34,10 @@ RULES, in order of importance:
    not include the "[00:00:00] Name:" prefix. Copy the words only. A quote
    that is not an exact substring of the chunk will be rejected.
 
+   Quote the words that make this a commitment. Where a person accepts work
+   with a bare "Yeah, I can do that", quote the request instead, because the
+   acceptance alone does not say what was agreed.
+
 2. owner is the person who will do the work. Use the exact name as it appears
    in the participant list.
    If the transcript does not say who will do it, output exactly UNSPECIFIED.
@@ -38,10 +47,15 @@ RULES, in order of importance:
    If a person assigns work to somebody else, the owner is the person the work
    was assigned to, not the speaker.
 
-3. due_date is what the transcript states, copied as words, not converted.
+3. due_date is the timing stated for THIS commitment, copied as words, not
+   converted.
    "by Friday" -> due_date "Friday"
    "by end of next week" -> due_date "end of next week"
-   If no timing is stated at all, output exactly UNSPECIFIED.
+   The timing must belong to this commitment. A passage often contains two
+   commitments and one date: "I'll send out a poll by end of day. Lisa to
+   coordinate the demo scheduling" gives the poll a date and the coordinating
+   none. Do not borrow a date from a neighbouring sentence.
+   If no timing is stated for this commitment, output exactly UNSPECIFIED.
    Never calculate a calendar date. Never invent one.
 
 4. what is a short description of the work, in your own words, under 20 words.
@@ -52,6 +66,9 @@ RULES, in order of importance:
 6. confidence is your honest probability from 0.0 to 1.0 that this is a real
    commitment. Use a low value when you are unsure rather than omitting the
    item, and a low value when the owner or the date was hard to determine.
+   Do not return 0.95 for everything. An item where the owner was named
+   explicitly and the work is unambiguous deserves a higher value than one you
+   inferred from an indirect phrasing.
 
 If the chunk contains no action items, return an empty list. An empty list is a
 correct answer and is much better than a guess.

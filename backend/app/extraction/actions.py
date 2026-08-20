@@ -198,6 +198,7 @@ def extract_actions(
                     quote=action.verbatim_quote,
                     task=action.what,
                     confidence=action.confidence,
+                    owner=action.owner,
                     location=locate_quote(action.verbatim_quote, source_text, segments),
                 )
             )

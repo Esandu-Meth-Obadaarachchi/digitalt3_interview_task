@@ -90,25 +90,44 @@ class Pairing(StrictModel):
 
 
 def pair(golden: list[GoldenAction], extractions: list) -> Pairing:
-    """Align one-to-one, best quote overlap first.
+    """Align one-to-one, in two passes.
 
-    Greedy and one-to-one on purpose: allowing one extraction to satisfy two
-    golden actions would let a single vague item claim credit for several
-    commitments.
+    Pass one matches on quote overlap only, which is the strong signal: two
+    items quoting the same words are about the same moment in the meeting.
+    Pass two applies the task fallback to whatever is left.
+
+    Two passes rather than one, because a single greedy pass lets an early
+    golden action claim an extraction on the weak signal that a later golden
+    action would have claimed on the strong one, which understates recall
+    without any extraction being wrong.
+
+    One-to-one throughout: allowing one extraction to satisfy two golden
+    actions would let a single vague item take credit for several commitments.
     """
     result = Pairing()
     used: set[str] = set()
+    unmatched = list(golden)
 
-    for item in golden:
-        for extraction in extractions:
-            if extraction.id in used:
-                continue
-            if matches(item, extraction.verbatim_quote, extraction.payload.get("what", "")):
-                result.matched[item.id] = extraction.id
-                used.add(extraction.id)
-                break
-        else:
-            result.missed.append(item.id)
+    for strong_only in (True, False):
+        remaining: list[GoldenAction] = []
+        for item in unmatched:
+            for extraction in extractions:
+                if extraction.id in used:
+                    continue
+                task = extraction.payload.get("what", "")
+                hit = (
+                    quotes_overlap(item.verbatim_quote, extraction.verbatim_quote)
+                    if strong_only
+                    else matches(item, extraction.verbatim_quote, task)
+                )
+                if hit:
+                    result.matched[item.id] = extraction.id
+                    used.add(extraction.id)
+                    break
+            else:
+                remaining.append(item)
+        unmatched = remaining
 
+    result.missed = [item.id for item in unmatched]
     result.false_positives = [e.id for e in extractions if e.id not in used]
     return result

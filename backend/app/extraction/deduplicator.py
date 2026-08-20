@@ -5,7 +5,20 @@ complete in at least one chunk. The price is that the same commitment is
 extracted more than once, and paying that price knowingly is better than
 missing commitments at chunk boundaries.
 
-Two candidates are the same commitment when BOTH signals agree:
+There are two ways one commitment appears twice, and they need different
+rules.
+
+**Within a region.** Chunk overlap causes the same words to be read twice.
+Caught by comparing quote spans and task descriptions.
+
+**Across the meeting.** A meeting that ends "so, to recap: Priya is finishing
+the auth refactor, James is setting up the pipeline" states every commitment a
+second time, thousands of characters from where it was made. Span comparison
+cannot see this, and it was the largest single source of false positives in the
+first measured run: five of ten. Caught instead by owner and task alone.
+
+Rule one, within a region. Two candidates are the same commitment when BOTH
+signals agree:
 
   same region  their quotes are identical after whitespace normalisation, or
                their quote spans overlap by at least half the shorter span
@@ -39,7 +52,7 @@ import hashlib
 import re
 
 from app.ingestion.normaliser import normalise_text
-from app.models.common import StrictModel
+from app.models.common import UNSPECIFIED, StrictModel
 from app.models.extraction import QuoteLocation
 
 #: Fraction of the shorter quote span that must overlap. Half means one quote
@@ -55,9 +68,16 @@ SPAN_OVERLAP_THRESHOLD = 0.5
 TASK_SIMILARITY_THRESHOLD = 0.4
 
 #: Containment reaches 1.0 trivially when one side has a single content word,
-#: so a description below this length is not allowed to match on rule two at
+#: so a description below this length is not allowed to match on similarity at
 #: all and can only be merged by an identical quote.
 MIN_CONTENT_WORDS = 2
+
+#: Rule two: the same named owner committing to the same task, anywhere in the
+#: meeting. Held higher than the within-region threshold because there is no
+#: span evidence supporting it, only the wording. Measured on the sample data:
+#: 0.7 merges every recap restatement it should and merges nothing it should
+#: not. The nearest non-duplicate pair by the same owner scores 0.0.
+CROSS_REGION_TASK_THRESHOLD = 0.7
 
 #: Words carrying no information about which task is being described.
 _STOPWORDS = frozenset(
@@ -76,6 +96,7 @@ class Candidate(StrictModel):
     quote: str
     task: str
     confidence: float
+    owner: str = UNSPECIFIED
     location: QuoteLocation | None = None
 
 
@@ -122,24 +143,39 @@ def span_overlap(left: QuoteLocation | None, right: QuoteLocation | None) -> flo
 
 def are_duplicates(left: Candidate, right: Candidate) -> tuple[bool, str]:
     """Decide, and say why. The reason is stored on the surviving record."""
+    similarity = task_similarity(left.task, right.task)
+
+    # --- rule one: the same words read twice, from overlapping chunks --------
     identical = normalise_text(left.quote) == normalise_text(right.quote)
     overlap = 1.0 if identical else span_overlap(left.location, right.location)
-    if overlap < SPAN_OVERLAP_THRESHOLD:
-        return False, ""
 
-    similarity = task_similarity(left.task, right.task)
-    if similarity < TASK_SIMILARITY_THRESHOLD:
-        return False, ""
+    if overlap >= SPAN_OVERLAP_THRESHOLD and similarity >= TASK_SIMILARITY_THRESHOLD:
+        region = (
+            "identical quote after whitespace normalisation"
+            if identical
+            else f"quote spans overlap by {overlap:.0%} of the shorter span"
+        )
+        return True, (
+            f"{region}, and {similarity:.0%} of the shorter task description's content "
+            f"words appear in the longer one"
+        )
 
-    region = (
-        "identical quote after whitespace normalisation"
-        if identical
-        else f"quote spans overlap by {overlap:.0%} of the shorter span"
+    # --- rule two: the same person, the same task, anywhere in the meeting ---
+    # A closing recap restates commitments made earlier. Same owner and nearly
+    # the same task is one commitment stated twice, not two commitments.
+    same_named_owner = (
+        left.owner == right.owner
+        and left.owner != UNSPECIFIED
+        and bool(left.owner.strip())
     )
-    return True, (
-        f"{region}, and {similarity:.0%} of the shorter task description's content "
-        f"words appear in the longer one"
-    )
+    if same_named_owner and similarity >= CROSS_REGION_TASK_THRESHOLD:
+        return True, (
+            f"the same named owner ({left.owner}) committing to the same task in two places: "
+            f"{similarity:.0%} of the shorter task description's content words appear in the "
+            f"longer one. Typically a closing recap restating a commitment made earlier."
+        )
+
+    return False, ""
 
 
 def deduplicate(candidates: list[Candidate]) -> tuple[list[Candidate], list[MergeResult]]:
@@ -150,7 +186,13 @@ def deduplicate(candidates: list[Candidate]) -> tuple[list[Candidate], list[Merg
     survivors only, which is quadratic in the number of survivors and entirely
     adequate: a 25-minute meeting yields tens of candidates, not thousands.
     """
-    ordered = sorted(candidates, key=lambda c: (-c.confidence, c.key))
+    # Highest confidence first, ties broken by position, so that when a recap
+    # and the original statement are equally confident the survivor is the one
+    # where the commitment was actually made.
+    ordered = sorted(
+        candidates,
+        key=lambda c: (-c.confidence, c.location.char_start if c.location else 10**9, c.key),
+    )
     survivors: list[Candidate] = []
     merges: dict[str, MergeResult] = {}
 
