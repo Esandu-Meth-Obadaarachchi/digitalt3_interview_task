@@ -8,7 +8,7 @@ approves it.
 Built for the DigitalT3 intern selection challenge. The brief is committed at
 [`docs/challenge/`](docs/challenge/).
 
-> **Status: Phase 0 of 12 complete.** This README is rewritten from the code at
+> **Status: Phase 1 of 12 complete.** This README is rewritten from the code at
 > the end of every phase. The table below reports what runs today, not what is
 > planned. Nothing is marked Done until it runs end to end on the sample data.
 
@@ -18,14 +18,14 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 | ID  | Capability                       | Priority | Status    | Note |
 |-----|----------------------------------|----------|-----------|------|
-| M1  | Ingest and normalise a source    | MUST     | Not built | Schema and contracts in place, parsers arrive in Phase 1 |
-| M2  | Consent gate                     | MUST     | Not built | Database trigger enforcing it is written and tested, no ingestion path to gate yet |
+| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription at Phase 9 |
+| M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, and again by database trigger |
 | M3  | Extract action items             | MUST     | Not built | Phase 3 |
 | M4  | Extract decisions                | MUST     | Not built | Phase 5 |
 | M5  | Extract risks and blockers       | SHOULD   | Not built | Phase 5 |
 | M6  | Review and approval queue        | MUST     | Not built | Approval and audit triggers written and tested, no queue yet |
 | M7  | Write approved items to tracker  | MUST     | Not built | Idempotency constraint written and tested, no adapter yet |
-| M8  | Cross-source question answering  | MUST     | Not built | Phase 6 |
+| M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is already populated at ingestion |
 | M9  | Chat signal classification       | SHOULD   | Not built | DM exclusion enforced by schema, no parser yet |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Not built | Phase 8 |
 | M11 | Structured outcome record        | SHOULD   | Not built | Phase 8 |
@@ -40,18 +40,35 @@ appears in this README until `make eval` reproduces it.
 ## What exists right now
 
 ```
-backend/app/db/schema.sql        13 tables, 3 FTS5 indexes, 20 triggers
-backend/app/config.py            typed configuration from .env
-backend/app/errors.py            domain errors, sqlite error translation
-backend/app/db/database.py       connection, transaction, init, reset
-backend/app/models/              Pydantic contracts for sources and segments
-backend/tests/                   19 passing tests over the schema guarantees
-scripts/seed.py                  rebuild the store, validate the sample manifest
-sample_data/                     4 transcripts, 1 chat export, 5 golden files
-Makefile                         setup / seed / run / test / eval
+backend/app/db/schema.sql            13 tables, 3 FTS5 indexes, 20 triggers
+backend/app/config.py                typed configuration from .env
+backend/app/errors.py                domain errors, sqlite error translation
+backend/app/db/database.py           connection, transaction, init, reset
+backend/app/db/repositories/         all SQL, one module per entity
+backend/app/models/                  Pydantic contracts
+backend/app/ingestion/
+  consent.py                         M2, the gate
+  reader.py                          bytes, strict UTF-8, encoding defects
+  parsers/txt.py vtt.py json_...     M1, three formats, one internal shape
+  parsers/speakers.py                is this prefix really a speaker label
+  validator.py                       severity-graded defects
+  normaliser.py                      segments with citable char offsets
+  service.py                         the pipeline, one transaction per source
+backend/app/main.py                  FastAPI app, one error-to-status mapping
+backend/app/routers/sources.py       thin HTTP surface
+backend/tests/                       71 passing tests
+scripts/seed.py                      rebuild the store and ingest sample data
+scripts/make_format_fixtures.py      generates the vtt/json/defect fixtures
+sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```
 
----
+Try it:
+
+```bash
+make seed                                     # ingests, refuses and rejects, and says which
+curl localhost:8000/api/sources | jq          # after `make run`
+curl localhost:8000/api/sources/meeting-team-sync-2024-11-15/report | jq .bytes_read   # 0
+```
 
 ## Setup
 
@@ -82,6 +99,25 @@ against someone opening the file with the `sqlite3` CLI. The service layer
 repeats the same checks to return friendly errors. See
 [`backend/app/db/schema.sql`](backend/app/db/schema.sql).
 
+**The consent gate fires on metadata, before the file is opened.** A refused
+source's ingestion report carries `bytes_read: 0`, which is machine-checkable
+evidence that the content was never read, never parsed and never sent to a
+model. Checking after parsing would satisfy the wording while the content sat
+in memory and in the store.
+
+**Ambiguity is never resolved by guessing.** An unlabelled transcript line
+keeps `speaker: null` and records a warning saying why, rather than inheriting
+the speaker from the line above. A first name shared by two participants
+(the sample data contains both a Priya Sharma and a Priya Menon) is left
+unresolved. `UNSPECIFIED` is a first-class typed value, so the model always
+has a correct thing to output.
+
+**Malformed files are graded, not binary.** Truncation, undecodable bytes and
+an unrecognisable format reject the whole file and store nothing. A missing
+speaker label or a missing timestamp travels with the source as a warning. The
+brief requires the deliberately broken sample be rejected with a clear reason;
+it does not require rejecting every imperfect file.
+
 **Direct messages are excluded by construction.** `chat_messages` carries
 `CHECK (is_direct_message = 0)`, so a DM is physically unstorable rather than
 merely filtered by a code path. `noise` is likewise absent from the
@@ -93,19 +129,13 @@ virtual tables and their sync triggers are native SQL and would need a
 hand-written migration under an ORM anyway, and Pydantic already supplies the
 typed contracts.
 
-**`UNSPECIFIED` is a first-class value.** The brief names silent guessing as
-the most damaging failure mode in this domain. Abstention is an explicit typed
-value, so the model always has a correct thing to output and is never cornered
-into inventing an owner or a date.
-
-**The database is a build artefact.** `make seed` rebuilds it from
-`schema.sql`. Seed data is disposable, so migration tooling that would never be
-exercised is not carried.
+**One definition of "the text of a source".** Segments are joined by single
+spaces after whitespace normalisation. Quote verification checks against that
+string and every character offset indexes into it, so a citation points at a
+location inside a source rather than at the source, and can be checked by hand.
 
 Fuller reasoning, including what has been cut, lives in
 [`decision_log.md`](decision_log.md).
-
----
 
 ## Sample data
 
@@ -115,8 +145,17 @@ one chat export of 90 messages across three channels of which one is a direct
 message thread, and five hand-labelled golden files.
 
 The transcript content was generated with an LLM, which the brief states is
-expected and fine. The golden labels were checked by hand: all 19 verbatim
-quotes in the golden files verify as literal substrings of their transcripts.
+expected and fine. The golden labels were checked by hand, and the check is
+automated: `test_every_golden_quote_is_a_substring_of_the_normalised_source_text`
+asserts every hand-labelled quote verifies against the exact string the
+extraction pipeline will use, so ground truth cannot silently drift from the
+system that is measured against it.
+
+`sample_data/format_fixtures/` holds the same client status call rendered as
+WebVTT and as JSON, plus files with invalid UTF-8, zero bytes and an
+unrecognisable format. They exercise the parsers and the read-defect paths.
+They are deliberately not registered in `sources.json`: ingesting the same
+conversation three times would double-count it and skew every golden metric.
 
 ---
 

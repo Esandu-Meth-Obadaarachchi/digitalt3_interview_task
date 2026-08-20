@@ -5,9 +5,9 @@ Run with `make seed`. Destructive by design: the database holds disposable
 seed data, so rebuilding from the authoritative schema is simpler and more
 honest than migration tooling that would never be exercised.
 
-Phase 0 builds the store and validates the sample-data manifest. Ingestion of
-transcripts and the chat export is wired in from Phase 1, where the parsers
-exist.
+Rebuilds the store, then runs every declared source through the ingestion
+pipeline and prints what happened to each. The chat export is wired in at
+Phase 7, where the classifier exists.
 """
 
 from __future__ import annotations
@@ -23,6 +23,8 @@ from pydantic import ValidationError  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.db import database  # noqa: E402
+from app.ingestion.service import ingest_transcript  # noqa: E402
+from app.models.common import SourceType  # noqa: E402
 from app.models.source import SourceMetadata  # noqa: E402
 
 GREEN, RED, YELLOW, DIM, RESET = "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[0m"
@@ -91,7 +93,36 @@ def main() -> int:
         print(f"\n{RED}{missing} declared file(s) missing from sample_data/{RESET}\n")
         return 1
 
-    print(f"\n{DIM}Ingestion is wired in from Phase 1. Store is ready at {path}{RESET}\n")
+    print(f"\n{DIM}ingesting{RESET}")
+    failures = 0
+    for entry in entries:
+        if entry.source_type is not SourceType.TRANSCRIPT:
+            print(f"  {YELLOW}skip{RESET} {entry.id:<42}{DIM} chat export, wired in at Phase 7{RESET}")
+            continue
+
+        outcome = ingest_transcript(entry, settings=settings)
+        report = outcome.report
+        label = {
+            "ingested": f"{GREEN}ingested{RESET}",
+            "refused": f"{RED}refused {RESET}",
+            "error": f"{YELLOW}error   {RESET}",
+        }[report.status.value]
+
+        print(
+            f"  {label} {entry.id:<42}"
+            f"{DIM}{report.bytes_read:>7} B  {report.segments_parsed:>3} segments  "
+            f"{len(report.warnings)} warning(s){RESET}"
+        )
+        if report.rejection_reason:
+            print(f"           {DIM}{report.rejection_reason[:150]}{RESET}")
+        if report.silent_participants:
+            print(f"           {DIM}listed but never spoke: {', '.join(report.silent_participants)}{RESET}")
+        if report.status.value == "error":
+            failures += 1
+
+    print(f"\n{DIM}store ready at {path}{RESET}")
+    print(f"{DIM}{failures} source(s) rejected as malformed, which is expected: the sample set "
+          f"contains one deliberately broken file{RESET}\n")
     return 0
 
 
