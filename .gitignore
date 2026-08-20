@@ -1,0 +1,54 @@
+# --- Secrets -----------------------------------------------------------------
+# Never commit real credentials. .env.example carries the variable names only.
+.env
+.env.local
+*.pem
+*.key
+
+# --- Python ------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# --- Node / frontend ---------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- Runtime artefacts -------------------------------------------------------
+# The database is rebuilt from schema.sql + sample_data by `make seed`,
+# so it is a build artefact and not source.
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/faiss/
+data/llm_cache/
+data/audio/*.wav
+data/audio/*.aiff
+
+# Mock adapter write logs are generated at runtime. A seeded example is
+# committed separately under sample_data/ so reviewers see the shape.
+write_log/*.jsonl
+data/digests/
+data/outcome_records/
+
+# --- Model weights -----------------------------------------------------------
+# Downloaded on first run by `make setup`. Far too large for git.
+models/
+.cache/
+
+# --- OS / editor -------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+claude_skills/

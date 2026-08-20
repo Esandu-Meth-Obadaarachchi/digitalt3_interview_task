@@ -1,0 +1,26 @@
+# =============================================================================
+# Backend dependencies - Meeting & Channel Intelligence Agent
+# =============================================================================
+# Direct dependencies are pinned exactly. Transitive dependencies are left to
+# the resolver: pinning the whole tree would need a lock file, and for a build
+# of this size the direct pins are what actually determine behaviour.
+#
+# Python 3.11 is required. It is the newest version with settled wheels for
+# faiss-cpu, sentence-transformers and ctranslate2 on Apple Silicon.
+#
+# Dependencies are added in the phase that first uses them, so this file grows
+# alongside the code rather than declaring an intended stack up front.
+# =============================================================================
+
+# --- Phase 0: service, configuration, contracts ------------------------------
+fastapi==0.141.1              # thin HTTP layer, routing and validation only
+uvicorn[standard]==0.52.4     # ASGI server
+pydantic==2.13.4              # the data contracts, and LLM output validation
+pydantic-settings==2.15.0     # typed configuration from .env
+python-multipart==0.0.32      # multipart form parsing for file upload
+httpx==0.28.1                 # HTTP client, used by the Ollama provider
+
+# --- Phase 0: testing and the eval harness -----------------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+rich==15.0.0                  # tables for the eval harness output
