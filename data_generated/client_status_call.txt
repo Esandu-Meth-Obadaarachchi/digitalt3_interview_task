@@ -1,0 +1,101 @@
+[00:00:08] Lisa Tran: Good afternoon everyone. Lisa Tran here, Account Manager. Let me get us started. On the call today we have David Park from Helios Healthcare, Sarah Chen our Project Lead, and Priya Sharma our Technical Lead. David, thanks for making time today.
+
+[00:00:24] David Park: Thanks Lisa. I've got about forty-five minutes before my next meeting so let's make it count.
+
+[00:00:32] Lisa Tran: Absolutely. Sarah, do you want to start with the project status update?
+
+[00:00:38] Sarah Chen: Sure. So overall we're tracking well against the Phase 1 milestones. The core data ingestion pipeline is in production and processing about twelve thousand records per day without issues. The authentication layer is being refactored this week to improve response times, that should be done by Friday. And the dashboard metrics view is on track, Priya Menon on our team is building that out now.
+
+[00:01:08] David Park: Good to hear about the ingestion pipeline. We've noticed the throughput is stable which is exactly what we needed. One thing I wanted to raise though. Our compliance team has been asking about the encryption at rest for the stored records. Can you confirm the status on that?
+
+[00:01:28] Priya Sharma: Yes, all data at rest is encrypted using AES-256. That's been in place since day one. The encryption keys are managed through AWS KMS with automatic rotation every ninety days. I can send you the security architecture document if your compliance team wants to review the specifics.
+
+[00:01:50] David Park: That would be helpful. Can you send that over by end of this week?
+
+[00:01:56] Priya Sharma: I'll have it to you by Wednesday actually. It's already written, I just need to update the key rotation schedule section.
+
+[00:02:04] David Park: Great. Wednesday works.
+
+[00:02:08] Lisa Tran: Noted. Priya to send the security architecture document to David by Wednesday. Moving on, Sarah, do you want to discuss the Phase 2 timeline?
+
+[00:02:20] Sarah Chen: Yes. So Phase 2 covers the reporting module, the patient portal, and the third-party integrations. Based on where we are right now and the dependencies, I'm proposing we start Phase 2 on September first. That gives us two weeks of buffer after the Phase 1 client demo to handle any issues that come up.
+
+[00:02:44] David Park: September first. Let me think about that. Our board presentation is November fifteenth and I need the reporting module live by then. Does September first give us enough runway?
+
+[00:02:58] Sarah Chen: It does. The reporting module is the first deliverable in Phase 2. We're targeting eight weeks for it, which puts us at end of October. That gives you two weeks of buffer before the board presentation.
+
+[00:03:14] David Park: Okay I'm comfortable with that. Let's proceed with Phase 2 starting September first.
+
+[00:03:22] Lisa Tran: Good. So the decision is we proceed with Phase 2 starting September first. Sarah, anything else on the timeline?
+
+[00:03:32] Sarah Chen: One thing. David, your team mentioned they'd share an updated requirements document for the patient portal. We need that to start scoping the work. Can you get that to us?
+
+[00:03:46] David Park: Yes, I've been meaning to do that. I'll have my product manager compile the latest version and send it to Sarah. Should be ready within the next few days.
+
+[00:03:58] Lisa Tran: David to share the updated patient portal requirements document with Sarah. Got it.
+
+[00:04:06] David Park: Now, there's something I want to bring up. I've been talking to our analytics team and they're not happy with our current analytics provider. The data refresh is too slow and the custom report builder is clunky. I've been looking at switching to Amplitude or Mixpanel. Since we're building the reporting module from scratch anyway, should we consider integrating with a new analytics provider instead of the current one?
+
+[00:04:38] Priya Sharma: That's an interesting question. From a technical standpoint, switching providers mid-project is doable but it adds complexity. We'd need to evaluate the API differences, the data export format, and how it affects the existing dashboards. It's probably a two-week evaluation on its own.
+
+[00:04:58] Sarah Chen: I agree with Priya. It's worth exploring but I don't think we have enough information right now to make that call. We don't have the Q3 usage numbers yet and those would tell us a lot about what's actually failing with the current provider versus what's just a preference issue.
+
+[00:05:18] David Park: Fair point. The Q3 numbers come out in early October.
+
+[00:05:24] Sarah Chen: Then I think we should defer this decision until we have the Q3 usage numbers in front of us. We can revisit it in the October review meeting. Making a switch without that data is a risk and I don't want us to commit engineering resources to an evaluation that might not be necessary.
+
+[00:05:44] David Park: That's reasonable. Let's park it for now and come back to it in October with the data.
+
+[00:05:52] Lisa Tran: Okay so the analytics provider switch is deferred until the October review when Q3 numbers are available. Not a decision we're making today.
+
+[00:06:02] Sarah Chen: Correct. Explicitly deferred.
+
+[00:06:08] Lisa Tran: Clear. Next item. Priya, you wanted to discuss the real-time synchronisation feature?
+
+[00:06:16] Priya Sharma: Yes. So David's team has requested a real-time sync between the Helios patient management system and our platform. Right now we're doing batch imports every six hours. They want near-real-time, within thirty seconds of a record update on their side.
+
+[00:06:38] David Park: That's correct. Our clinical staff are entering data throughout the day and the six-hour lag means our dashboards are always behind. It's causing confusion in the afternoon shift handover meetings.
+
+[00:06:54] Priya Sharma: I understand the need. I want to prepare a technical feasibility report before we commit to a timeline on this. There are implications for our database load, our API rate limits, and how we handle conflict resolution when both systems update the same record within the sync window.
+
+[00:07:16] Sarah Chen: Good idea. Priya, can you prepare that feasibility report and present it at the next status call?
+
+[00:07:24] Priya Sharma: Yes. I'll have the feasibility analysis ready for the next meeting. It'll cover the three implementation options I'm considering and the tradeoffs of each.
+
+[00:07:36] Lisa Tran: Priya Sharma to prepare the technical feasibility report for the real-time sync feature for the next status call. 
+
+[00:07:46] David Park: I want to raise a risk while we're on the topic of data sync. Our compliance audit is scheduled for October fifteenth and the auditors will want to see the encryption module fully operational by then. If the encryption module isn't complete, we'll need to request a postponement which would delay our go-live by at least a month.
+
+[00:08:12] Sarah Chen: That's a real risk. Priya, where are we on the encryption module specifically?
+
+[00:08:18] Priya Sharma: The encryption at rest is done as I mentioned. The encryption in transit is standard TLS. The piece that's outstanding is the field-level encryption for the sensitive patient identifiers. That's about seventy percent complete. I need another two to three weeks to finish it and get it through the security review.
+
+[00:08:42] Sarah Chen: So October fifteenth is tight but feasible if we prioritise it. Let's make sure it doesn't slip. Priya, flag it immediately if anything blocks you on the field-level encryption.
+
+[00:08:56] Priya Sharma: Understood. I'll keep it as my top priority after the auth refactor wraps up.
+
+[00:09:04] Lisa Tran: Good. I want to set up a check-in with the compliance team separately to make sure we're aligned on what exactly they need to see during the audit. Lisa to schedule a follow-up meeting with the Helios compliance team.
+
+[00:09:22] David Park: Appreciate that Lisa. My compliance lead is Rachel Torres, I'll send you her contact details.
+
+[00:09:30] Lisa Tran: Perfect. Alright, any other items before we wrap up?
+
+[00:09:36] Sarah Chen: One more thing. We should align on the demo format for the Phase 1 review. David, do you want a live walkthrough or a recorded demo that your team can review at their own pace?
+
+[00:09:50] David Park: Live walkthrough. My CTO wants to ask questions in real-time and I know a few of the clinical leads will want to see specific workflows demonstrated. Can we schedule that for the last week of August?
+
+[00:10:04] Sarah Chen: Absolutely. Lisa, can you coordinate the scheduling? We'll need about ninety minutes.
+
+[00:10:12] Lisa Tran: I'll send out a poll by end of day. Lisa to coordinate the Phase 1 demo scheduling for last week of August.
+
+[00:10:22] David Park: Sounds good. I think that covers everything from my side. Good progress overall, I'm pleased with where things are.
+
+[00:10:32] Sarah Chen: Thanks David. We'll keep pushing on the priorities and I'll flag anything that changes between now and the next call.
+
+[00:10:40] Lisa Tran: Great meeting everyone. I'll send the notes around within the hour. Talk soon.
+
+[00:10:48] David Park: Thanks everyone. Bye.
+
+[00:10:50] Priya Sharma: Thanks. Bye.
+
+[00:10:52] Sarah Chen: Bye.

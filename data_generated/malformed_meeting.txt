@@ -1,0 +1,17 @@
+[00:00:04] Rachel Kim: Let's kick off the design review for the onboarding flow. I've shared the Figma link in the chat.
+
+[00:00:12] Alex Torres: Got it. So the current flow has seven screens from signup to first task completion. User testing showed that people drop off at screen four which is the team invitation step.
+
+[00:00:28] The main issue is that we're asking for too much information before they've seen any value. They haven't created a single task yet and we're asking them to invite their whole team.
+
+[00:00:42] Rachel Kim: Agreed. I think we should flip the order. Let them create their first project and first task, then prompt for team invites. That way they've experienced the core value before we ask them to commit socially.
+
+[00:00:58] Alex Torres: That makes sense. We'd need to rework the state machine though. Right now the onboarding controller assumes a linear flow. If we allow skipping and reordering we need to track which steps are complete independently.
+
+[00:01:14] I've sketched out a revised flow. Screen one is still the basic signup. Screen two goes straight into creating a project with a template. Screen three is creating their first task. Then screen four becomes the team invite which is now optional, they can skip it. Screen five is the settings and preferences which we can also make optional.
+
+[00:01:38] Rachel Kim: I like that. What about the progress indicator? If steps are optional, a linear progress bar doesn't make sense anymore.
+
+[00:01:48] Alex Torres: Good point. We could switch to a checklist style. Show all five steps as a sidebar checklist, mark completed ones, and let them do them in any order. The only required ones would be signup, create project, and create task.
+
+[00:02:04] We'd need to upd

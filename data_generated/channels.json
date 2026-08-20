@@ -1,0 +1,815 @@
+{
+  "export_date": "2024-11-20T18:00:00Z",
+  "messages": [
+    {
+      "id": "msg_001",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T09:12:00Z",
+      "thread_id": null,
+      "text": "Morning all. I've pushed the auth refactor branch. Ready for review when anyone has time.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_002",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-18T09:15:00Z",
+      "thread_id": null,
+      "text": "Nice. I'll take a look after standup.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_003",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T09:22:00Z",
+      "thread_id": null,
+      "text": "Heads up: the staging environment is down. The SSL certificate expired overnight. Can't run any integration tests until it's fixed.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_004",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-18T09:25:00Z",
+      "thread_id": "msg_003",
+      "text": "On it. I'll renew the cert and restart the services. Should be back up within the hour.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_005",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T09:30:00Z",
+      "thread_id": null,
+      "text": "Reminder: standup in 30 minutes. Please have your updates ready.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_006",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-18T09:45:00Z",
+      "thread_id": null,
+      "text": "Question: does anyone know if the design system tokens have been updated for the new colour palette? I'm seeing inconsistencies between Figma and what's in the codebase.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_007",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T09:48:00Z",
+      "thread_id": "msg_006",
+      "text": "I don't think they have. The Figma was updated last week but nobody synced the CSS variables.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_008",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-18T09:50:00Z",
+      "thread_id": "msg_006",
+      "text": "Can someone from the design team sync the tokens? I don't want to do it manually and risk getting it wrong.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_009",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T10:30:00Z",
+      "thread_id": null,
+      "text": "After standup discussion: we've decided to move the client demo from Thursday to next Monday. David's CTO has a conflict on Thursday.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_010",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T10:35:00Z",
+      "thread_id": "msg_009",
+      "text": "Works for me. Gives us an extra weekend to polish the demo environment.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_011",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-18T10:40:00Z",
+      "thread_id": "msg_003",
+      "text": "Staging is back up. Renewed the cert and added a monitoring alert so we don't get caught again.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_012",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T11:15:00Z",
+      "thread_id": null,
+      "text": "Anyone else having issues with the test database? My migration scripts are failing with a connection timeout.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_013",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T11:18:00Z",
+      "thread_id": "msg_012",
+      "text": "Try clearing the connection pool. I had the same issue yesterday. The pool was exhausted because the test teardown wasn't closing connections properly.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_014",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T11:22:00Z",
+      "thread_id": "msg_012",
+      "text": "That fixed it. Thanks Priya.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_015",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T13:00:00Z",
+      "thread_id": null,
+      "text": "Just got off a call with Lisa. The client wants a written summary of all the architectural decisions we've made so far. Can someone compile a list from our ADR folder and send it to me by end of week?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_016",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-18T13:05:00Z",
+      "thread_id": "msg_015",
+      "text": "I can do that. I set up the ADR folder so I know where everything is.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_017",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T14:30:00Z",
+      "thread_id": null,
+      "text": "lol this error message from the legacy API: 'Something went wrong. Or maybe it didn't. We're not sure.'",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_018",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T14:32:00Z",
+      "thread_id": "msg_017",
+      "text": "Classic. That API was written in 2016 and it shows.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_019",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T15:00:00Z",
+      "thread_id": null,
+      "text": "Blocker: the Meridian Pay sandbox API is returning 503 errors again. This is the third time this week. We cannot test the payment flow at all right now.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_020",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-18T15:05:00Z",
+      "thread_id": "msg_019",
+      "text": "I've escalated with their support. No ETA yet. We might need to build a local mock of their API so we can keep testing independently.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_021",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-18T15:30:00Z",
+      "thread_id": null,
+      "text": "The new dashboard charts look great by the way. Really happy with how the SSE integration turned out.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_022",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T16:00:00Z",
+      "thread_id": null,
+      "text": "EOD reminder: please update your Jira tickets before you log off. I need accurate sprint burndown data for tomorrow's report.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_023",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T16:45:00Z",
+      "thread_id": null,
+      "text": "Auth refactor PR is up. 47 files changed but most of it is test fixtures. Core logic changes are in three files.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_024",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-18T16:50:00Z",
+      "thread_id": "msg_023",
+      "text": "I'll review it first thing tomorrow morning.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_025",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T09:00:00Z",
+      "thread_id": null,
+      "text": "Good morning team. Quick update from the client side: David confirmed the board presentation date is November 15th. Everything needs to be production-ready by November 1st for their internal review.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_026",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T09:10:00Z",
+      "thread_id": "msg_025",
+      "text": "November 1st for production-ready. That's tighter than what we discussed. We agreed September 1st start for Phase 2 with the reporting module done by end of October. Adding a full production-ready gate by November 1st adds pressure.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_027",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T09:15:00Z",
+      "thread_id": "msg_025",
+      "text": "I know. I'm going to push back on that and clarify scope. They can't have everything production-ready by November 1st. We need to agree on what's in and what's Phase 3.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_028",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T09:20:00Z",
+      "thread_id": "msg_025",
+      "text": "Agreed. Let's get a priority list from David this week. The reporting module and encryption module are non-negotiable for the audit. Patient portal can probably wait.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_029",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T10:00:00Z",
+      "thread_id": null,
+      "text": "Decision: we'll use the new Helios brand colours for the dashboard. David sent the updated brand kit this morning. I've uploaded it to the shared drive.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_030",
+      "channel": "proj-meridian-client",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-18T10:05:00Z",
+      "thread_id": "msg_029",
+      "text": "Thanks Lisa. I'll update the theme variables today.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_031",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T11:00:00Z",
+      "thread_id": null,
+      "text": "FYI: David's assistant emailed about invoicing. They need our updated W-9 before they can process the next milestone payment. Can someone from finance handle this?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_032",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T11:05:00Z",
+      "thread_id": "msg_031",
+      "text": "I'll forward it to accounting. That's outside our scope but I'll make sure it doesn't block the payment.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_033",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T13:30:00Z",
+      "thread_id": null,
+      "text": "Just spoke with David. He's asking if we can add a data export feature to the reporting module. He wants users to be able to download reports as CSV and PDF.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_034",
+      "channel": "proj-meridian-client",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T13:35:00Z",
+      "thread_id": "msg_033",
+      "text": "CSV is trivial. PDF is more work because we need to handle formatting, headers, pagination. Is this a must-have for the board presentation?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_035",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T13:40:00Z",
+      "thread_id": "msg_033",
+      "text": "He says CSV is the priority. PDF would be nice to have. I'll tell him CSV is in scope and PDF is stretch.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_036",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T14:00:00Z",
+      "thread_id": null,
+      "text": "Risk flag: if the compliance audit on October 15th finds issues with our encryption implementation, the remediation work could eat into our Phase 2 timeline. We should have a contingency plan.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_037",
+      "channel": "proj-meridian-client",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T14:05:00Z",
+      "thread_id": "msg_036",
+      "text": "Agreed. I'll schedule a pre-audit review with our security lead next week to catch anything before the formal audit.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_038",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T15:00:00Z",
+      "thread_id": null,
+      "text": "Meeting poll sent for the Phase 1 demo. Please respond by tomorrow so I can confirm with David.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_039",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T15:10:00Z",
+      "thread_id": "msg_038",
+      "text": "Responded. Monday or Tuesday works for me.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_040",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T16:00:00Z",
+      "thread_id": null,
+      "text": "Quick question for the group: has anyone drafted the release notes for Phase 1? David wants to share them with his leadership team before the demo.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_041",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T16:05:00Z",
+      "thread_id": "msg_040",
+      "text": "Not yet. I'll draft them this week.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_042",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-18T16:30:00Z",
+      "thread_id": null,
+      "text": "Thanks everyone for a productive day. Don't forget to log your hours in the client billing sheet.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_043",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T08:45:00Z",
+      "thread_id": null,
+      "text": "Hey Priya, quick question before standup. How are you feeling about the auth refactor timeline? Be honest, is Friday realistic?",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_044",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T08:48:00Z",
+      "thread_id": "msg_043",
+      "text": "Friday is tight but doable. The main risk is the Redis integration tests. If the test Redis instance is flaky again I might need to push to Monday.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_045",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T08:50:00Z",
+      "thread_id": "msg_043",
+      "text": "Okay. Let's say Friday target, Monday fallback. I won't mention the Monday fallback in standup, just keep me posted privately.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_046",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T08:52:00Z",
+      "thread_id": "msg_043",
+      "text": "Will do. Also wanted to flag something privately. I think Marcus is overcommitting. He's taken on the load testing, the aggregation tests, and now the timezone edge cases. That's a lot for one sprint.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_047",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T08:55:00Z",
+      "thread_id": "msg_043",
+      "text": "Good catch. I'll check in with him after standup. He tends to take on more than he should because he doesn't want to say no. I'll see if we can shift the timezone work to next sprint.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_048",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T08:57:00Z",
+      "thread_id": "msg_043",
+      "text": "Thanks. Appreciate you handling it. I didn't want to call it out in the group meeting.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_049",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-18T12:30:00Z",
+      "thread_id": null,
+      "text": "Spoke to Marcus. He's fine, said the timezone work is smaller than it looks. But I told him to flag it early if he's behind. Thanks for the heads up.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_050",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-18T12:32:00Z",
+      "thread_id": null,
+      "text": "Good to hear. No worries.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_051",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-19T09:00:00Z",
+      "thread_id": null,
+      "text": "Good morning. CI pipeline update: the build and test stages are now fully automated. Deployment stage to staging is the last piece, working on it today.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_052",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T09:05:00Z",
+      "thread_id": "msg_051",
+      "text": "Great progress James. When do you expect the full pipeline to be done?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_053",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-19T09:08:00Z",
+      "thread_id": "msg_051",
+      "text": "Should be done by Thursday if the Docker registry access comes through today.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_054",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-19T09:30:00Z",
+      "thread_id": null,
+      "text": "SSE implementation is merged. Dashboard now updates in real-time. Can everyone do a quick smoke test on staging when you get a chance?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_055",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-19T09:45:00Z",
+      "thread_id": null,
+      "text": "Blocker update: the test database migration issue from yesterday is back. Clearing the connection pool was a temporary fix. The root cause is that our test suite opens 200+ connections and the default pool limit is 100.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_056",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T09:50:00Z",
+      "thread_id": "msg_055",
+      "text": "We should increase the pool limit in the test config and also add connection cleanup to the test teardown. I'll push a fix today.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_057",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T10:00:00Z",
+      "thread_id": null,
+      "text": "Anyone free for a quick pair session? I need help debugging the notification service. It's sending duplicate emails and I can't figure out why.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_058",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-19T10:02:00Z",
+      "thread_id": "msg_057",
+      "text": "I can jump on in 15 minutes. Probably a race condition in the event handler.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_059",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T11:30:00Z",
+      "thread_id": null,
+      "text": "Connection pool fix is pushed and tests are passing. Also added a CI check that fails if any test leaks more than 5 connections.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_060",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-19T11:35:00Z",
+      "thread_id": "msg_059",
+      "text": "Confirmed working on my end. Thanks Priya, that was blocking my entire test suite.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_061",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T12:00:00Z",
+      "thread_id": null,
+      "text": "Decision made in standup: we'll use Feature Flags for the new reporting module rollout instead of a big-bang release. This way we can test with David's team first before opening it to all users.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_062",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T12:05:00Z",
+      "thread_id": "msg_061",
+      "text": "Good call. I'll integrate LaunchDarkly. We're already paying for it through the company account.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_063",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-19T13:00:00Z",
+      "thread_id": null,
+      "text": "Load testing update: baseline results for the payments service are in. Current throughput is 450 requests per second with p99 latency at 320ms. That's under the 500ms target so we're in good shape.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_064",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T13:05:00Z",
+      "thread_id": "msg_063",
+      "text": "Good numbers. What happens at 2x the expected load?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_065",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-19T13:08:00Z",
+      "thread_id": "msg_063",
+      "text": "At 2x load p99 goes to 780ms and we start seeing occasional 504s. The bottleneck is the database connection pool, same issue we've been hitting in tests. I'll write up the full results and include scaling recommendations.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_066",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-19T14:00:00Z",
+      "thread_id": null,
+      "text": "The Figma design for the patient portal login page is ready for dev review. Link in the thread.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_067",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Menon",
+      "timestamp": "2024-11-19T14:01:00Z",
+      "thread_id": "msg_066",
+      "text": "https://figma.com/file/meridian-patient-portal-login",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_068",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-19T15:00:00Z",
+      "thread_id": null,
+      "text": "Docker registry access approved. Starting the deployment stage now.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_069",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T16:00:00Z",
+      "thread_id": null,
+      "text": "James and I debugged the duplicate email issue. It was a race condition. The event handler was subscribing twice on reconnection. Fixed and deployed to staging.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_070",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-19T16:30:00Z",
+      "thread_id": null,
+      "text": "Quick poll: should we add Sentry for error tracking or stick with CloudWatch? I've used both and Sentry gives us much better stack traces and user context.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_071",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-19T16:35:00Z",
+      "thread_id": "msg_070",
+      "text": "Sentry has a free tier that covers our current usage. I'd vote for adding it alongside CloudWatch, not replacing it.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_072",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T16:38:00Z",
+      "thread_id": "msg_070",
+      "text": "Plus one for Sentry. CloudWatch is great for infra metrics but terrible for application-level debugging.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_073",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-19T09:30:00Z",
+      "thread_id": null,
+      "text": "Morning. David confirmed Monday works for the Phase 1 demo. I've sent the calendar invite for 2pm to 3:30pm.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_074",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T09:35:00Z",
+      "thread_id": "msg_073",
+      "text": "Perfect. I'll prepare the demo script and share it for review by Friday.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_075",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-19T11:00:00Z",
+      "thread_id": null,
+      "text": "Update from David: his compliance team confirmed they need to see field-level encryption demonstrated during the audit, not just documented. Priya, can you make sure there's a live demo path for that?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_076",
+      "channel": "proj-meridian-client",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T11:10:00Z",
+      "thread_id": "msg_075",
+      "text": "Yes, I'll build a demo walkthrough that shows a record being encrypted at field level, stored, and then decrypted with the appropriate access key. I'll have it ready before the audit date.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_077",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-19T14:00:00Z",
+      "thread_id": null,
+      "text": "Question for the group: David asked if we can give his team read-only access to our staging environment so they can preview features before the demo. Thoughts?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_078",
+      "channel": "proj-meridian-client",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T14:10:00Z",
+      "thread_id": "msg_077",
+      "text": "I'd rather not until after the demo. Staging is unstable right now and I don't want them seeing half-finished features and forming opinions before we present properly.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_079",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-19T14:15:00Z",
+      "thread_id": "msg_077",
+      "text": "Fair point. I'll let David know we'll give them access after the Phase 1 demo.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_080",
+      "channel": "proj-meridian-client",
+      "author": "Lisa Tran",
+      "timestamp": "2024-11-19T16:00:00Z",
+      "thread_id": null,
+      "text": "Wrapping up for today. Reminder that client billing reports are due by Friday. Please check your hours are accurate.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_081",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T17:00:00Z",
+      "thread_id": null,
+      "text": "Good day team. Let's keep the momentum going tomorrow. Reminder that standup is at 9:30am.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_082",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T09:00:00Z",
+      "thread_id": null,
+      "text": "Quick update on the Marcus situation - he seemed fine in standup today. I think the workload is manageable for him.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_083",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T09:05:00Z",
+      "thread_id": "msg_082",
+      "text": "Good. Let's keep an eye on it though. His quality is always good but I've seen him burn out before when he doesn't push back on scope.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_084",
+      "channel": "dm-sarah-priya",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-19T17:00:00Z",
+      "thread_id": null,
+      "text": "By the way, totally unrelated but are you going to the team dinner on Friday? I'm trying to get a headcount for the reservation.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_085",
+      "channel": "dm-sarah-priya",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-19T17:05:00Z",
+      "thread_id": "msg_084",
+      "text": "Yes count me in!",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_086",
+      "channel": "proj-meridian-dev",
+      "author": "Priya Sharma",
+      "timestamp": "2024-11-20T09:15:00Z",
+      "thread_id": null,
+      "text": "Auth refactor is done and merged. All 47 integration tests passing. Redis cache TTL is set to 30 seconds as discussed.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_087",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-20T09:20:00Z",
+      "thread_id": "msg_086",
+      "text": "Ahead of schedule. Well done Priya.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_088",
+      "channel": "proj-meridian-dev",
+      "author": "Marcus Webb",
+      "timestamp": "2024-11-20T10:00:00Z",
+      "thread_id": null,
+      "text": "Question: for the reporting aggregation tests, should I use real sample data from the client or synthetic data? Real data would be more realistic but there are privacy concerns.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_089",
+      "channel": "proj-meridian-dev",
+      "author": "Sarah Chen",
+      "timestamp": "2024-11-20T10:05:00Z",
+      "thread_id": "msg_088",
+      "text": "Synthetic data only. We cannot use real patient data in test environments. Generate realistic patterns but with fake names and IDs.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_090",
+      "channel": "proj-meridian-dev",
+      "author": "James Liu",
+      "timestamp": "2024-11-20T14:00:00Z",
+      "thread_id": null,
+      "text": "Full CI/CD pipeline is live. Build, test, deploy to staging, all automated. First successful deployment just went through.",
+      "is_direct_message": false
+    }
+  ]
+}

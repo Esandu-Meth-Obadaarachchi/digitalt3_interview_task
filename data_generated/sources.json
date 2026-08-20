@@ -1,0 +1,75 @@
+{
+  "sources": [
+    {
+      "id": "meeting-sprint-planning-2024-11-18",
+      "title": "Sprint Planning - Meridian Platform",
+      "source_type": "transcript",
+      "date": "2024-11-18",
+      "participants": [
+        "Sarah Chen",
+        "Priya Sharma",
+        "Priya Menon",
+        "James Liu",
+        "Marcus Webb",
+        "Tom Reynolds"
+      ],
+      "consent_flag": true,
+      "file_path": "transcripts/sprint_planning.txt"
+    },
+    {
+      "id": "meeting-client-status-2024-11-18",
+      "title": "Client Status Call - Helios Healthcare",
+      "source_type": "transcript",
+      "date": "2024-11-18",
+      "participants": [
+        "Lisa Tran",
+        "David Park",
+        "Sarah Chen",
+        "Priya Sharma"
+      ],
+      "consent_flag": true,
+      "file_path": "transcripts/client_status_call.txt"
+    },
+    {
+      "id": "meeting-team-sync-2024-11-15",
+      "title": "Team Sync - Internal Restructuring Discussion",
+      "source_type": "transcript",
+      "date": "2024-11-15",
+      "participants": [
+        "Karen Mitchell",
+        "Ravi Patel"
+      ],
+      "consent_flag": false,
+      "file_path": "transcripts/team_sync_no_consent.txt"
+    },
+    {
+      "id": "meeting-design-review-2024-11-17",
+      "title": "Design Review - Onboarding Flow",
+      "source_type": "transcript",
+      "date": "2024-11-17",
+      "participants": [
+        "Rachel Kim",
+        "Alex Torres"
+      ],
+      "consent_flag": true,
+      "file_path": "transcripts/malformed_meeting.txt"
+    },
+    {
+      "id": "chat-export-meridian-2024-11-20",
+      "title": "Meridian Project Channels Export",
+      "source_type": "chat_export",
+      "date": "2024-11-20",
+      "participants": [
+        "Sarah Chen",
+        "Priya Sharma",
+        "Priya Menon",
+        "James Liu",
+        "Marcus Webb",
+        "Lisa Tran",
+        "David Park"
+      ],
+      "consent_flag": true,
+      "file_path": "chat_export/channels.json"
+    }
+  ]
+}

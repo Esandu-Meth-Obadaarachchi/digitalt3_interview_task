@@ -1,0 +1,23 @@
+[00:00:05] Karen Mitchell: Hi everyone, thanks for joining. Quick reminder that this session is not being recorded and we have not obtained participant consent for any automated processing. This is an informal discussion only.
+
+[00:00:18] Ravi Patel: Thanks Karen. I wanted to talk about the team restructuring proposal before it goes to leadership.
+
+[00:00:28] Karen Mitchell: Sure. So the proposal is to split the platform team into two squads. One focused on the core infrastructure and one on the client-facing features. The reasoning is that the priorities keep conflicting. Infrastructure work gets deprioritised whenever there's a client deadline, and then we accumulate technical debt that bites us later.
+
+[00:00:52] Ravi Patel: I agree with the split in principle but I'm worried about knowledge silos. Right now everyone on the team understands both sides. If we split, within six months the infrastructure squad won't know the product and the product squad won't understand the infrastructure.
+
+[00:01:12] Karen Mitchell: That's a fair concern. We could do rotation. Every quarter one person from each squad swaps for two weeks. That keeps the cross-pollination happening.
+
+[00:01:24] Ravi Patel: I like that. Let's include that in the proposal. Should we also think about how the on-call rotation changes?
+
+[00:01:34] Karen Mitchell: Yes. Right now it's one person covering everything. With two squads we could have squad-specific on-call which would reduce the scope each person needs to know for any given week.
+
+[00:01:48] Ravi Patel: Makes sense. I'll draft the updated proposal with the rotation and on-call changes and send it to you for review before we take it to leadership.
+
+[00:02:00] Karen Mitchell: Sounds good. Let's aim to have it ready for the leadership meeting next Thursday.
+
+[00:02:08] Ravi Patel: Will do. Anything else?
+
+[00:02:12] Karen Mitchell: That's it for today. Thanks Ravi.
+
+[00:02:16] Ravi Patel: Thanks Karen. Talk soon.

@@ -1,0 +1,57 @@
+{
+  "description": "Five questions whose answers are in the corpus and one whose answer is genuinely absent. Used for retrieval evaluation (golden case 6).",
+  "questions": [
+    {
+      "id": "q_01",
+      "question": "When did we decide to start Phase 2?",
+      "expected_source_id": "meeting-client-status-2024-11-18",
+      "expected_answer_contains": "September first",
+      "expected_timestamp": "00:03:14",
+      "answerable": true
+    },
+    {
+      "id": "q_02",
+      "question": "Why did we switch from WebSockets to SSE for the dashboard?",
+      "expected_source_id": "meeting-sprint-planning-2024-11-18",
+      "expected_answer_contains": "only need server to client",
+      "expected_timestamp": "00:03:08",
+      "answerable": true
+    },
+    {
+      "id": "q_03",
+      "question": "What is the risk with the Meridian Pay API?",
+      "expected_source_id": "meeting-sprint-planning-2024-11-18",
+      "expected_answer_contains": "unreliable",
+      "expected_timestamp": "00:10:36",
+      "answerable": true
+    },
+    {
+      "id": "q_04",
+      "question": "Who is responsible for the load testing of the payments service?",
+      "expected_source_id": "meeting-sprint-planning-2024-11-18",
+      "expected_answer_contains": "Marcus",
+      "expected_timestamp": "00:10:10",
+      "answerable": true
+    },
+    {
+      "id": "q_05",
+      "question": "When is the compliance audit scheduled?",
+      "expected_source_id": "meeting-client-status-2024-11-18",
+      "expected_answer_contains": "October fifteenth",
+      "expected_timestamp": "00:07:46",
+      "answerable": true
+    },
+    {
+      "id": "q_06",
+      "question": "What database did we decide to use for the user analytics module?",
+      "expected_source_id": null,
+      "expected_answer_contains": null,
+      "answerable": false,
+      "notes": "No discussion of a user analytics module or its database exists anywhere in the corpus. The system must return 'not found' rather than fabricating an answer."
+    }
+  ],
+  "metrics": {
+    "total_answerable": 5,
+    "total_unanswerable": 1
+  }
+}

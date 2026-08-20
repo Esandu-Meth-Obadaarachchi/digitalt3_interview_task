@@ -1,0 +1,140 @@
+{
+  "description": "Hand-labelled classification for 20 chat messages from the project channels. Used for signal precision and recall testing (golden case 7). Also verifies that zero DM records enter the store.",
+  "labelled_messages": [
+    {
+      "message_id": "msg_003",
+      "channel": "proj-meridian-dev",
+      "classification": "blocker",
+      "reason": "Staging environment is down, blocking integration tests"
+    },
+    {
+      "message_id": "msg_005",
+      "channel": "proj-meridian-dev",
+      "classification": "noise",
+      "reason": "Generic reminder about standup timing"
+    },
+    {
+      "message_id": "msg_006",
+      "channel": "proj-meridian-dev",
+      "classification": "question",
+      "reason": "Asking whether design tokens have been updated"
+    },
+    {
+      "message_id": "msg_008",
+      "channel": "proj-meridian-dev",
+      "classification": "request",
+      "reason": "Requesting someone from design team to sync tokens"
+    },
+    {
+      "message_id": "msg_009",
+      "channel": "proj-meridian-dev",
+      "classification": "decision",
+      "reason": "Client demo moved from Thursday to Monday"
+    },
+    {
+      "message_id": "msg_015",
+      "channel": "proj-meridian-dev",
+      "classification": "request",
+      "reason": "Requesting someone to compile ADR list by end of week"
+    },
+    {
+      "message_id": "msg_017",
+      "channel": "proj-meridian-dev",
+      "classification": "noise",
+      "reason": "Casual joke about a legacy API error message"
+    },
+    {
+      "message_id": "msg_019",
+      "channel": "proj-meridian-dev",
+      "classification": "blocker",
+      "reason": "Meridian Pay sandbox API returning 503 errors, blocking payment flow testing"
+    },
+    {
+      "message_id": "msg_022",
+      "channel": "proj-meridian-dev",
+      "classification": "noise",
+      "reason": "Administrative reminder to update Jira tickets"
+    },
+    {
+      "message_id": "msg_029",
+      "channel": "proj-meridian-client",
+      "classification": "decision",
+      "reason": "Decision to use new Helios brand colours for the dashboard"
+    },
+    {
+      "message_id": "msg_033",
+      "channel": "proj-meridian-client",
+      "classification": "request",
+      "reason": "Client requesting data export feature for the reporting module"
+    },
+    {
+      "message_id": "msg_036",
+      "channel": "proj-meridian-client",
+      "classification": "blocker",
+      "reason": "Risk that compliance audit issues could eat into Phase 2 timeline"
+    },
+    {
+      "message_id": "msg_040",
+      "channel": "proj-meridian-client",
+      "classification": "question",
+      "reason": "Asking if anyone has drafted Phase 1 release notes"
+    },
+    {
+      "message_id": "msg_042",
+      "channel": "proj-meridian-client",
+      "classification": "noise",
+      "reason": "End-of-day sign-off and hours logging reminder"
+    },
+    {
+      "message_id": "msg_055",
+      "channel": "proj-meridian-dev",
+      "classification": "blocker",
+      "reason": "Test database migration issue returned, root cause identified"
+    },
+    {
+      "message_id": "msg_057",
+      "channel": "proj-meridian-dev",
+      "classification": "request",
+      "reason": "Requesting help for pair debugging session"
+    },
+    {
+      "message_id": "msg_061",
+      "channel": "proj-meridian-dev",
+      "classification": "decision",
+      "reason": "Decision to use Feature Flags for reporting module rollout"
+    },
+    {
+      "message_id": "msg_077",
+      "channel": "proj-meridian-client",
+      "classification": "question",
+      "reason": "Asking about giving client read-only access to staging"
+    },
+    {
+      "message_id": "msg_088",
+      "channel": "proj-meridian-dev",
+      "classification": "question",
+      "reason": "Asking whether to use real or synthetic test data"
+    },
+    {
+      "message_id": "msg_081",
+      "channel": "proj-meridian-dev",
+      "classification": "noise",
+      "reason": "End-of-day sign-off message"
+    }
+  ],
+  "dm_messages_that_must_be_excluded": [
+    "msg_043", "msg_044", "msg_045", "msg_046", "msg_047", "msg_048",
+    "msg_049", "msg_050", "msg_082", "msg_083", "msg_084", "msg_085"
+  ],
+  "metrics": {
+    "total_labelled": 20,
+    "by_class": {
+      "decision": 3,
+      "blocker": 4,
+      "question": 4,
+      "request": 4,
+      "noise": 5
+    },
+    "total_dm_messages_to_exclude": 12
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "description": "Hand-labelled decisions from both valid transcripts. Includes the deferred decision that must NOT appear in the decision log (golden case 5).",
+  "decisions": [
+    {
+      "id": "decision_sp_01",
+      "source_id": "meeting-sprint-planning-2024-11-18",
+      "what_was_decided": "Use Server-Sent Events instead of WebSockets for the dashboard real-time updates",
+      "stated_rationale": "SSE is simpler for their use case since they only need server-to-client communication, more reliable, easier reconnection handling, and reduces backend complexity",
+      "who_stated_it": "Sarah Chen",
+      "verbatim_quote": "let's go with SSE for the real-time updates",
+      "timestamp": "00:03:32",
+      "alternatives_discussed": ["WebSockets"]
+    },
+    {
+      "id": "decision_sp_02",
+      "source_id": "meeting-sprint-planning-2024-11-18",
+      "what_was_decided": "Switch to two-week sprint cycles instead of three-week sprints",
+      "stated_rationale": "Three-week cycle was too long, team was losing focus in the third week, standups were becoming status reports rather than coordination",
+      "who_stated_it": "Sarah Chen",
+      "verbatim_quote": "We're going with two-week sprints going forward instead of three-week sprints",
+      "timestamp": "00:11:24",
+      "alternatives_discussed": ["Three-week sprints (previous approach)"]
+    },
+    {
+      "id": "decision_cs_01",
+      "source_id": "meeting-client-status-2024-11-18",
+      "what_was_decided": "Proceed with Phase 2 starting September first",
+      "stated_rationale": "Gives two weeks of buffer after Phase 1 demo, and the reporting module can be delivered by end of October which leaves two weeks before the November 15th board presentation",
+      "who_stated_it": "David Park",
+      "verbatim_quote": "Let's proceed with Phase 2 starting September first",
+      "timestamp": "00:03:14",
+      "alternatives_discussed": []
+    }
+  ],
+  "deferred_decisions": [
+    {
+      "id": "deferred_cs_01",
+      "source_id": "meeting-client-status-2024-11-18",
+      "what_was_proposed": "Switch to a new analytics provider (Amplitude or Mixpanel) instead of the current one",
+      "why_deferred": "Not enough information to decide. Q3 usage numbers needed to determine if the issue is the provider or just a preference. Numbers come out in early October.",
+      "who_deferred_it": "Sarah Chen",
+      "verbatim_quote": "I think we should defer this decision until we have the Q3 usage numbers in front of us",
+      "timestamp": "00:05:24",
+      "notes": "CRITICAL: This must NOT appear in the decision log. It was proposed and explicitly deferred. Golden case 5 tests this specifically."
+    }
+  ],
+  "metrics": {
+    "total_decisions": 3,
+    "deferred_decisions_that_must_not_be_recorded": 1,
+    "deferred_decision_ids": ["deferred_cs_01"]
+  }
+}

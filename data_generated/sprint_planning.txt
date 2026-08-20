@@ -1,0 +1,109 @@
+[00:00:05] Sarah Chen: Alright, let's get started with sprint planning. We've got the full team today. Sarah Chen, Scrum Master. Let me just check who's on the call. Priya Sharma, Priya Menon, James Liu, Marcus Webb, and Tom Reynolds. Tom, I know you're just observing today since you're onboarding, so no pressure to jump in.
+
+[00:00:28] Priya Sharma: Morning everyone. Quick note before we start, I pushed the database migration scripts last night. They're on the feature branch but not merged yet.
+
+[00:00:38] Sarah Chen: Thanks Priya. Okay, let's look at what's carrying over from last sprint. We had three items that didn't close out. The authentication module refactor, the dashboard metrics view, and the CI pipeline migration. James, where are we on the pipeline?
+
+[00:01:02] James Liu: So the pipeline is about sixty percent done. The build stage works, the test stage works, but I haven't wired up the deployment to staging yet. The main blocker was that the staging server credentials expired and I had to wait on IT to rotate them. That's done now.
+
+[00:01:22] Sarah Chen: Okay. Can you get the full pipeline set up by end of next week? I want it running before we demo to the client.
+
+[00:01:30] James Liu: Yeah, end of next week should be doable. I'll need access to the production Docker registry though. I've requested it but haven't heard back.
+
+[00:01:42] Sarah Chen: Flag it if you don't hear back by tomorrow. Okay, Priya Sharma, the auth module refactor. Where does that stand?
+
+[00:01:52] Priya Sharma: I've rewritten the token validation layer. The old one was doing synchronous checks against the database on every request, which was killing our response times. The new version uses a Redis cache with a thirty-second TTL. I need to write the integration tests still and then it should be ready for review.
+
+[00:02:15] Sarah Chen: Timeline?
+
+[00:02:17] Priya Sharma: I can have the refactor done with tests by Friday. It's mostly writing the test fixtures at this point.
+
+[00:02:25] Sarah Chen: Perfect. Priya Sharma to finish the authentication module refactor with integration tests by Friday. Moving on. Priya Menon, the dashboard metrics view?
+
+[00:02:38] Priya Menon: Yeah so I've got the base layout done with the grid system. The issue I'm running into is that the design spec calls for real-time chart updates but the WebSocket connection keeps dropping when there's more than about fifty concurrent users. I've been looking into Server-Sent Events as an alternative.
+
+[00:03:02] Sarah Chen: Is that a direction we want to go? That changes the architecture a bit.
+
+[00:03:08] Priya Menon: It's simpler for our use case honestly. We only need server to client, we're not sending data back through the socket. SSE is more reliable and easier to handle reconnection.
+
+[00:03:22] Priya Sharma: I agree with Priya on that. SSE would reduce the backend complexity too. We wouldn't need the WebSocket server at all.
+
+[00:03:32] Sarah Chen: Okay, let's go with SSE for the real-time updates. That's a decision. We'll use Server-Sent Events instead of WebSockets for the dashboard metrics. Priya Menon, can you redesign the connection layer for SSE?
+
+[00:03:48] Priya Menon: Already started on it actually. I should have the dashboard view with SSE working within the sprint. I'll update the technical design doc as well.
+
+[00:04:00] Sarah Chen: Great. Now, new items for this sprint. The big one is the reporting module. Marcus, you had concerns about this last week.
+
+[00:04:12] Marcus Webb: Yeah. So the reporting module pulls data from six different tables and three external APIs. My concern is that we don't have test coverage on any of the data aggregation logic. If we ship it and the numbers are wrong, the client is going to lose trust immediately. Health data reporting is not something you get to be approximately right about.
+
+[00:04:38] Sarah Chen: Valid concern. What do you propose?
+
+[00:04:42] Marcus Webb: I think we need to write the aggregation tests before we write the aggregation code. Test-driven on this one. I've already drafted the test cases based on the requirements doc. There are twenty-seven scenarios including edge cases for null values and timezone boundaries.
+
+[00:05:02] Sarah Chen: That's solid. Okay, Marcus will lead the test-driven development for the reporting module's data aggregation layer. Marcus, do you need anyone else on this?
+
+[00:05:14] Marcus Webb: I could use a pair on the timezone edge cases. Those are tricky with the healthcare compliance requirements around exact timestamps.
+
+[00:05:24] Sarah Chen: Priya Sharma, can you pair with Marcus on the timezone handling when you finish the auth refactor?
+
+[00:05:32] Priya Sharma: Yeah I can do that. I've dealt with the timezone stuff before on the ingestion pipeline.
+
+[00:05:40] Sarah Chen: Good. Now, there's something I want to flag. Someone needs to check the migration path for the legacy data. We've got about four years of patient interaction records in the old system and we need to verify that the schema mapping actually preserves all the required fields. I don't have a specific person in mind for this yet but it needs to happen this sprint.
+
+[00:06:08] James Liu: That's going to be a big job. The old schema has fields that don't map cleanly to our new model. There are at least twelve columns that were repurposed over the years for different things depending on which department was using them.
+
+[00:06:24] Sarah Chen: Right, which is exactly why we need someone to go through it carefully. Let's flag it as unassigned for now and come back to it in standup tomorrow.
+
+[00:06:36] Sarah Chen: Other new items. We need to update the API documentation before the client demo. The Swagger docs are out of date, there are endpoints that have changed signatures since the last publish. That's blocking the client's integration team from testing against our staging environment.
+
+[00:06:58] James Liu: I noticed that too. Some of the response schemas in the docs don't match what the API actually returns. Especially the error responses.
+
+[00:07:08] Sarah Chen: Right. So that needs to get done. It's not glamorous work but it's going to cause problems if we leave it.
+
+[00:07:18] Marcus Webb: On a slightly different note, has anyone been following what happened at the DevSecOps conference last week? I watched the keynote stream and it was fascinating. They had this presentation about how the industry is moving towards policy-as-code for compliance. Instead of having a checklist that someone manually goes through, you encode your compliance requirements as automated checks that run in the CI pipeline.
+
+[00:07:48] Priya Sharma: Oh yeah I saw the clips. The one about the healthcare company that automated their HIPAA checks was interesting.
+
+[00:07:56] Marcus Webb: Exactly. They reduced their audit preparation time from three weeks to two days. And the thing is, their approach was surprisingly simple. They just took each compliance requirement and wrote it as a test assertion. Like, no patient data field should be logged to stdout, that becomes a grep check on the log output. No unencrypted connection to the data layer, that becomes a TLS certificate validation check. They even had checks for things like ensuring that all database queries go through the access control layer rather than hitting tables directly.
+
+[00:08:30] James Liu: That's clever. Though I imagine the initial setup was significant.
+
+[00:08:36] Marcus Webb: It was, they said about six weeks for the first pass. But then it runs automatically on every commit. The interesting part was how they handled the false positives. They built an exception registry where you could mark a specific check as not applicable to a specific service, but the exception itself had to be reviewed and approved quarterly. So you couldn't just suppress a warning and forget about it.
+
+[00:09:02] Priya Menon: We should look into that at some point. Not this sprint obviously but it's relevant for us given the healthcare compliance stuff.
+
+[00:09:12] Marcus Webb: Absolutely. I bookmarked the talk, I'll share the link in the team channel.
+
+[00:09:18] Sarah Chen: Good discussion but let's get back on track. We've got about ten minutes left and I want to make sure we've got everything captured. Let me summarise what we've committed to.
+
+[00:09:30] Sarah Chen: So Priya Sharma is finishing the auth module refactor with tests by Friday. James is setting up the full CI pipeline by end of next week. Priya Menon is redesigning the dashboard connection layer for SSE. Marcus is leading the test-driven development of the reporting module's aggregation layer. Priya Sharma will pair with Marcus on timezone handling after the auth work. The legacy data migration path check is unassigned and needs an owner. And the API documentation update needs to happen before the client demo but we haven't assigned that either.
+
+[00:10:10] Priya Sharma: There's one more thing. Marcus mentioned last week that he'd handle the load testing for the payments service. We should capture that too.
+
+[00:10:20] Sarah Chen: Right, Marcus you said you'd take that on. Is that still the plan?
+
+[00:10:26] Marcus Webb: Yes. I've already got the k6 scripts drafted. I'll run the baseline tests this week and have results for next standup.
+
+[00:10:36] Sarah Chen: Perfect. One risk I want to flag before we wrap up. The third-party payment API from Meridian Pay has been unreliable over the past two weeks. We've seen intermittent timeouts and two complete outages. If this continues we might miss the integration deadline for the payments module. James, have you seen anything on their status page?
+
+[00:11:00] James Liu: Their status page says everything's operational but that doesn't match what we're seeing. I've opened a support ticket but haven't got a meaningful response yet.
+
+[00:11:12] Sarah Chen: Okay, let's escalate that. If we can't get reliability from their API we need to have a conversation about a fallback provider. That's a risk for the sprint.
+
+[00:11:24] Sarah Chen: Last thing. We're going with two-week sprints going forward instead of three-week sprints. The three-week cycle was too long, we were losing focus in the third week and standups were becoming status reports rather than actual coordination. Two weeks keeps things tighter. Everyone okay with that?
+
+[00:11:46] Priya Sharma: Works for me.
+
+[00:11:48] James Liu: Agreed.
+
+[00:11:50] Priya Menon: Fine by me.
+
+[00:11:52] Marcus Webb: Sounds good.
+
+[00:11:55] Sarah Chen: Alright, that's it. Two-week sprints starting now. Let's make it count. Talk to you all at standup tomorrow.
+
+[00:12:02] Priya Sharma: Cheers.
+
+[00:12:04] James Liu: Thanks everyone.
+
+[00:12:06] Priya Menon: Bye.

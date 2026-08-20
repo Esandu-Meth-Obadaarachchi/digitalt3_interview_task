@@ -1,0 +1,30 @@
+{
+  "description": "Hand-labelled risks from both valid meeting transcripts.",
+  "risks": [
+    {
+      "id": "risk_sp_01",
+      "source_id": "meeting-sprint-planning-2024-11-18",
+      "description": "Third-party payment API (Meridian Pay) has been unreliable with intermittent timeouts and outages, potentially causing the team to miss the integration deadline for the payments module",
+      "severity": "high",
+      "affected_area": "Payments module integration",
+      "owner": "UNSPECIFIED",
+      "verbatim_quote": "The third-party payment API from Meridian Pay has been unreliable over the past two weeks. We've seen intermittent timeouts and two complete outages. If this continues we might miss the integration deadline for the payments module",
+      "speaker": "Sarah Chen",
+      "timestamp": "00:10:36"
+    },
+    {
+      "id": "risk_cs_01",
+      "source_id": "meeting-client-status-2024-11-18",
+      "description": "Compliance audit is scheduled for October 15th and the encryption module may not be complete by then, which would require postponement and delay go-live by at least a month",
+      "severity": "high",
+      "affected_area": "Compliance and encryption module",
+      "owner": "Priya Sharma",
+      "verbatim_quote": "Our compliance audit is scheduled for October fifteenth and the auditors will want to see the encryption module fully operational by then. If the encryption module isn't complete, we'll need to request a postponement which would delay our go-live by at least a month",
+      "speaker": "David Park",
+      "timestamp": "00:07:46"
+    }
+  ],
+  "metrics": {
+    "total_risks": 2
+  }
+}
