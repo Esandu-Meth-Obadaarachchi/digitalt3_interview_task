@@ -102,6 +102,30 @@ def ingest_transcript(
     read = read_source(resolved)
     defects: list[Defect] = list(read.defects)
 
+    # --- 2a. Already stored, byte for byte? ---------------------------------
+    # Re-ingesting an unchanged file rewrites the segment rows, and deleting a
+    # segment sets extractions.segment_id to NULL, orphaning citations that
+    # were perfectly good. When the content hash matches what is stored there
+    # is nothing to do, so nothing is done.
+    if read.content_hash:
+        with database.connect(cfg) as conn:
+            stored = source_repo.get_source(conn, metadata.id)
+            previous = source_repo.get_ingestion_report(conn, metadata.id)
+
+        if (
+            stored is not None
+            and stored.status is SourceStatus.INGESTED
+            and stored.content_hash == read.content_hash
+            and previous is not None
+        ):
+            with database.connect(cfg) as conn:
+                existing_segments = segment_repo.list_segments(conn, metadata.id)
+            return IngestionOutcome(
+                source=stored,
+                report=previous.model_copy(update={"unchanged": True, "consent": decision}),
+                segments=existing_segments,
+            )
+
     # --- 3. Parse -----------------------------------------------------------
     detected = detect_format(resolved, read.text)
     if read.text:
@@ -209,7 +233,13 @@ def read_source(path: Path):
 
 
 def _persist(outcome: IngestionOutcome, settings: Settings) -> None:
-    """One transaction: the source, its segments and its report land together."""
+    """One transaction: the source, its segments and its report land together.
+
+    `upsert_source` updates in place rather than replacing, so no cascade fires
+    and existing extractions survive. Segments are still replaced, because the
+    content genuinely changed if we reached here, and a citation into text that
+    no longer exists should not silently keep pointing somewhere.
+    """
     with database.transaction(settings) as conn:
         source_repo.upsert_source(conn, outcome.source)
         segment_repo.replace_segments(conn, outcome.source.id, outcome.segments)

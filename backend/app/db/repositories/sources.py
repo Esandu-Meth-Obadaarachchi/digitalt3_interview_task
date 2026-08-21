@@ -35,13 +35,49 @@ def row_to_source(row: sqlite3.Row) -> Source:
 
 
 def upsert_source(conn: sqlite3.Connection, source: Source) -> Source:
-    """Insert or replace a source row.
+    """Insert a source, or update the existing row in place.
 
-    Replacing cascades to segments, so re-ingesting a file rebuilds it cleanly
-    rather than leaving orphaned segments from the previous parse.
+    Deliberately NOT `INSERT OR REPLACE`. That deletes the old row before
+    inserting the new one, and the delete fires ON DELETE CASCADE against
+    `extractions`, silently destroying every extraction for the source along
+    with a reviewer's work.
+
+    Found by pressing "Seed sample data" in the interface with 17 extractions
+    in the queue and watching 14 of them vanish. The append-only trigger on
+    `review_events` blocked the cascade for anything a human had touched, which
+    saved the reviewed items and turned the whole ingest into a confusing
+    AuditViolation instead.
+
+    An UPDATE touches no other table, so re-ingesting is now genuinely
+    idempotent.
     """
+    exists = conn.execute("SELECT 1 FROM sources WHERE id = ?", (source.id,)).fetchone()
+
+    if exists:
+        conn.execute(
+            "UPDATE sources SET title = ?, source_type = ?, meeting_date = ?, participants = ?,"
+            " consent_flag = ?, origin_format = ?, file_path = ?, content_hash = ?,"
+            " ingested_at = ?, status = ?, refusal_reason = ?, error_detail = ? WHERE id = ?",
+            (
+                source.title,
+                source.source_type.value,
+                source.meeting_date,
+                json.dumps(source.participants),
+                int(source.consent_flag),
+                source.origin_format,
+                source.file_path,
+                source.content_hash,
+                source.ingested_at,
+                source.status.value,
+                source.refusal_reason,
+                source.error_detail,
+                source.id,
+            ),
+        )
+        return source
+
     conn.execute(
-        f"INSERT OR REPLACE INTO sources ({_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        f"INSERT INTO sources ({_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             source.id,
             source.title,

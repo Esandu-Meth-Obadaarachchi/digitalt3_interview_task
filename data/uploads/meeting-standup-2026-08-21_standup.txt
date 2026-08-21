@@ -1,0 +1,23 @@
+[00:00:04] Nadia Perera: Right, quick standup. Let's keep it to ten minutes today.
+
+[00:00:12] Tom Reynolds: I finished the invoice export yesterday. It's merged.
+
+[00:00:20] Nadia Perera: Good. Tom, can you write up the migration notes for it by Thursday?
+
+[00:00:28] Tom Reynolds: Yeah, Thursday works. I'll put them in the shared drive.
+
+[00:00:36] Kofi Mensah: Blocker on my side. The sandbox account expired again and I can't run the integration suite.
+
+[00:00:48] Nadia Perera: Someone needs to chase finance about the sandbox renewal. It's the second time this quarter.
+
+[00:00:58] Kofi Mensah: I'll keep testing locally in the meantime, but that misses the webhook paths entirely.
+
+[00:01:10] Nadia Perera: Understood. Let's also decide on the retry policy. I'm proposing three attempts with exponential backoff.
+
+[00:01:22] Tom Reynolds: That's sensible. Three with backoff, capped at thirty seconds.
+
+[00:01:30] Nadia Perera: Agreed, we'll go with three attempts and exponential backoff capped at thirty seconds. Kofi, can you implement that once the sandbox is back?
+
+[00:01:44] Kofi Mensah: Will do.
+
+[00:01:48] Nadia Perera: That's everything. Thanks both.

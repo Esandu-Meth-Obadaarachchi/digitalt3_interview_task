@@ -59,6 +59,8 @@ export interface IngestionReport {
   ok: boolean;
   status: SourceStatus;
   consent: ConsentDecision | null;
+  /** True when the file matched what is stored and nothing was rewritten. */
+  unchanged: boolean;
   origin_format: string | null;
   encoding: string | null;
   bytes_read: number;
