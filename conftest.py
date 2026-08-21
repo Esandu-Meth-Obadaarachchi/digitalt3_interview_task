@@ -142,3 +142,113 @@ def scripted_model(golden_actions):
 
     yield install
     set_provider_override(None)
+
+
+@pytest.fixture()
+def golden_decisions() -> dict:
+    import json
+
+    raw = (REPO_ROOT / "sample_data" / "golden" / "golden_decisions.json").read_text(encoding="utf-8")
+    return json.loads(raw)
+
+
+@pytest.fixture()
+def golden_risks() -> list[dict]:
+    import json
+
+    raw = (REPO_ROOT / "sample_data" / "golden" / "golden_risks.json").read_text(encoding="utf-8")
+    return json.loads(raw)["risks"]
+
+
+@pytest.fixture()
+def scripted_decision_model(golden_decisions):
+    """A provider answering with the golden decisions a chunk contains.
+
+    `include_deferred` scripts the failure golden case 5 exists to catch: a
+    model that treats a proposal which was explicitly deferred as a settled
+    decision. There is no way to make a live model do that on demand, and a
+    negative test that cannot be made to fail proves nothing.
+    """
+    import json
+
+    from app.extraction.llm.factory import set_provider_override
+    from app.extraction.llm.fake import FakeProvider
+    from app.ingestion.normaliser import normalise_text
+
+    def install(include_deferred: bool = False):
+        items = list(golden_decisions["decisions"])
+        if include_deferred:
+            items += [
+                {
+                    "id": d["id"],
+                    "source_id": d["source_id"],
+                    "what_was_decided": d["what_was_proposed"],
+                    "stated_rationale": "UNSPECIFIED",
+                    "who_stated_it": d["who_deferred_it"],
+                    "alternatives_discussed": [],
+                    "verbatim_quote": d["verbatim_quote"],
+                    "timestamp": d["timestamp"],
+                }
+                for d in golden_decisions["deferred_decisions"]
+            ]
+
+        def respond(request):
+            chunk = normalise_text(request.prompt)
+            return json.dumps({"decisions": [
+                {
+                    "what_was_decided": d["what_was_decided"],
+                    "stated_rationale": d.get("stated_rationale", "UNSPECIFIED"),
+                    "who_stated_it": d.get("who_stated_it", "UNSPECIFIED"),
+                    "alternatives_discussed": d.get("alternatives_discussed", []),
+                    "verbatim_quote": d["verbatim_quote"],
+                    "timestamp": d["timestamp"],
+                    "confidence": 0.9,
+                }
+                for d in items
+                if normalise_text(d["verbatim_quote"]) in chunk
+            ]})
+
+        provider = FakeProvider().default(respond)
+        set_provider_override(provider)
+        return provider
+
+    yield install
+    set_provider_override(None)
+
+
+@pytest.fixture()
+def scripted_risk_model(golden_risks):
+    """A provider answering with the golden risks a chunk contains."""
+    import json
+
+    from app.extraction.llm.factory import set_provider_override
+    from app.extraction.llm.fake import FakeProvider
+    from app.ingestion.normaliser import normalise_text
+
+    def install(transform=None):
+        def respond(request):
+            chunk = normalise_text(request.prompt)
+            risks = [
+                {
+                    "description": r["description"],
+                    "severity": r["severity"],
+                    "affected_area": r.get("affected_area", "UNSPECIFIED"),
+                    "owner": r.get("owner", "UNSPECIFIED"),
+                    "verbatim_quote": r["verbatim_quote"],
+                    "speaker": r["speaker"],
+                    "timestamp": r["timestamp"],
+                    "confidence": 0.85,
+                }
+                for r in golden_risks
+                if normalise_text(r["verbatim_quote"]) in chunk
+            ]
+            if transform is not None:
+                risks = transform(risks)
+            return json.dumps({"risks": risks})
+
+        provider = FakeProvider().default(respond)
+        set_provider_override(provider)
+        return provider
+
+    yield install
+    set_provider_override(None)
