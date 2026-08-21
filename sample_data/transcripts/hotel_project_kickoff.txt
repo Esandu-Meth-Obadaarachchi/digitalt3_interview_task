@@ -1,0 +1,83 @@
+[00:00:03] Ranidu: Alright lads, let's get into it. So we've been talking about this hotel management app for a while now. I think it's time we actually nail down what we're building and who's doing what.
+
+[00:00:14] Esandu: Yeah agreed. So the core idea is a full hotel management system, but with AI automations baked in from day one. Not bolted on after. The AI handles the repetitive stuff that hotel staff waste hours on every day.
+
+[00:00:30] Haritha: Before we go into features, can we decide on the stack? I don't want to start building and then realise we picked the wrong thing three weeks in.
+
+[00:00:40] Ranidu: Fair. So for the backend I'm thinking Python with FastAPI. It's fast to build with, we all know Python, and the AI integration is way easier in Python than anything else. All the ML libraries are there.
+
+[00:00:56] Esandu: I was going to say the same thing. FastAPI for the backend. For the frontend I'd go with Next.js and Tailwind. We get server-side rendering which helps with the admin dashboard loading speed, and Tailwind means we're not fighting CSS for weeks.
+
+[00:01:14] Haritha: Works for me. What about the database? We're going to have a lot of relational data. Rooms, bookings, guests, invoices, staff schedules. That's all relational.
+
+[00:01:26] Esandu: PostgreSQL. No question. The booking data is heavily relational and we need proper transactions. When someone books a room we need to lock that room, create the invoice, update availability, all in one atomic operation. MongoDB won't give us that cleanly.
+
+[00:01:44] Ranidu: Agreed. PostgreSQL for the main database. Let's use SQLAlchemy as the ORM with Alembic for migrations. Keeps the schema versioned and we can roll back if something breaks.
+
+[00:01:58] Haritha: Okay so we've got FastAPI, Next.js with Tailwind, PostgreSQL with SQLAlchemy and Alembic. What about deployment?
+
+[00:02:08] Esandu: Docker for everything. Docker Compose for local dev, and we can deploy to a VPS or AWS later. Let's not overthink deployment right now. Get it working in Docker first.
+
+[00:02:20] Ranidu: Good. Let's talk features. I've been thinking about this a lot. The core modules are reception and check-in, room management, booking engine, invoicing, housekeeping management, and staff scheduling. That's the base system without any AI.
+
+[00:02:40] Haritha: That's a lot already. What's the AI layer on top of that?
+
+[00:02:46] Esandu: So I've got three AI features that I think are high impact and actually doable. First, automated expense categorisation. The hotel manager takes a photo of a receipt or an invoice, the AI reads it, categorises it, and logs it into the right expense category. No manual data entry. I've already built something similar using Gemini's vision API for my family's hotel.
+
+[00:03:12] Ranidu: That's solid. Second one?
+
+[00:03:16] Esandu: Smart pricing recommendations. We feed in the historical booking data, local event calendars, competitor rates from OTAs like Booking.com, and the model suggests optimal room rates. Not auto-setting them, just recommending. The manager approves or adjusts. Always a human in the loop for pricing.
+
+[00:03:40] Haritha: Love that. The human-in-the-loop part is important. No hotel owner is going to trust an AI to set their prices without oversight. What's the third one?
+
+[00:03:52] Esandu: Guest communication automation. When a guest books, the system auto-generates a personalised welcome message, directions from the airport, check-in instructions. When they check out it sends a thank you with a review link. All templated but personalised with the guest's name, room type, stay dates. The manager reviews the first few and then can let it run.
+
+[00:04:14] Ranidu: Three strong features. Okay let me throw in one more. Predictive housekeeping scheduling. Based on checkout patterns and booking data, the system predicts which rooms need cleaning and when, and generates optimised cleaning schedules for the housekeeping staff. Reduces the gap between checkout and the next guest checking in.
+
+[00:04:38] Haritha: That's four AI features plus six core modules. That's a massive scope. We need to be realistic about what we can ship first.
+
+[00:04:48] Esandu: Right. So let's do this in phases. Phase 1 is the core system without AI. Reception, rooms, bookings, invoicing. Get those working end to end first. Phase 2 adds the expense categorisation and guest communication automation. Phase 3 is smart pricing and predictive housekeeping.
+
+[00:05:10] Ranidu: Makes sense. How do we split the work for Phase 1?
+
+[00:05:16] Haritha: I'll take the booking engine and the room management module. That's the tightest coupling, room availability feeds directly into the booking logic. Makes sense for one person to own both.
+
+[00:05:30] Ranidu: I'll handle the reception and check-in flow, plus the guest profile system. Check-in needs to pull guest history so those two are connected.
+
+[00:05:42] Esandu: I'll take invoicing and the overall system architecture. I'll set up the project structure, the Docker config, the database schema, CI pipeline, and then build the invoicing module on top. Someone needs to lay the foundation before anyone else can start building on it.
+
+[00:05:58] Ranidu: When should we aim to have Phase 1 done?
+
+[00:06:04] Haritha: Honestly, if we're doing this evenings and weekends, six weeks is realistic for Phase 1. Full time it would be three weeks but none of us are full time on this.
+
+[00:06:16] Esandu: Six weeks works. Let's set a hard deadline. End of October for Phase 1 complete. That gives us a working demo to show potential clients.
+
+[00:06:28] Ranidu: End of October. Deal. Now there's a question we haven't answered. Are we building this as a SaaS product for multiple hotels or a single-tenant app for one hotel first?
+
+[00:06:42] Haritha: I think we should build single-tenant first. Multi-tenant adds complexity everywhere. Tenant isolation in the database, per-tenant configs, billing per tenant. That's a distraction right now. Build it for one hotel, prove it works, then add multi-tenancy later.
+
+[00:06:58] Esandu: Agreed. Single-tenant first. But let's design the database schema so that adding a tenant ID column later isn't a nightmare. Don't hardcode anything that assumes one hotel.
+
+[00:07:10] Ranidu: Good point. So the decision is single-tenant for Phase 1 but with the schema designed to support multi-tenancy later.
+
+[00:07:20] Haritha: One risk I want to flag early. The OTA integration for the smart pricing feature. Booking.com and Expedia don't have public APIs for rate data. We'd need to either use a channel manager API like SiteMinder or build scrapers, which is legally grey. We should figure this out before we get to Phase 3.
+
+[00:07:44] Esandu: Yeah that's a real blocker for Phase 3. Let's not solve it now but someone needs to research the channel manager API options before we start Phase 3. See what's available, what the costs are, what the rate limits look like.
+
+[00:08:00] Ranidu: I'll look into that. Not now, but before Phase 3 starts I'll have a comparison of the channel manager APIs ready.
+
+[00:08:12] Haritha: Cool. One more thing. We need a name for this project. We can't keep calling it "the hotel app."
+
+[00:08:20] Esandu: How about HotelSync? Or LodgeIQ? Actually let's not waste time on naming right now. Let's call it HotelOS as a working name and move on.
+
+[00:08:32] Ranidu: HotelOS it is. Working name. Right, let me summarise. FastAPI backend, Next.js frontend, PostgreSQL database, Docker for everything. Phase 1 by end of October: Haritha takes bookings and rooms, I take reception and guests, Esandu takes architecture, infrastructure and invoicing. Single-tenant first, multi-tenant later. Three AI features for Phase 2 and 3.
+
+[00:09:00] Haritha: One last thing. Where are we putting the repo?
+
+[00:09:04] Esandu: GitHub. Private repo under my account for now. I'll set it up tonight and add you both as collaborators. I'll also set up the branch protection rules so nothing goes to main without a PR review.
+
+[00:09:18] Ranidu: Perfect. Let's start building.
+
+[00:09:22] Haritha: Let's go.
+
+[00:09:24] Esandu: Talk tomorrow.

@@ -22,9 +22,31 @@
       "verbatim_quote": "Our compliance audit is scheduled for October fifteenth and the auditors will want to see the encryption module fully operational by then. If the encryption module isn't complete, we'll need to request a postponement which would delay our go-live by at least a month",
       "speaker": "David Park",
       "timestamp": "00:07:46"
+    },
+    {
+      "id": "risk_hk_01",
+      "severity": "high",
+      "affected_area": "Smart pricing, Phase 3",
+      "description": "Booking.com and Expedia publish no public rate APIs, so the smart pricing feature depends on a paid channel manager API or on legally grey scraping",
+      "verbatim_quote": "Booking.com and Expedia don't have public APIs for rate data. We'd need to either use a channel manager API like SiteMinder or build scrapers, which is legally grey",
+      "speaker": "Haritha",
+      "timestamp": "00:07:20",
+      "owner": "Ranidu",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "risk_hk_02",
+      "severity": "medium",
+      "affected_area": "Overall scope",
+      "description": "Four AI features on top of six core modules, built evenings and weekends, is a large scope for the stated six-week Phase 1",
+      "verbatim_quote": "That's four AI features plus six core modules. That's a massive scope. We need to be realistic about what we can ship first",
+      "speaker": "Haritha",
+      "timestamp": "00:04:38",
+      "owner": "UNSPECIFIED",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
     }
   ],
   "metrics": {
-    "total_risks": 2
+    "total_risks": 4
   }
 }

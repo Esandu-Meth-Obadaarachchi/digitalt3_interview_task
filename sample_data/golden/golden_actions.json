@@ -144,14 +144,89 @@
       "speaker": "Sarah Chen",
       "timestamp": "00:10:04",
       "notes": "Clear owner"
+    },
+    {
+      "id": "action_hk_01",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Build the booking engine and the room management module",
+      "owner": "Haritha",
+      "due_date": "UNSPECIFIED",
+      "verbatim_quote": "I'll take the booking engine and the room management module",
+      "speaker": "Haritha",
+      "timestamp": "00:05:16",
+      "notes": "Clear owner claiming work. No date of its own; the Phase 1 deadline is a separate decision, not this action's due date."
+    },
+    {
+      "id": "action_hk_02",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Build the reception and check-in flow and the guest profile system",
+      "owner": "Ranidu",
+      "due_date": "UNSPECIFIED",
+      "verbatim_quote": "I'll handle the reception and check-in flow, plus the guest profile system",
+      "speaker": "Ranidu",
+      "timestamp": "00:05:30",
+      "notes": "Clear owner, no date."
+    },
+    {
+      "id": "action_hk_03",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Set up the project structure, Docker config, database schema and CI pipeline, then build invoicing",
+      "owner": "Esandu",
+      "due_date": "UNSPECIFIED",
+      "verbatim_quote": "I'll set up the project structure, the Docker config, the database schema, CI pipeline, and then build the invoicing module on top",
+      "speaker": "Esandu",
+      "timestamp": "00:05:42",
+      "notes": "ONE commitment stated twice in the same turn: 'I'll take invoicing and the overall system architecture' is the scope, this sentence is the detail. A system returning two items here is duplicating, not finding more."
+    },
+    {
+      "id": "action_hk_04",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Produce a comparison of channel manager API options",
+      "owner": "Ranidu",
+      "due_date": "before Phase 3 starts",
+      "due_date_type": "unresolvable",
+      "verbatim_quote": "before Phase 3 starts I'll have a comparison of the channel manager APIs ready",
+      "speaker": "Ranidu",
+      "timestamp": "00:08:00",
+      "notes": "DIFFICULTY: raised ownerless at 00:07:44 ('someone needs to research the channel manager API options') and claimed by Ranidu at 00:08:00. One commitment, owner Ranidu. A system returning both the ownerless statement and the claim should merge them. 'before Phase 3 starts' has no resolvable date, so UNSPECIFIED is the correct resolution and a concrete date would be an invented one."
+    },
+    {
+      "id": "action_hk_05",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Create the private GitHub repository and add the others as collaborators",
+      "owner": "Esandu",
+      "due_date": "tonight",
+      "due_date_type": "relative",
+      "verbatim_quote": "I'll set it up tonight and add you both as collaborators",
+      "speaker": "Esandu",
+      "timestamp": "00:09:04",
+      "notes": "DIFFICULTY: relative date 'tonight'. Either resolving it to the meeting date or abstaining is defensible; inventing a different date is not."
+    },
+    {
+      "id": "action_hk_06",
+      "source_id": "meeting-hotel-kickoff-2026-09-15",
+      "what": "Set up branch protection rules requiring PR review before merging to main",
+      "owner": "Esandu",
+      "due_date": "UNSPECIFIED",
+      "verbatim_quote": "I'll also set up the branch protection rules so nothing goes to main without a PR review",
+      "speaker": "Esandu",
+      "timestamp": "00:09:04",
+      "notes": "DIFFICULTY: a second, distinct commitment in the same turn as action_hk_05. Deduplication must keep both."
     }
   ],
   "metrics": {
     "total_actions": 13,
     "unspecified_owner_count": 2,
-    "unspecified_owner_ids": ["action_sp_06", "action_sp_07"],
+    "unspecified_owner_ids": [
+      "action_sp_06",
+      "action_sp_07"
+    ],
     "relative_date_count": 1,
-    "relative_date_ids": ["action_sp_02"],
-    "action_on_behalf_of_another": ["action_sp_08"]
+    "relative_date_ids": [
+      "action_sp_02"
+    ],
+    "action_on_behalf_of_another": [
+      "action_sp_08"
+    ]
   }
 }

@@ -70,6 +70,19 @@
       ],
       "consent_flag": true,
       "file_path": "chat_export/channels.json"
+    },
+    {
+      "id": "meeting-hotel-kickoff-2026-09-15",
+      "title": "HotelOS Project Kickoff",
+      "source_type": "transcript",
+      "date": "2026-09-15",
+      "participants": [
+        "Ranidu",
+        "Esandu",
+        "Haritha"
+      ],
+      "consent_flag": true,
+      "file_path": "transcripts/hotel_project_kickoff.txt"
     }
   ]
 }
