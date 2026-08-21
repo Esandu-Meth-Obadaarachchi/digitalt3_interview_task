@@ -106,7 +106,7 @@ def golden_actions() -> list[dict]:
 
 
 @pytest.fixture()
-def scripted_model(golden_actions, request):
+def scripted_model(golden_actions, golden_signals, request):
     """A provider that answers whichever contract it is handed.
 
     Dispatches on the response schema's title, so one fixture serves M3, M4 and
@@ -152,6 +152,25 @@ def scripted_model(golden_actions, request):
                     }
                     for d in items
                     if normalise_text(d["verbatim_quote"]) in chunk
+                ]})
+
+            if title == "DraftSignalList":
+                # Answers from the hand-labelled subset where it can, and
+                # labels everything else noise. Every message sent comes back,
+                # which the validator requires.
+                import re as _re
+
+                blocks = _re.findall(r"^\[([^\]]+)\] .*?\n\s+(.*?)$", request_.prompt, _re.M)
+                labels = {g["message_id"]: g["classification"] for g in golden_signals}
+                return json.dumps({"signals": [
+                    {
+                        "message_id": mid,
+                        "classification": labels.get(mid, "noise"),
+                        "quote": " ".join(text.split()),
+                        "reason": "scripted from the hand-labelled subset",
+                        "confidence": 0.8,
+                    }
+                    for mid, text in blocks
                 ]})
 
             if title == "DraftAnswer":
@@ -348,3 +367,11 @@ def scripted_risk_model(golden_risks):
 
     yield install
     set_provider_override(None)
+
+
+@pytest.fixture()
+def golden_signals() -> list[dict]:
+    import json
+
+    raw = (REPO_ROOT / "sample_data" / "golden" / "golden_signals.json").read_text(encoding="utf-8")
+    return json.loads(raw)["labelled_messages"]

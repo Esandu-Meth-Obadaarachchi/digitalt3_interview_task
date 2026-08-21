@@ -219,3 +219,25 @@ class GoldenQuestion(StrictModel):
 
 def load_questions() -> list[GoldenQuestion]:
     return [GoldenQuestion(**item) for item in load_json("golden_questions.json")["questions"]]
+
+
+class GoldenSignal(StrictModel):
+    message_id: str
+    channel: str
+    classification: str
+    reason: str | None = None
+
+
+def load_signals() -> tuple[list[GoldenSignal], list[str]]:
+    """The hand-labelled subset, and the direct messages that must never appear.
+
+    The second list is asserted by absence, which makes it the only golden
+    record that a system doing nothing at all would satisfy. Case 7b therefore
+    also checks that messages WERE stored, so "zero DMs" cannot be earned by
+    having stored nothing.
+    """
+    raw = load_json("golden_signals.json")
+    return (
+        [GoldenSignal(**item) for item in raw["labelled_messages"]],
+        list(raw["dm_messages_that_must_be_excluded"]),
+    )

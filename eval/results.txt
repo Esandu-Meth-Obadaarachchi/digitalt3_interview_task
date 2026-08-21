@@ -1,63 +1,64 @@
 
 Meeting & Channel Intelligence Agent - evaluation
-2026-08-21T08:05:05+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+2026-08-21T11:52:57+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
 sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
-13 hand-labelled actions, 17 extracted
+13 hand-labelled actions, 0 extracted
 
       Metric                        Measured   Target     Status
   --------------------------------------------------------------------
-  1   Action recall                     0.92   >= 0.70    PASS
-      12/13 hand-labelled actions found
-  1b  Precision                         0.71   reported   reported
-      5 extraction(s) matched no golden action
+  1   Action recall                     0.00   >= 0.70    FAIL
+      0/13 hand-labelled actions found
+  1b  Precision                         0.00   reported   reported
+      0 extraction(s) matched no golden action
   2   Fabricated quotes                    0   = 0        PASS
       recomputed against the stored transcript, not read from the stored flag
-  3a  Owner accuracy (named)            0.90   >= 0.90    PASS
-      9/10 matched actions where an owner is stated
-  3b  UNSPECIFIED compliance             2/2   all        PASS
-      a guessed owner counts as a failure, not a near-miss. action_cs_02: expected 'David Park', got 'UNSPECIFIED'
+  3a  Owner accuracy (named)            0.00   >= 0.90    reported
+      0/0 matched actions where an owner is stated
+  3b  UNSPECIFIED compliance             0/0   all        reported
+      a guessed owner counts as a failure, not a near-miss. no owner was guessed
   4   Invented dates                       0   = 0        PASS
       no date was produced without support
-  4b  Relative dates resolved              5   reported   reported
-      e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19
   5   Deferred items recorded              0   = 0        PASS
       1 proposed-then-deferred item(s) correctly absent
-  5b  Decision recall                   1.00   >= 0.70    PASS
-      3/3 hand-labelled decisions found
-  M5  Risk recall                       1.00   >= 0.70    PASS
-      2/2 hand-labelled risks found
-  M5b Severity defensible                4/4   all        PASS
+  5b  Decision recall                   0.00   >= 0.70    FAIL
+      0/3 hand-labelled decisions found. Missed: decision_sp_01, decision_sp_02, decision_cs_01
+  M5  Risk recall                       0.00   >= 0.70    FAIL
+      0/2 hand-labelled risks found
+  M5b Severity defensible                0/0   all        reported
       every high-severity quote states the consequence it rests on
-  6   Retrieval, correct source          5/5   5/5        PASS
-      correct source in the top three, mode=hybrid
-  6c  Mode comparison                 hybrid   reported   reported
-      keyword: source 5/5, segment 4/5, mean rank 2.4 | dense: source 5/5, segment 5/5, mean rank 2.0 | hybrid: source 5/5, segment 4/5, mean rank 2.0 [embedder: sentence-transformers/all-MiniLM-L6-v2]
-  6b  Not-found on the unanswerable       1/1   all        PASS
-      the question with no answer in the corpus was correctly refused
-  6d  Answers carrying a verified citation       5/5   all        PASS
-      5 answered, 5 with at least one citation that verified against the source it cites
+  7b  Direct messages in the store         0   = 0        PASS
+      12 DM ids checked against 30 stored messages
+  7   Chat signal precision             0.87   >= 0.70    PASS
+      13/15 non-noise labels correct, 16/20 of the labelled subset matched exactly
+  7c  Per class                                reported   reported
+      blocker: P 1.00 R 0.75 (3/3) | decision: P 1.00 R 1.00 (3/3) | noise: P 0.60 R 0.60 (3/5) | question: P 1.00 R 1.00 (4/4) | request: P 0.60 R 0.75 (3/5)
 
   Confidence calibration  does the model's own confidence predict correctness
   threshold     kept  correct  precision   recall
-  >= 0.00         17       12       0.71     0.92
-  >= 0.50         17       12       0.71     0.92
-  >= 0.70         17       12       0.71     0.92
-  >= 0.80         17       12       0.71     0.92
-  >= 0.90         13        8       0.61     0.61
+  >= 0.00          0        0          -     0.00
+  >= 0.50          0        0          -     0.00
+  >= 0.70          0        0          -     0.00
+  >= 0.80          0        0          -     0.00
+  >= 0.90          0        0          -     0.00
 
-  Model usage  49 attempt(s) for 49 call(s), retry rate 0%, 42 cache hit(s)
-  82255 prompt + 9885 completion tokens, 991904 ms total
-  outcomes: {'ok': 49}
+  Model usage  5 attempt(s) for 5 call(s), retry rate 0%, 0 cache hit(s)
+  8893 prompt + 6579 completion tokens, 70423 ms total
+  outcomes: {'ok': 5}
 
   Missed (in the golden set, not extracted)
+    action_sp_01
+    action_sp_02
     action_sp_03
+    action_sp_04
+    action_sp_05
+    action_sp_06
+    action_sp_07
+    action_sp_08
+    action_cs_01
+    action_cs_02
+    action_cs_03
+    action_cs_04
+    action_cs_05
 
-  False positives (extracted, matching no golden action)
-    meeting-client-status-2024-08-19::action::066f0d9c
-    meeting-client-status-2024-08-19::action::eb1dd12b
-    meeting-client-status-2024-08-19::action::d45db8ba
-    meeting-sprint-planning-2024-11-18::action::0193237c
-    meeting-sprint-planning-2024-11-18::action::ae849912
-
-  every targeted metric met
+  3 metric(s) below target: Action recall, Decision recall, Risk recall
 
