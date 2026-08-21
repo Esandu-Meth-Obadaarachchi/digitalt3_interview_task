@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "record_version": 2,
-  "record_id": "05129293-5e89-4d66-9192-7be61ed3d94c",
+  "record_id": "bbcded75-ecbe-4e86-96d8-a3486d9452c6",
   "source_id": "meeting-sprint-planning-2024-11-18",
   "source_title": "Sprint Planning - Meridian Platform",
   "source_type": "transcript",
@@ -15,11 +15,11 @@
     "Tom Reynolds"
   ],
   "consent_flag": true,
-  "generated_at": "2026-08-21T12:11:11.625977+00:00",
+  "generated_at": "2026-08-21T12:13:08.939828+00:00",
   "generated_by": "meeting-intelligence-agent",
   "actions": [
     {
-      "id": "meeting-sprint-planning-2024-11-18::action::1f9cc795",
+      "id": "meeting-sprint-planning-2024-11-18::action::e830d3ee",
       "type": "action",
       "payload": {
         "what": "Set up the full CI pipeline including deployment to staging",
@@ -41,11 +41,11 @@
       },
       "confidence": 0.85,
       "approved_by": "esandu",
-      "approved_at": "2026-08-21T12:11:11.616422+00:00",
+      "approved_at": "2026-08-21T12:13:08.928861+00:00",
       "edited_by_reviewer": false
     },
     {
-      "id": "meeting-sprint-planning-2024-11-18::action::4f008016",
+      "id": "meeting-sprint-planning-2024-11-18::action::5dcb815b",
       "type": "action",
       "payload": {
         "what": "Finish the authentication module refactor with integration tests",
@@ -67,11 +67,11 @@
       },
       "confidence": 0.85,
       "approved_by": "esandu",
-      "approved_at": "2026-08-21T12:11:11.617671+00:00",
+      "approved_at": "2026-08-21T12:13:08.930216+00:00",
       "edited_by_reviewer": false
     },
     {
-      "id": "meeting-sprint-planning-2024-11-18::action::a708b892",
+      "id": "meeting-sprint-planning-2024-11-18::action::1a07d84e",
       "type": "action",
       "payload": {
         "what": "Redesign the dashboard connection layer for SSE",
@@ -93,7 +93,7 @@
       },
       "confidence": 0.85,
       "approved_by": "esandu",
-      "approved_at": "2026-08-21T12:11:11.619007+00:00",
+      "approved_at": "2026-08-21T12:13:08.932095+00:00",
       "edited_by_reviewer": false
     }
   ],
