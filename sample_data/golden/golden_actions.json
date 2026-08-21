@@ -29,11 +29,12 @@
       "source_id": "meeting-sprint-planning-2024-11-18",
       "what": "Redesign the dashboard connection layer for SSE",
       "owner": "Priya Menon",
-      "due_date": "UNSPECIFIED",
+      "due_date": "within the sprint",
       "verbatim_quote": "Priya Menon, can you redesign the connection layer for SSE",
       "speaker": "Sarah Chen",
       "timestamp": "00:03:32",
-      "notes": "Clear owner, no specific date"
+      "notes": "CORRECTED. Previously labelled due_date UNSPECIFIED. Priya Menon states a timing for her own commitment in the next breath: 'I should have the dashboard view with SSE working within the sprint.' The transcript does state a timing, so UNSPECIFIED was factually wrong about the source. 'Within the sprint' has no resolvable date, so a system returning UNSPECIFIED after resolution is still correct.",
+      "due_date_type": "unresolvable"
     },
     {
       "id": "action_sp_04",
@@ -62,11 +63,12 @@
       "source_id": "meeting-sprint-planning-2024-11-18",
       "what": "Check the migration path for the legacy data",
       "owner": "UNSPECIFIED",
-      "due_date": "UNSPECIFIED",
+      "due_date": "this sprint",
       "verbatim_quote": "Someone needs to check the migration path for the legacy data",
       "speaker": "Sarah Chen",
       "timestamp": "00:05:40",
-      "notes": "NO OWNER STATED. Must return UNSPECIFIED. Golden case 3 target."
+      "notes": "NO OWNER STATED. Must return UNSPECIFIED for owner. Golden case 3 target. CORRECTED on the date: previously labelled due_date UNSPECIFIED, but the speaker says 'I don't have a specific person in mind for this yet but it needs to happen this sprint.' A timing is stated even though an owner is not. 'This sprint' has no resolvable date, so UNSPECIFIED after resolution is still correct.",
+      "due_date_type": "unresolvable"
     },
     {
       "id": "action_sp_07",
@@ -84,11 +86,12 @@
       "source_id": "meeting-sprint-planning-2024-11-18",
       "what": "Handle the load testing for the payments service",
       "owner": "Marcus Webb",
-      "due_date": "UNSPECIFIED",
+      "due_date": "this week",
       "verbatim_quote": "Marcus mentioned last week that he'd handle the load testing for the payments service",
       "speaker": "Priya Sharma",
       "timestamp": "00:10:10",
-      "notes": "Action stated by Priya on behalf of Marcus. Owner IS Marcus."
+      "notes": "CORRECTED. Previously labelled due_date UNSPECIFIED. Marcus accepts the work and states its timing: 'I'll run the baseline tests this week and have results for next standup.' The transcript states a timing, so UNSPECIFIED was factually wrong. 'This week' IS resolvable, to the Friday of the meeting week, so this is the one correction that changes a measured outcome. Found because the harness reported it as an invented date three runs running; the model was right and the label was wrong.",
+      "due_date_type": "relative"
     },
     {
       "id": "action_cs_01",
