@@ -1,15 +1,15 @@
 
 Meeting & Channel Intelligence Agent - evaluation
-2026-08-20T17:51:43+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+2026-08-21T06:40:42+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
 sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
-13 hand-labelled actions, 19 extracted
+13 hand-labelled actions, 17 extracted
 
       Metric                        Measured   Target     Status
   --------------------------------------------------------------------
   1   Action recall                     0.92   >= 0.70    PASS
       12/13 hand-labelled actions found
-  1b  Precision                         0.63   reported   reported
-      7 extraction(s) matched no golden action
+  1b  Precision                         0.71   reported   reported
+      5 extraction(s) matched no golden action
   2   Fabricated quotes                    0   = 0        PASS
       recomputed against the stored transcript, not read from the stored flag
   3a  Owner accuracy (named)            0.90   >= 0.90    PASS
@@ -20,30 +20,36 @@ sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
       no date was produced without support
   4b  Relative dates resolved              5   reported   reported
       e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19
+  5   Deferred items recorded              0   = 0        PASS
+      1 proposed-then-deferred item(s) correctly absent
+  5b  Decision recall                   1.00   >= 0.70    PASS
+      3/3 hand-labelled decisions found
+  M5  Risk recall                       1.00   >= 0.70    PASS
+      2/2 hand-labelled risks found
+  M5b Severity defensible                4/4   all        PASS
+      every high-severity quote states the consequence it rests on
 
   Confidence calibration  does the model's own confidence predict correctness
   threshold     kept  correct  precision   recall
-  >= 0.00         19       12       0.63     0.92
-  >= 0.50         19       12       0.63     0.92
-  >= 0.70         19       12       0.63     0.92
-  >= 0.80         19       12       0.63     0.92
-  >= 0.90         17       11       0.65     0.85
+  >= 0.00         17       12       0.71     0.92
+  >= 0.50         17       12       0.71     0.92
+  >= 0.70         17       12       0.71     0.92
+  >= 0.80         17       12       0.71     0.92
+  >= 0.90         13        8       0.61     0.61
 
-  Model usage  6 attempt(s) for 6 call(s), retry rate 0%, 0 cache hit(s)
-  11543 prompt + 2433 completion tokens, 143145 ms total
-  outcomes: {'ok': 6}
+  Model usage  20 attempt(s) for 18 call(s), retry rate 10%, 0 cache hit(s)
+  33645 prompt + 4179 completion tokens, 444051 ms total
+  outcomes: {'error': 2, 'ok': 18}
 
   Missed (in the golden set, not extracted)
     action_sp_03
 
   False positives (extracted, matching no golden action)
-    meeting-client-status-2024-08-19::action::a7ffd7af
-    meeting-client-status-2024-08-19::action::ac545671
-    meeting-client-status-2024-08-19::action::037b9830
-    meeting-sprint-planning-2024-11-18::action::f2cfee1f
-    meeting-sprint-planning-2024-11-18::action::c33aa793
-    meeting-sprint-planning-2024-11-18::action::3c26f3d0
-    meeting-sprint-planning-2024-11-18::action::c89c248d
+    meeting-client-status-2024-08-19::action::2e500168
+    meeting-client-status-2024-08-19::action::e0614815
+    meeting-client-status-2024-08-19::action::811ca4c8
+    meeting-sprint-planning-2024-11-18::action::a2174aa5
+    meeting-sprint-planning-2024-11-18::action::76b73f15
 
   every targeted metric met
 

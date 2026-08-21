@@ -9,7 +9,9 @@
       "who_stated_it": "Sarah Chen",
       "verbatim_quote": "let's go with SSE for the real-time updates",
       "timestamp": "00:03:32",
-      "alternatives_discussed": ["WebSockets"]
+      "alternatives_discussed": [
+        "WebSockets"
+      ]
     },
     {
       "id": "decision_sp_02",
@@ -19,7 +21,9 @@
       "who_stated_it": "Sarah Chen",
       "verbatim_quote": "We're going with two-week sprints going forward instead of three-week sprints",
       "timestamp": "00:11:24",
-      "alternatives_discussed": ["Three-week sprints (previous approach)"]
+      "alternatives_discussed": [
+        "Three-week sprints (previous approach)"
+      ]
     },
     {
       "id": "decision_cs_01",
@@ -30,6 +34,54 @@
       "verbatim_quote": "Let's proceed with Phase 2 starting September first",
       "timestamp": "00:03:14",
       "alternatives_discussed": []
+    },
+    {
+      "id": "decision_hk_01",
+      "what_was_decided": "Use Python with FastAPI for the backend",
+      "verbatim_quote": "So for the backend I'm thinking Python with FastAPI",
+      "who_stated_it": "Ranidu",
+      "timestamp": "00:00:40",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "decision_hk_02",
+      "what_was_decided": "Use Next.js with Tailwind for the frontend",
+      "verbatim_quote": "For the frontend I'd go with Next.js and Tailwind",
+      "who_stated_it": "Esandu",
+      "timestamp": "00:00:56",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "decision_hk_03",
+      "what_was_decided": "Use PostgreSQL with SQLAlchemy and Alembic",
+      "verbatim_quote": "Agreed. PostgreSQL for the main database. Let's use SQLAlchemy as the ORM with Alembic for migrations",
+      "who_stated_it": "Ranidu",
+      "timestamp": "00:01:44",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "decision_hk_04",
+      "what_was_decided": "Deliver in three phases, core system first and AI features later",
+      "verbatim_quote": "So let's do this in phases. Phase 1 is the core system without AI",
+      "who_stated_it": "Esandu",
+      "timestamp": "00:04:48",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "decision_hk_05",
+      "what_was_decided": "Phase 1 complete by end of October",
+      "verbatim_quote": "End of October for Phase 1 complete",
+      "who_stated_it": "Esandu",
+      "timestamp": "00:06:16",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
+    },
+    {
+      "id": "decision_hk_06",
+      "what_was_decided": "Build single-tenant first, with the schema designed to allow multi-tenancy later",
+      "verbatim_quote": "the decision is single-tenant for Phase 1 but with the schema designed to support multi-tenancy later",
+      "who_stated_it": "Ranidu",
+      "timestamp": "00:07:10",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
     }
   ],
   "deferred_decisions": [
@@ -42,11 +94,24 @@
       "verbatim_quote": "I think we should defer this decision until we have the Q3 usage numbers in front of us",
       "timestamp": "00:05:24",
       "notes": "CRITICAL: This must NOT appear in the decision log. It was proposed and explicitly deferred. Golden case 5 tests this specifically."
+    },
+    {
+      "id": "deferred_hk_01",
+      "what_was_proposed": "Choose a permanent product name, HotelSync or LodgeIQ",
+      "why_deferred": "Not worth the time now; HotelOS adopted as a working name instead",
+      "verbatim_quote": "Actually let's not waste time on naming right now",
+      "who_deferred_it": "Esandu",
+      "timestamp": "00:08:20",
+      "notes": "CRITICAL: proposed then explicitly deferred. Must NOT appear in the decision log. The working name HotelOS IS a decision; the permanent name is not.",
+      "source_id": "meeting-hotel-kickoff-2026-09-15"
     }
   ],
   "metrics": {
-    "total_decisions": 3,
-    "deferred_decisions_that_must_not_be_recorded": 1,
-    "deferred_decision_ids": ["deferred_cs_01"]
+    "total_decisions": 9,
+    "deferred_decisions_that_must_not_be_recorded": 2,
+    "deferred_decision_ids": [
+      "deferred_cs_01",
+      "deferred_hk_01"
+    ]
   }
 }

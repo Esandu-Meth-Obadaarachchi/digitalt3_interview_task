@@ -606,3 +606,89 @@ for three runs the committed figure would be the worst of them.
 
 **L16.** 20 model requests a day is a hard ceiling on how often the numbers can
 be refreshed against live calls.
+
+---
+
+## Phase 5 — Decisions and risks
+
+### Decisions
+
+**D55. The extraction pipeline was lifted, not predicted.**
+M3, M4, M5 and M9 differ in three things: the prompt, the contract the model
+must satisfy, and how a validated item becomes a stored payload. Those are an
+`ExtractionSpec`; everything else lives in `pipeline.py`.
+Extracted after M3 was working rather than designed up front. The deduplication
+thresholds, the quote-repair fallback and the accounting all changed twice
+during Phases 3 and 4, and copying them into three more modules would have
+meant four places to fix whatever the harness found next.
+
+**D56. The decisions prompt is organised around the negative case.**
+M4's capability test is not "find the decisions", it is that the
+proposed-then-deferred item is NOT recorded. The list of what is not a decision
+therefore comes before the rules, with deferral first on it. The trap is real:
+in the client status call a strong preference for one analytics provider is
+voiced immediately before "I think we should defer this decision".
+One positive rule that is easy to get backwards: a deferral is sometimes itself
+a decision, and a different one. The hotel kickoff postpones the permanent
+product name and settles on a working name in the same breath. The working name
+IS a decision.
+
+**D57. Severity must be defensible from the quote alone, and that is asserted.**
+M5's test asks whether severity is defensible, not whether it is correct. A
+reviewer checking it holds only the quote. So the prompt states that test back
+to the model, and case M5b enforces it: every stored high-severity risk must
+quote a stated consequence. Every risk in this corpus concerns healthcare
+compliance or payments and would sound serious whatever was said, so a model
+reaching for high on subject matter alone would otherwise score correctly for
+the wrong reason.
+
+**D58. Cross-region deduplication is switched off for risks.**
+The rule merges the same named person committing to the same thing in two
+places, which is right for actions and decisions where a closing recap restates
+them. It is wrong for risks: the person named on two risks is usually the
+person who noticed both, not the person recommitting to one. Merging would
+silently discard a real concern, and a lost risk is worse than a duplicate one
+a reviewer dismisses in a click.
+
+**D59. Golden case 5 is asserted in both directions.**
+A negative test that cannot be made to fail proves nothing. The scripted
+provider takes `include_deferred=True` and the suite asserts that the deferred
+item does then reach the store. Without it the passing test could be passing
+because the extraction never ran.
+
+**D60. A wrong golden label is corrected; a label a model disagrees with is not.**
+The harness reported an invented date on `action_sp_08` in three runs out of
+four. The label was wrong: Marcus says "I'll run the baseline tests this week",
+so UNSPECIFIED denied words the transcript contains.
+The test applied is whether the correction can be justified from the transcript
+alone, with no reference to model output. D40 still stands and this does not
+weaken it.
+Having found one, every remaining action labelled UNSPECIFIED was audited by
+scanning the transcript around its quote for stated timings. Two more were
+wrong (`action_sp_03`, `action_sp_06`) and two were checked and left alone
+(`action_cs_05`, where "by end of day" belongs to the poll rather than the
+coordination, and `action_hk_06`, where "talk tomorrow" is a farewell).
+Only `action_sp_08` changes a measured outcome. The other two state timings no
+rule can resolve, so UNSPECIFIED after resolution is still correct for them.
+
+**D61. `--capabilities` scopes an evaluation run.**
+Not a convenience. One full run over three capabilities and two transcripts
+costs eighteen model requests against a free-tier allowance of twenty a day.
+
+### Assumptions
+
+**A10.** A commitment and its acceptance are one action, and the timing stated
+in either belongs to it. This is what makes the `action_sp_08` correction
+right: Sarah raises the load testing, Marcus accepts it and says "this week",
+and that is one action with a stated due date.
+
+### Known limitations
+
+**L17.** The golden set has now been wrong twice, once about a meeting date and
+once about three due dates. It was derived from LLM-generated transcripts,
+which the README states. Both errors were found by the harness rather than by
+review, which is an argument for the harness and not for the labels.
+
+**L18.** M4 and M5 have been measured on one run each. Recall of 1.00 on three
+decisions and two risks is a small sample and should be read as "nothing was
+missed in this run", not as an accuracy claim.

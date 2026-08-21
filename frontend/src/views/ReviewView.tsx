@@ -16,8 +16,9 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiFailure } from "../api/client";
-import type { Extraction, QueueSummary, ReviewEvent, ReviewStatus } from "../api/types";
+import type { Extraction, ExtractionType, QueueSummary, ReviewEvent, ReviewStatus } from "../api/types";
 import { Badge, Button, Empty, ErrorNote, Field, Panel, Value } from "../components/ui";
+import { kindOf } from "../components/extractionKinds";
 
 const STATUS_TONE = {
   pending: "info",
@@ -34,19 +35,27 @@ const FILTERS: { label: string; value: ReviewStatus | "" }[] = [
   { label: "All", value: "" },
 ];
 
+const KIND_FILTERS: { label: string; value: ExtractionType | "" }[] = [
+  { label: "All types", value: "" },
+  { label: "Actions", value: "action" },
+  { label: "Decisions", value: "decision" },
+  { label: "Risks", value: "risk" },
+];
+
 export function ReviewView({ reviewer }: { reviewer: string }) {
   const [filter, setFilter] = useState<ReviewStatus | "">("pending");
+  const [kind, setKind] = useState<ExtractionType | "">("");
   const [items, setItems] = useState<Extraction[]>([]);
   const [summary, setSummary] = useState<QueueSummary | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<{ code?: string; message: string } | null>(null);
 
   const load = () => {
-    api.queue({ status: filter }).then(setItems).catch(() => setItems([]));
+    api.queue({ status: filter, extraction_type: kind }).then(setItems).catch(() => setItems([]));
     api.queueSummary().then(setSummary).catch(() => setSummary(null));
   };
 
-  useEffect(load, [filter]);
+  useEffect(load, [filter, kind]);
 
   const active = items.find((item) => item.id === selected) ?? null;
 
@@ -84,10 +93,23 @@ export function ReviewView({ reviewer }: { reviewer: string }) {
           title="Queue"
           subtitle="Unverified quotes sort first"
           actions={
-            <div className="flex gap-1">
+            <div className="flex flex-wrap justify-end gap-1">
+              {KIND_FILTERS.map((option) => (
+                <Button
+                  key={option.value || "all"}
+                  tone={kind === option.value ? "ok" : "neutral"}
+                  onClick={() => {
+                    setKind(option.value);
+                    setSelected(null);
+                  }}
+                >
+                  {option.label}
+                </Button>
+              ))}
+              <span className="mx-1 w-px self-stretch bg-[var(--color-line)]" />
               {FILTERS.map((option) => (
                 <Button
-                  key={option.value}
+                  key={option.value || "any"}
                   tone={filter === option.value ? "info" : "neutral"}
                   onClick={() => {
                     setFilter(option.value);
@@ -104,40 +126,48 @@ export function ReviewView({ reviewer }: { reviewer: string }) {
             <Empty>Nothing here. Extract a source to fill the queue.</Empty>
           ) : (
             <ul className="max-h-[32rem] divide-y divide-[var(--color-line)] overflow-y-auto">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(item.id)}
-                    className={`w-full px-4 py-3 text-left transition-colors hover:bg-[var(--color-canvas)] ${
-                      selected === item.id ? "bg-[var(--color-canvas)]" : ""
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-sm">{String(item.payload.what ?? item.payload.description ?? "")}</span>
-                      <div className="flex shrink-0 gap-1">
-                        {!item.quote_verified && <Badge tone="bad">unverified</Badge>}
-                        <Badge tone={STATUS_TONE[item.status]}>{item.status}</Badge>
+              {items.map((item) => {
+                const view = kindOf(item);
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(item.id)}
+                      className={`w-full px-4 py-3 text-left transition-colors hover:bg-[var(--color-canvas)] ${
+                        selected === item.id ? "bg-[var(--color-canvas)]" : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-sm">{view.headline(item.payload)}</span>
+                        <div className="flex shrink-0 gap-1">
+                          <Badge>{view.label}</Badge>
+                          {!item.quote_verified && <Badge tone="bad">unverified</Badge>}
+                          <Badge tone={STATUS_TONE[item.status]}>{item.status}</Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
-                      <span>
-                        owner <Value value={item.payload.owner} />
-                      </span>
-                      <span>·</span>
-                      <span>
-                        due <Value value={item.payload.due_date} />
-                      </span>
-                      {item.confidence !== null && (
-                        <>
-                          <span>·</span>
-                          <span>conf {item.confidence.toFixed(2)}</span>
-                        </>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              ))}
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
+                        {view.facts(item.payload).map((fact, index) => (
+                          <span key={fact.label} className="flex items-center gap-2">
+                            {index > 0 && <span>·</span>}
+                            <span>
+                              {fact.label}{" "}
+                              <span className={fact.tone === "warn" ? "text-[var(--color-warn)]" : ""}>
+                                {fact.tone === "bad" ? <strong>{fact.value}</strong> : fact.value}
+                              </span>
+                            </span>
+                          </span>
+                        ))}
+                        {item.confidence !== null && (
+                          <span className="flex items-center gap-2">
+                            <span>·</span>
+                            <span>conf {item.confidence.toFixed(2)}</span>
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
@@ -242,14 +272,14 @@ function ReviewDetail({
       >
         <div className="grid gap-3 px-4 py-3 sm:grid-cols-2">
           {Object.entries(item.payload)
-            .filter(([key]) => !key.startsWith("due_date_") || key === "due_date_stated")
+            .filter(([key]) => !kindOf(item).hidden.includes(key))
             .map(([key, value]) => {
               const original = item.original_payload[key];
               const changed = JSON.stringify(original) !== JSON.stringify(value);
               return (
                 <Field key={key} label={key.replace(/_/g, " ")}>
-                  {terminal ? (
-                    <Value value={value} />
+                  {terminal || Array.isArray(value) ? (
+                    <Value value={Array.isArray(value) ? value.join(", ") || "none" : value} />
                   ) : (
                     <input
                       className="w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm"
@@ -268,6 +298,13 @@ function ReviewDetail({
         {item.payload.due_date_rule ? (
           <div className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
             Date rule: {String(item.payload.due_date_rule)}
+          </div>
+        ) : null}
+
+        {Array.isArray(item.payload.alternatives_discussed) &&
+        item.payload.alternatives_discussed.length > 0 ? (
+          <div className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+            Alternatives discussed: {(item.payload.alternatives_discussed as string[]).join(", ")}
           </div>
         ) : null}
 

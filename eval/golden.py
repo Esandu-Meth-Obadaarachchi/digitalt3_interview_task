@@ -131,3 +131,77 @@ def pair(golden: list[GoldenAction], extractions: list) -> Pairing:
     result.missed = [item.id for item in unmatched]
     result.false_positives = [e.id for e in extractions if e.id not in used]
     return result
+
+
+# =============================================================================
+# Decisions and risks
+# =============================================================================
+
+
+class GoldenDecision(StrictModel):
+    id: str
+    source_id: str
+    what_was_decided: str
+    verbatim_quote: str
+    who_stated_it: str | None = None
+    stated_rationale: str | None = None
+    timestamp: str | None = None
+    alternatives_discussed: list[str] = []
+
+
+class GoldenDeferred(StrictModel):
+    """A decision proposed and then explicitly put off.
+
+    The whole point of golden case 5. These must never reach the decision log,
+    which makes them the only golden records asserted by absence.
+    """
+
+    id: str
+    source_id: str
+    what_was_proposed: str
+    verbatim_quote: str
+    why_deferred: str | None = None
+    who_deferred_it: str | None = None
+    timestamp: str | None = None
+    notes: str | None = None
+
+
+class GoldenRisk(StrictModel):
+    id: str
+    source_id: str
+    description: str
+    severity: str
+    verbatim_quote: str
+    affected_area: str | None = None
+    owner: str | None = None
+    speaker: str | None = None
+    timestamp: str | None = None
+
+
+def load_decisions(sources: set[str] | None = None) -> tuple[list[GoldenDecision], list[GoldenDeferred]]:
+    raw = load_json("golden_decisions.json")
+    decided = [GoldenDecision(**item) for item in raw["decisions"]]
+    deferred = [GoldenDeferred(**item) for item in raw["deferred_decisions"]]
+    if sources is not None:
+        decided = [d for d in decided if d.source_id in sources]
+        deferred = [d for d in deferred if d.source_id in sources]
+    return decided, deferred
+
+
+def load_risks(sources: set[str] | None = None) -> list[GoldenRisk]:
+    risks = [GoldenRisk(**item) for item in load_json("golden_risks.json")["risks"]]
+    if sources is not None:
+        risks = [r for r in risks if r.source_id in sources]
+    return risks
+
+
+def quote_present(quote: str, extractions: list) -> bool:
+    """Did anything in the store quote these words?
+
+    Overlap in either direction, because a model quoting a longer or shorter
+    span of the same sentence has still recorded the same thing. Used for
+    decision recall and, crucially, for asserting that a deferred item is
+    absent: a looser test there is the safer one, since it makes the negative
+    harder to pass by accident.
+    """
+    return any(quotes_overlap(quote, e.verbatim_quote) for e in extractions)

@@ -21,8 +21,8 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription at Phase 9 |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
 | M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
-| M4  | Extract decisions                | MUST     | Not built | Phase 5 |
-| M5  | Extract risks and blockers       | SHOULD   | Not built | Phase 5 |
+| M4  | Extract decisions                | MUST     | Done      | Measured. All 3 golden decisions found, the proposed-then-deferred item correctly absent |
+| M5  | Extract risks and blockers       | SHOULD   | Done      | Measured. Both golden risks found, every high severity defensible from its quote |
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
 | M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
@@ -52,18 +52,32 @@ Reproduce with `make eval-fresh`, which bypasses the response cache, or
 > supports `--runs N` and reports the worst run rather than the average, but
 > running it meaningfully needs a quota this build does not have.
 
-**gemini-3.6-flash, prompt `extract_actions` v2, 13 hand-labelled actions across
-the two valid transcripts.**
+**gemini-3.6-flash. 13 hand-labelled actions, 3 decisions, 2 risks and 1
+proposed-then-deferred decision across the two original transcripts.**
 
 | # | Metric | Measured | Target | |
 |---|---|---|---|---|
 | 1  | Action recall | **0.92** | ≥ 0.70 | pass |
-| 1b | Precision | 0.63 | reported | see below |
+| 1b | Precision | 0.71 | reported | see below |
 | 2  | **Fabricated quotes** | **0** | 0 | pass |
 | 3a | Owner accuracy where named | 0.90 | ≥ 0.90 | pass |
 | 3b | UNSPECIFIED compliance | 2/2 | all | pass |
 | 4  | Invented dates | **0** | 0 | pass |
 | 4b | Relative dates resolved | 5 | reported | each carries the rule that produced it |
+| 5  | **Deferred items recorded** | **0** | 0 | pass |
+| 5b | Decision recall | **1.00** | ≥ 0.70 | pass |
+| M5 | Risk recall | **1.00** | ≥ 0.70 | pass |
+| M5b | Severity defensible from the quote | 4/4 | all | pass |
+
+Case 5 is the one the brief singles out. A system that finds every decision and
+*also* records the deferral has not passed: it has recorded something that never
+happened, and a reviewer cannot tell, because the quote will be perfectly
+genuine.
+
+A separate transcript, written independently of this build and never used to
+tune a prompt, scores **recall 0.83, precision 1.00, zero fabricated quotes,
+zero invented dates, owner accuracy 1.00**. Run it with
+`make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15`.
 
 ### What the harness found, and what was done about it
 
@@ -96,6 +110,19 @@ claimed on the strong signal. Pairing is now two-pass, quote overlap first.
 | Invented dates | 2 (fail) | **0** (pass) |
 | UNSPECIFIED compliance | not measured | **2/2** (pass) |
 | Owner accuracy | 1.00 | 0.90 |
+
+**The harness found an error in the golden set, twice.** In Phase 3 the client
+status call's metadata date contradicted its own content. In Phase 5 three
+actions were labelled as having no due date when the transcript plainly states
+one: *"I'll run the baseline tests this week"* was recorded as UNSPECIFIED, and
+the system resolving it was scored as an invented date for three runs running.
+
+Correcting a label is only legitimate when the correction can be justified from
+the transcript alone, with no reference to what any model produced. All three
+could be. Having found one, every remaining UNSPECIFIED date label was audited
+the same way and two more were found; two others were checked and deliberately
+left alone, because the timing near them belongs to a different commitment.
+Details in [`decision_log.md`](decision_log.md).
 
 ### The weakest part of this build
 

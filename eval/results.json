@@ -1,6 +1,7 @@
 {
-  "generated_at": "2026-08-20T17:51:43+00:00",
+  "generated_at": "2026-08-21T06:40:42+00:00",
   "is_measurement": true,
+  "incomplete_reason": null,
   "provider": "gemini",
   "model": "gemini-3.6-flash",
   "prompt_version": "2+44157f",
@@ -10,7 +11,7 @@
     "meeting-sprint-planning-2024-11-18"
   ],
   "golden_actions": 13,
-  "extracted_actions": 19,
+  "extracted_actions": 17,
   "metrics": [
     {
       "case": "1",
@@ -23,10 +24,10 @@
     {
       "case": "1b",
       "name": "Precision",
-      "measured": "0.63",
+      "measured": "0.71",
       "target": "reported",
       "passed": null,
-      "detail": "7 extraction(s) matched no golden action"
+      "detail": "5 extraction(s) matched no golden action"
     },
     {
       "case": "2",
@@ -67,67 +68,98 @@
       "target": "reported",
       "passed": null,
       "detail": "e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19"
+    },
+    {
+      "case": "5",
+      "name": "Deferred items recorded",
+      "measured": "0",
+      "target": "= 0",
+      "passed": true,
+      "detail": "1 proposed-then-deferred item(s) correctly absent"
+    },
+    {
+      "case": "5b",
+      "name": "Decision recall",
+      "measured": "1.00",
+      "target": ">= 0.70",
+      "passed": true,
+      "detail": "3/3 hand-labelled decisions found"
+    },
+    {
+      "case": "M5",
+      "name": "Risk recall",
+      "measured": "1.00",
+      "target": ">= 0.70",
+      "passed": true,
+      "detail": "2/2 hand-labelled risks found"
+    },
+    {
+      "case": "M5b",
+      "name": "Severity defensible",
+      "measured": "4/4",
+      "target": "all",
+      "passed": true,
+      "detail": "every high-severity quote states the consequence it rests on"
     }
   ],
   "calibration": [
     {
       "threshold": 0.0,
-      "kept": 19,
+      "kept": 17,
       "correct": 12,
-      "precision": 0.632,
+      "precision": 0.706,
       "recall": 0.923
     },
     {
       "threshold": 0.5,
-      "kept": 19,
+      "kept": 17,
       "correct": 12,
-      "precision": 0.632,
+      "precision": 0.706,
       "recall": 0.923
     },
     {
       "threshold": 0.7,
-      "kept": 19,
+      "kept": 17,
       "correct": 12,
-      "precision": 0.632,
+      "precision": 0.706,
       "recall": 0.923
     },
     {
       "threshold": 0.8,
-      "kept": 19,
+      "kept": 17,
       "correct": 12,
-      "precision": 0.632,
+      "precision": 0.706,
       "recall": 0.923
     },
     {
       "threshold": 0.9,
-      "kept": 17,
-      "correct": 11,
-      "precision": 0.647,
-      "recall": 0.846
+      "kept": 13,
+      "correct": 8,
+      "precision": 0.615,
+      "recall": 0.615
     }
   ],
   "misses": [
     "action_sp_03"
   ],
   "false_positives": [
-    "meeting-client-status-2024-08-19::action::a7ffd7af",
-    "meeting-client-status-2024-08-19::action::ac545671",
-    "meeting-client-status-2024-08-19::action::037b9830",
-    "meeting-sprint-planning-2024-11-18::action::f2cfee1f",
-    "meeting-sprint-planning-2024-11-18::action::c33aa793",
-    "meeting-sprint-planning-2024-11-18::action::3c26f3d0",
-    "meeting-sprint-planning-2024-11-18::action::c89c248d"
+    "meeting-client-status-2024-08-19::action::2e500168",
+    "meeting-client-status-2024-08-19::action::e0614815",
+    "meeting-client-status-2024-08-19::action::811ca4c8",
+    "meeting-sprint-planning-2024-11-18::action::a2174aa5",
+    "meeting-sprint-planning-2024-11-18::action::76b73f15"
   ],
   "usage": {
-    "attempts": 6,
-    "calls": 6,
-    "retry_rate": 0.0,
+    "attempts": 20,
+    "calls": 18,
+    "retry_rate": 0.1,
     "cache_hits": 0,
-    "prompt_tokens": 11543,
-    "completion_tokens": 2433,
-    "total_latency_ms": 143145,
+    "prompt_tokens": 33645,
+    "completion_tokens": 4179,
+    "total_latency_ms": 444051,
     "outcomes": {
-      "ok": 6
+      "error": 2,
+      "ok": 18
     }
   }
 }
