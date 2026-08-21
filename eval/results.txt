@@ -1,6 +1,6 @@
 
 Meeting & Channel Intelligence Agent - evaluation
-2026-08-21T07:11:35+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+2026-08-21T08:05:05+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
 sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
 13 hand-labelled actions, 17 extracted
 
@@ -45,19 +45,19 @@ sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
   >= 0.80         17       12       0.71     0.92
   >= 0.90         13        8       0.61     0.61
 
-  Model usage  24 attempt(s) for 24 call(s), retry rate 0%, 18 cache hit(s)
-  40578 prompt + 4920 completion tokens, 493498 ms total
-  outcomes: {'ok': 24}
+  Model usage  49 attempt(s) for 49 call(s), retry rate 0%, 42 cache hit(s)
+  82255 prompt + 9885 completion tokens, 991904 ms total
+  outcomes: {'ok': 49}
 
   Missed (in the golden set, not extracted)
     action_sp_03
 
   False positives (extracted, matching no golden action)
-    meeting-client-status-2024-08-19::action::3593d347
-    meeting-client-status-2024-08-19::action::44bff1c5
-    meeting-client-status-2024-08-19::action::2af32712
-    meeting-sprint-planning-2024-11-18::action::44423a41
-    meeting-sprint-planning-2024-11-18::action::d800b9e4
+    meeting-client-status-2024-08-19::action::066f0d9c
+    meeting-client-status-2024-08-19::action::eb1dd12b
+    meeting-client-status-2024-08-19::action::d45db8ba
+    meeting-sprint-planning-2024-11-18::action::0193237c
+    meeting-sprint-planning-2024-11-18::action::ae849912
 
   every targeted metric met
 
