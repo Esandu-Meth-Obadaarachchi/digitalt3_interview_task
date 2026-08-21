@@ -169,18 +169,18 @@ predate the run. See commit `3a0226b`.
 | M2 consent gate | 8 | `test_consent_gate.py` |
 | M1 parsing, three formats | 18 | `test_transcript_parsers.py` |
 | M1 validation and storage | 20 | `test_ingestion_pipeline.py` |
-| HTTP surface | 12 | `test_api_sources.py` |
+| HTTP surface | 11 | `test_api_sources.py` |
 | LLM wrapper, retry and repair | 17 | `test_llm_client.py` |
-| Provider swappability | 10 | `test_llm_providers.py` |
-| Prompts and chunking | 13 | `test_prompts_and_chunking.py` |
+| Provider swappability | 12 | `test_llm_providers.py` |
+| Prompts and chunking | 14 | `test_prompts_and_chunking.py` |
 | Quote verification, date discipline | 33 | `test_quote_and_dates.py` |
 | M3 extraction end to end | 21 | `test_action_extraction.py` |
 | M4 decisions, golden case 5 | 11 | `test_decision_extraction.py` |
 | M5 risks, severity defensibility | 10 | `test_risk_extraction.py` |
-| M6 review queue | 21 | `test_review_queue.py` |
+| M6 review queue | 20 | `test_review_queue.py` |
 | M7 tracker adapter and mock | 21 | `test_tracker_adapter.py` |
 | **Golden case 8, approval enforcement** | 19 | `eval/test_approval_gate.py` |
-| Harness scoring | 21 | `eval/test_harness.py` |
+| Harness scoring | 24 | `eval/test_harness.py` |
 
 ## What is not covered, and why
 
