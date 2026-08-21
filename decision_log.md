@@ -939,3 +939,78 @@ deployment would need a lock or an external scheduler.
 The specification says one digest per channel and a meeting has no other
 natural grouping; doing otherwise would leave every transcript out of the
 digest entirely.
+
+---
+
+## Phase 9 — Documentation
+
+### Decisions
+
+**The architecture note is written as one document a reviewer can read in ten
+minutes, not as a folder of diagrams.** The brief asks for an architecture note
+covering data flow, storage, gating and where the model sits. It is one file,
+[`docs/architecture.md`](docs/architecture.md), with a single ASCII data-flow
+diagram and tables under it. Rejected: generated diagrams. A picture of the
+call graph would have said less than the four-row table stating where the
+approval gate is enforced and what happens when each depth is bypassed.
+
+**Each part of the system gets its own document, and each one follows the same
+five headings.** What it does, which capability it serves, the decisions with
+the reason that actually drove them, how it is tested, and what it does not do.
+Twelve documents in [`docs/components/`](docs/components/README.md). The fixed
+shape matters more than the prose: a reviewer comparing two components can find
+the same thing in the same place, and a component with a thin "how it is
+tested" section is visible at a glance.
+
+**Every document ends with what it does not do.** The build's weak points are
+recorded in the same file as its strengths rather than collected in one
+appendix nobody reaches. The retrieval document says dense would win today. The
+evaluation document says precision 0.71 is a lower bound because the golden set
+is incomplete. Stating a limitation next to the decision it qualifies is the
+only arrangement where the reader meets both.
+
+**Bugs found during the build stay in the documents.** The `INSERT OR REPLACE`
+cascade that destroyed fourteen extractions, the `.gitignore` line that
+excluded every Pydantic contract, the quota-exhausted run that overwrote a good
+results file. Each is written where its component is described, because each
+one is the reason a check exists, and a check without its story reads as
+ceremony.
+
+**The component index carries a reading order, not just a list.** Someone with
+twenty minutes should read the architecture note, the review gate and the
+evaluation document, in that order, because those three carry the gating and
+the numbers. The index says so.
+
+### What writing the documentation found
+
+**The README had gone stale in four places and nobody noticed.** The status
+banner still said "Phase 2 of 12 complete". M8 was listed as Not built when
+retrieval had been running and measured since Phase 6. M1 pointed at Phase 9
+for audio transcription, which was never built. The file tree was missing
+retrieval, the scheduler, the outcome record, the adapters and chat signals,
+and the test count read 209 against an actual 328.
+
+This is the same class of fault as the two wrong test counts in Phase 5: a
+number stated from memory and never re-checked. The count is now taken from
+`make test-inventory`. The capability table is not yet machine-checked, and
+that is recorded below as `L28`.
+
+**Writing the evaluation document forced the matching rule to be stated in
+prose.** Every recall and accuracy figure depends on it, and it had only ever
+existed as code. Written out, it is plainly generous — quote overlap or a
+half-share of content words — which is why recall and false positives are now
+always printed together and neither is quoted alone.
+
+### Known limitations
+
+**L28.** The capability status table in the README is maintained by hand.
+Nothing fails if it drifts from what the code does, and it had drifted twice.
+The honest fix is a test that reads the table and asserts each Done row has a
+passing test file behind it. Not built.
+
+**L29.** The documentation describes the system at the end of Phase 9. It is
+committed alongside the code and can go stale the same way the README did. No
+process keeps them in step beyond rewriting both at the end of each phase.
+
+**L30.** Audio ingestion is documented as not built rather than as future work.
+`backend/app/audio/` holds an empty package. M1 stays Partial.
