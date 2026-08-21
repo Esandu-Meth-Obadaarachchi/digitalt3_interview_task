@@ -136,9 +136,18 @@ def approve(
     note: str | None = None,
     *,
     override_unverified: bool = False,
+    write_through: bool = True,
     settings: Settings | None = None,
 ) -> Extraction:
-    """Approve an item, which is the only way it becomes writable downstream."""
+    """Approve an item, which is the only way it becomes writable downstream.
+
+    The task catalogue gives M7 the trigger "on approval", so an approved
+    action is written to the tracker here. The write happens after the approval
+    transaction commits, and a write failure does not undo the approval: the
+    human decision stands, and `sync_approved` picks the item up on its next
+    run. An approval that silently reverted because a downstream system was
+    unreachable would be worse than one that is merely not yet written.
+    """
     if not actor or not actor.strip():
         raise ReviewStateError("approval requires the name of the person approving")
 
@@ -177,7 +186,20 @@ def approve(
             ),
         )
         logger.info("%s approved %s", actor, extraction_id)
-        return _load(conn, extraction_id)
+        approved = _load(conn, extraction_id)
+
+    if write_through and approved.extraction_type is ExtractionType.ACTION:
+        from app.tracker.service import write_approved
+
+        try:
+            write_approved(extraction_id, cfg, raise_on_block=False)
+        except Exception:
+            logger.exception(
+                "approved %s but the tracker write failed. The approval stands and "
+                "sync_approved will retry it.", extraction_id
+            )
+
+    return approved
 
 
 def reject(

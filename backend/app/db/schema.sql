@@ -359,6 +359,36 @@ BEGIN
 END;
 
 -- =============================================================================
+-- TRACKER ITEMS  (M7)  - the mock tracker's own store
+-- =============================================================================
+-- This table stands in for the foreign system. It holds items the agent never
+-- created: a seeded backlog with missing assignees, free-text status values,
+-- stale due dates and near-duplicates, because the adapter contract requires
+-- that "mocks must return realistically messy data" and that "an agent that
+-- only works on clean data has not been tested".
+--
+-- Deliberately separate from tracker_writes. This is what the tracker holds;
+-- tracker_writes is our audit of what we put there. Conflating them would mean
+-- the agent could not tell its own writes from somebody else's tickets, which
+-- is exactly the situation a real integration is in.
+CREATE TABLE IF NOT EXISTS tracker_items (
+    external_ref  TEXT PRIMARY KEY,                        -- e.g. MOCK-14
+    title         TEXT NOT NULL,
+    description   TEXT,
+    assignee      TEXT,                                    -- often NULL in real trackers
+    status        TEXT NOT NULL,                           -- free text on purpose, not an enum
+    due_date      TEXT,                                    -- often NULL, sometimes in the past
+    labels        TEXT NOT NULL DEFAULT '[]',              -- JSON array
+    source_ref    TEXT,                                    -- our extraction id, NULL for seeded items
+    seeded        INTEGER NOT NULL DEFAULT 0 CHECK (seeded IN (0, 1)),
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tracker_items_source ON tracker_items (source_ref);
+CREATE INDEX IF NOT EXISTS idx_tracker_items_status ON tracker_items (status);
+
+-- =============================================================================
 -- TRACKER WRITES  (M7)
 -- =============================================================================
 -- The mock tracker's item table. One row per approved extraction, ever.
