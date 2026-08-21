@@ -59,6 +59,7 @@ from golden import (  # noqa: E402
     Pairing,
     load_actions,
     load_decisions,
+    load_questions,
     load_risks,
     pair,
     quote_present,
@@ -73,6 +74,10 @@ from app.db.repositories import segments as segment_repo  # noqa: E402
 from app.extraction.actions import extract_actions  # noqa: E402
 from app.extraction.decisions import extract_decisions  # noqa: E402
 from app.extraction.risks import extract_risks  # noqa: E402
+from app.retrieval.embeddings import get_embedder  # noqa: E402
+from app.retrieval.qa import answer_question  # noqa: E402
+from app.retrieval.search import search  # noqa: E402
+from app.retrieval.vector_index import VectorIndex, rebuild  # noqa: E402
 from app.extraction.llm.factory import get_llm_provider  # noqa: E402
 from app.extraction.prompts import load_prompt  # noqa: E402
 from app.extraction.quote_verifier import verify_quote  # noqa: E402
@@ -438,6 +443,117 @@ def case_m5_risks(golden: list[GoldenRisk], extractions) -> list[Metric]:
     ]
 
 
+def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
+    """Golden case 6, and the mode comparison the brief's warning deserves.
+
+    "All five golden questions return the correct source in the top three
+     results. The one golden question whose answer is genuinely absent from the
+     corpus returns a not-found response rather than a plausible fabrication."
+
+    The second half needs the model. The mode comparison does not, so it runs
+    regardless: retrieval is free and the whole point of choosing hybrid over
+    keyword is a claim that should be measured rather than asserted.
+    """
+    questions = load_questions()
+    answerable = [q for q in questions if q.answerable]
+    unanswerable = [q for q in questions if not q.answerable]
+    metrics: list[Metric] = []
+
+    # --- 6c: the comparison, retrieval only, no model calls -----------------
+    embedder = get_embedder(settings)
+    per_mode: dict[str, tuple[int, int, float]] = {}
+
+    with database.connect(settings) as conn:
+        expected_segments = {}
+        for question in answerable:
+            row = conn.execute(
+                "SELECT id FROM segments WHERE source_id = ? AND start_ts = ?",
+                (question.expected_source_id, question.expected_timestamp),
+            ).fetchone()
+            expected_segments[question.id] = row["id"] if row else None
+
+    for mode in ("keyword", "dense", "hybrid"):
+        source_hits = segment_hits = 0
+        ranks: list[int] = []
+        for question in answerable:
+            found = search(question.question, settings, mode=mode, limit=10)
+            top3 = found[:3]
+            source_hits += any(h.source_id == question.expected_source_id for h in top3)
+
+            wanted = expected_segments.get(question.id)
+            position = next((i for i, h in enumerate(found, 1) if h.ref_id == wanted), None)
+            segment_hits += int(position is not None and position <= 3)
+            ranks.append(position or 99)
+        per_mode[mode] = (source_hits, segment_hits, sum(ranks) / len(ranks) if ranks else 0.0)
+
+    configured = settings.retrieval_mode
+    source_hits, segment_hits, mean_rank = per_mode[configured]
+
+    metrics.append(
+        Metric(
+            case="6",
+            name="Retrieval, correct source",
+            measured=f"{source_hits}/{len(answerable)}",
+            target=f"{len(answerable)}/{len(answerable)}",
+            passed=source_hits == len(answerable),
+            detail=f"correct source in the top three, mode={configured}",
+        )
+    )
+    metrics.append(
+        Metric(
+            case="6c",
+            name="Mode comparison",
+            measured=configured,
+            target="reported",
+            detail=" | ".join(
+                f"{mode}: source {s}/{len(answerable)}, segment {g}/{len(answerable)}, mean rank {r:.1f}"
+                for mode, (s, g, r) in per_mode.items()
+            )
+            + f" [embedder: {embedder.name}]",
+        )
+    )
+
+    # --- 6b: the not-found path, which does need the model ------------------
+    if run_model and unanswerable:
+        refused = 0
+        detail = []
+        for question in unanswerable:
+            answer = answer_question(question.question, settings)
+            refused += int(not answer.found)
+            if answer.found:
+                detail.append(f"{question.id} was answered when it should not have been")
+        metrics.append(
+            Metric(
+                case="6b",
+                name="Not-found on the unanswerable",
+                measured=f"{refused}/{len(unanswerable)}",
+                target="all",
+                passed=refused == len(unanswerable),
+                detail="; ".join(detail)
+                or "the question with no answer in the corpus was correctly refused",
+            )
+        )
+
+        answered = cited = 0
+        for question in answerable:
+            answer = answer_question(question.question, settings)
+            answered += int(answer.found)
+            cited += int(bool(answer.claims))
+        metrics.append(
+            Metric(
+                case="6d",
+                name="Answers carrying a verified citation",
+                measured=f"{cited}/{len(answerable)}",
+                target="all",
+                passed=cited == len(answerable),
+                detail=f"{answered} answered, {cited} with at least one citation that verified "
+                f"against the source it cites",
+            )
+        )
+
+    return metrics
+
+
 def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[dict]:
     """Does the model's own confidence predict whether it was right?
 
@@ -470,7 +586,7 @@ def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[
 #: Which capabilities a run exercises. Scoping this matters on a free tier:
 #: one full run over three capabilities and two transcripts costs eighteen
 #: model requests against a daily allowance of twenty.
-ALL_CAPABILITIES = ("actions", "decisions", "risks")
+ALL_CAPABILITIES = ("actions", "decisions", "risks", "qa")
 
 
 def run_evaluation(
@@ -492,8 +608,14 @@ def run_evaluation(
             "risks": extract_risks,
         }
         for name in capabilities:
+            if name not in extractors:
+                continue
             for source_id in sorted(SCORED_SOURCES):
                 failed_chunks.extend(extractors[name](source_id, cfg).failed_chunks)
+
+        # The vector index has to be rebuilt after extraction, because approved
+        # extractions are searchable alongside transcript segments.
+        rebuild(cfg)
 
     with database.connect(cfg) as conn:
         def _load(kind: ExtractionType) -> list:
@@ -580,6 +702,8 @@ def run_evaluation(
         report.metrics += case_5_decisions(decided, deferred, decision_rows)
     if "risks" in capabilities or risk_rows:
         report.metrics += case_m5_risks(golden_risks, risk_rows)
+    if VectorIndex(cfg).ready() or cfg.retrieval_mode == "keyword":
+        report.metrics += case_6_retrieval(cfg, run_model="qa" in capabilities)
     report.calibration = calibration(pairing, extractions, len(golden))
     return report
 

@@ -99,10 +99,16 @@ def test_an_extraction_matching_nothing_is_a_false_positive():
 # --- the metrics -------------------------------------------------------------
 
 
+#: The stub can stand in for extraction. It cannot stand in for judgement, so
+#: the QA cases are scoped out of the fixture the scoring tests use. See
+#: test_the_stub_cannot_pass_the_not_found_case for why that is not a gap.
+STUB_CAPABILITIES = ("actions", "decisions", "risks")
+
+
 @pytest.fixture()
 def scored(settings, scripted_model):
     scripted_model()
-    return run_evaluation(settings)
+    return run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
 
 def _metric(report, case):
@@ -135,10 +141,45 @@ def test_the_report_names_the_prompt_version_that_produced_it(scored):
     assert scored.provider == "fake"
 
 
+def test_the_stub_cannot_pass_the_not_found_case(settings, scripted_model):
+    """The boundary of what a test double can prove, asserted rather than left
+    implicit.
+
+    The stub answers a question by lexical overlap with the retrieved sources.
+    That is enough to exercise the retrieval, the citation verification and the
+    scoring, and it is not enough to tell "what database did we decide to use
+    for the user analytics module", which the corpus does not answer, from
+    "what database", which it does. Two content words overlap and the stub
+    answers.
+
+    Golden case 6b measures exactly that judgement, so it needs a real model,
+    and the numbers for it in the README come from one. Pinning this here stops
+    someone later "fixing" the stub until it passes and believing 6b is covered
+    by the suite.
+    """
+    scripted_model()
+    report = run_evaluation(settings, capabilities=("qa",))
+
+    not_found = next(m for m in report.metrics if m.case == "6b")
+    assert not_found.passed is False
+    assert "should not have been" in not_found.detail
+
+
+def test_the_mode_comparison_runs_without_a_model(settings, scripted_model):
+    """Case 6c is retrieval only, so it costs nothing and always reports."""
+    scripted_model()
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
+
+    comparison = next(m for m in report.metrics if m.case == "6c")
+    for mode in ("keyword", "dense", "hybrid"):
+        assert mode in comparison.detail
+    assert "hashing" in comparison.detail, "the report must name the embedder that produced it"
+
+
 def test_recall_falls_when_the_model_misses_things(settings, scripted_model):
     """Half the actions dropped should halve recall, not merely dent it."""
     scripted_model(transform=lambda actions: actions[:1])
-    report = run_evaluation(settings)
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     recall = float(_metric(report, "1").measured)
     assert 0.0 < recall < 0.7
@@ -152,7 +193,7 @@ def test_a_guessed_owner_fails_the_unspecified_case(settings, scripted_model):
         return [a | {"owner": "Sarah Chen"} if a["owner"] == UNSPECIFIED else a for a in actions]
 
     scripted_model(transform=guess_owners)
-    report = run_evaluation(settings)
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     metric = _metric(report, "3b")
     assert metric.passed is False
@@ -165,7 +206,7 @@ def test_an_invented_date_fails_the_date_case(settings, scripted_model):
         return [a | {"due_date": "next Tuesday"} if a["due_date"] == UNSPECIFIED else a for a in actions]
 
     scripted_model(transform=invent_dates)
-    report = run_evaluation(settings)
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     metric = _metric(report, "4")
     assert metric.passed is False
@@ -179,7 +220,7 @@ def test_a_fabricated_quote_is_counted_even_though_it_was_flagged(settings, scri
         return [a | {"verbatim_quote": "words never spoken in this meeting"} for a in actions]
 
     scripted_model(transform=fabricate)
-    report = run_evaluation(settings)
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     assert _metric(report, "2").passed is False
     assert int(_metric(report, "2").measured) > 0
@@ -194,7 +235,7 @@ def test_extra_items_show_up_as_false_positives_not_as_recall(settings, scripted
         }]
 
     scripted_model(transform=add_noise)
-    report = run_evaluation(settings)
+    report = run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     assert report.false_positives
     assert float(_metric(report, "1b").measured) < 1.0
@@ -328,7 +369,7 @@ def test_score_only_reports_the_model_that_produced_the_rows(settings, scripted_
     from app.extraction.llm.factory import set_provider_override
 
     scripted_model()
-    run_evaluation(settings)
+    run_evaluation(settings, capabilities=STUB_CAPABILITIES)
 
     with database.transaction(settings) as conn:
         conn.execute("UPDATE extractions SET provider = 'gemini', model_name = 'some-other-model'")
