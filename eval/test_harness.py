@@ -275,7 +275,9 @@ def test_a_transient_rate_limit_is_absorbed_by_the_retry_loop(settings, golden_a
 
     set_provider_override(FlakyOnce())
     try:
-        report = run_evaluation(settings)
+        # This provider answers only the action contract, so the run is scoped
+        # to actions. The point of the test is the retry loop, not coverage.
+        report = run_evaluation(settings, capabilities=("actions",))
     finally:
         set_provider_override(None)
 
@@ -305,7 +307,7 @@ def test_one_chunk_failing_outright_makes_the_whole_run_incomplete(settings, gol
 
     set_provider_override(OneChunkAlwaysFails())
     try:
-        report = run_evaluation(settings)
+        report = run_evaluation(settings, capabilities=("actions",))
     finally:
         set_provider_override(None)
 

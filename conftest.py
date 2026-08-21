@@ -100,12 +100,16 @@ def golden_actions() -> list[dict]:
 
 
 @pytest.fixture()
-def scripted_model(golden_actions):
-    """A provider that answers a chunk with the golden actions it contains.
+def scripted_model(golden_actions, request):
+    """A provider that answers whichever contract it is handed.
 
-    Simulates a model that gets everything right, which is what makes the
+    Dispatches on the response schema's title, so one fixture serves M3, M4 and
+    M5. Simulates a model that gets everything right, which is what makes the
     pipeline and the scoring code testable without a network. Tests that need a
     model to get something *wrong* script the failure explicitly instead.
+
+    `transform` applies to actions only, which is where the deliberate-failure
+    tests live.
     """
     import json
 
@@ -113,11 +117,53 @@ def scripted_model(golden_actions):
     from app.extraction.llm.fake import FakeProvider
     from app.ingestion.normaliser import normalise_text
 
-    installed: list = []
+    golden_dir = REPO_ROOT / "sample_data" / "golden"
+    decisions_raw = json.loads((golden_dir / "golden_decisions.json").read_text(encoding="utf-8"))
+    risks_raw = json.loads((golden_dir / "golden_risks.json").read_text(encoding="utf-8"))["risks"]
 
-    def install(transform=None):
-        def respond(request):
-            chunk = normalise_text(request.prompt)
+    def install(transform=None, include_deferred: bool = False):
+        def respond(request_):
+            chunk = normalise_text(request_.prompt)
+            title = request_.json_schema.get("title", "")
+
+            if title == "DraftDecisionList":
+                items = list(decisions_raw["decisions"])
+                if include_deferred:
+                    items += [
+                        {**d, "what_was_decided": d["what_was_proposed"],
+                         "who_stated_it": d.get("who_deferred_it", "UNSPECIFIED")}
+                        for d in decisions_raw["deferred_decisions"]
+                    ]
+                return json.dumps({"decisions": [
+                    {
+                        "what_was_decided": d["what_was_decided"],
+                        "stated_rationale": d.get("stated_rationale", "UNSPECIFIED"),
+                        "who_stated_it": d.get("who_stated_it", "UNSPECIFIED"),
+                        "alternatives_discussed": d.get("alternatives_discussed", []),
+                        "verbatim_quote": d["verbatim_quote"],
+                        "timestamp": d["timestamp"],
+                        "confidence": 0.9,
+                    }
+                    for d in items
+                    if normalise_text(d["verbatim_quote"]) in chunk
+                ]})
+
+            if title == "DraftRiskList":
+                return json.dumps({"risks": [
+                    {
+                        "description": r["description"],
+                        "severity": r["severity"],
+                        "affected_area": r.get("affected_area", "UNSPECIFIED"),
+                        "owner": r.get("owner", "UNSPECIFIED"),
+                        "verbatim_quote": r["verbatim_quote"],
+                        "speaker": r["speaker"],
+                        "timestamp": r["timestamp"],
+                        "confidence": 0.85,
+                    }
+                    for r in risks_raw
+                    if normalise_text(r["verbatim_quote"]) in chunk
+                ]})
+
             actions = [
                 {
                     "what": g["what"],
@@ -137,7 +183,6 @@ def scripted_model(golden_actions):
 
         provider = FakeProvider().default(respond)
         set_provider_override(provider)
-        installed.append(provider)
         return provider
 
     yield install

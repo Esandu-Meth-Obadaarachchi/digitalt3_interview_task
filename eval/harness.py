@@ -23,6 +23,10 @@ Cases covered here (Phase 3):
   3a owner accuracy where named    target >= 0.90
   3b UNSPECIFIED compliance        target = 2/2
   4  invented dates                target = 0
+  5  deferred decision recorded    target = 0        the negative test
+  5b decision recall               target >= 0.70
+  M5 risk recall                   target >= 0.70
+  M5b severity defensible          target = all
 
 Reported alongside, because the brief asks for them and they are what stop a
 recall number being read on its own:
@@ -49,7 +53,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 sys.path.insert(0, str(REPO_ROOT / "eval"))
 
-from golden import GoldenAction, Pairing, load_actions, pair  # noqa: E402
+from golden import (  # noqa: E402
+    GoldenAction,
+    GoldenRisk,
+    Pairing,
+    load_actions,
+    load_decisions,
+    load_risks,
+    pair,
+    quote_present,
+    quotes_overlap,
+)
 
 from app.config import Settings, get_settings  # noqa: E402
 from app.db import database  # noqa: E402
@@ -57,6 +71,8 @@ from app.db.repositories import extractions as extraction_repo  # noqa: E402
 from app.db.repositories import llm_calls as llm_call_repo  # noqa: E402
 from app.db.repositories import segments as segment_repo  # noqa: E402
 from app.extraction.actions import extract_actions  # noqa: E402
+from app.extraction.decisions import extract_decisions  # noqa: E402
+from app.extraction.risks import extract_risks  # noqa: E402
 from app.extraction.llm.factory import get_llm_provider  # noqa: E402
 from app.extraction.prompts import load_prompt  # noqa: E402
 from app.extraction.quote_verifier import verify_quote  # noqa: E402
@@ -337,6 +353,91 @@ def case_4_dates(pairing: Pairing, golden: list[GoldenAction], by_id: dict, extr
     return metrics
 
 
+#: Words a quote must contain for a "high" severity to be readable from it.
+#: Not a check on whether the severity is right, but on whether somebody
+#: holding only the quote could see why that level was chosen, which is what
+#: M5's capability test actually asks.
+_CONSEQUENCE_WORDS = (
+    "miss", "missed", "delay", "postpone", "lose", "lost", "trust", "deadline",
+    "blocked", "block", "cannot", "can't", "fail", "risk", "grey", "legal",
+)
+
+
+def case_5_decisions(decided, deferred, extractions) -> list[Metric]:
+    """Golden case 5, and the decision recall that surrounds it.
+
+    The negative test comes first because it is the one the brief singles out:
+    a system that finds every decision and also records the deferral has not
+    passed. It has recorded something that never happened, and the reviewer
+    cannot tell, because the quote will be perfectly genuine.
+    """
+    recorded = [d for d in deferred if quote_present(d.verbatim_quote, extractions)]
+    found = [d for d in decided if quote_present(d.verbatim_quote, extractions)]
+    recall = len(found) / len(decided) if decided else 0.0
+
+    metrics = [
+        Metric(
+            case="5",
+            name="Deferred items recorded",
+            measured=str(len(recorded)),
+            target="= 0",
+            passed=len(recorded) == 0,
+            detail=(
+                "; ".join(f"{d.id} was deferred but appears in the decision log" for d in recorded)
+                if recorded
+                else f"{len(deferred)} proposed-then-deferred item(s) correctly absent"
+            ),
+        ),
+        Metric(
+            case="5b",
+            name="Decision recall",
+            measured=f"{recall:.2f}",
+            target=">= 0.70",
+            passed=recall >= 0.70 if decided else None,
+            detail=f"{len(found)}/{len(decided)} hand-labelled decisions found",
+        ),
+    ]
+
+    missing = [d.id for d in decided if d not in found]
+    if missing:
+        metrics[1].detail += f". Missed: {', '.join(missing[:4])}"
+    return metrics
+
+
+def case_m5_risks(golden: list[GoldenRisk], extractions) -> list[Metric]:
+    found = [r for r in golden if quote_present(r.verbatim_quote, extractions)]
+    recall = len(found) / len(golden) if golden else 0.0
+
+    high = [e for e in extractions if e.payload.get("severity") == "high"]
+    indefensible = [
+        e for e in high
+        if not any(word in e.verbatim_quote.lower() for word in _CONSEQUENCE_WORDS)
+    ]
+
+    return [
+        Metric(
+            case="M5",
+            name="Risk recall",
+            measured=f"{recall:.2f}",
+            target=">= 0.70",
+            passed=recall >= 0.70 if golden else None,
+            detail=f"{len(found)}/{len(golden)} hand-labelled risks found",
+        ),
+        Metric(
+            case="M5b",
+            name="Severity defensible",
+            measured=f"{len(high) - len(indefensible)}/{len(high)}" if high else "0/0",
+            target="all",
+            passed=not indefensible if high else None,
+            detail=(
+                "; ".join(f"{e.id} is high but its quote states no consequence" for e in indefensible[:2])
+                if indefensible
+                else "every high-severity quote states the consequence it rests on"
+            ),
+        ),
+    ]
+
+
 def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[dict]:
     """Does the model's own confidence predict whether it was right?
 
@@ -366,7 +467,18 @@ def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[
 # =============================================================================
 
 
-def run_evaluation(settings: Settings | None = None, *, extract: bool = True) -> EvalReport:
+#: Which capabilities a run exercises. Scoping this matters on a free tier:
+#: one full run over three capabilities and two transcripts costs eighteen
+#: model requests against a daily allowance of twenty.
+ALL_CAPABILITIES = ("actions", "decisions", "risks")
+
+
+def run_evaluation(
+    settings: Settings | None = None,
+    *,
+    extract: bool = True,
+    capabilities: tuple[str, ...] = ALL_CAPABILITIES,
+) -> EvalReport:
     cfg = settings or get_settings()
     provider = get_llm_provider(cfg)
     prompt = load_prompt("extract_actions")
@@ -374,19 +486,30 @@ def run_evaluation(settings: Settings | None = None, *, extract: bool = True) ->
     failed_chunks: list[str] = []
     if extract:
         ingest_from_manifest(cfg)
-        for source_id in sorted(SCORED_SOURCES):
-            failed_chunks.extend(extract_actions(source_id, cfg).failed_chunks)
+        extractors = {
+            "actions": extract_actions,
+            "decisions": extract_decisions,
+            "risks": extract_risks,
+        }
+        for name in capabilities:
+            for source_id in sorted(SCORED_SOURCES):
+                failed_chunks.extend(extractors[name](source_id, cfg).failed_chunks)
 
     with database.connect(cfg) as conn:
-        extractions = [
-            e
-            for source_id in sorted(SCORED_SOURCES)
-            for e in extraction_repo.list_extractions(
-                conn, source_id=source_id, extraction_type=ExtractionType.ACTION
-            )
-        ]
+        def _load(kind: ExtractionType) -> list:
+            return [
+                e
+                for source_id in sorted(SCORED_SOURCES)
+                for e in extraction_repo.list_extractions(
+                    conn, source_id=source_id, extraction_type=kind
+                )
+            ]
+
+        extractions = _load(ExtractionType.ACTION)
+        decision_rows = _load(ExtractionType.DECISION)
+        risk_rows = _load(ExtractionType.RISK)
         source_texts = {s: segment_repo.get_source_text(conn, s) for s in SCORED_SOURCES}
-        usage = llm_call_repo.summarise(conn, capability="extract_actions")
+        usage = llm_call_repo.summarise(conn)
 
     golden = load_actions(SCORED_SOURCES)
     by_id = {e.id: e for e in extractions}
@@ -444,12 +567,19 @@ def run_evaluation(settings: Settings | None = None, *, extract: bool = True) ->
         },
     )
 
+    decided, deferred = load_decisions(SCORED_SOURCES)
+    golden_risks = load_risks(SCORED_SOURCES)
+
     report.metrics = [
         *case_1_recall(pairing, golden),
-        *case_2_fabricated_quotes(extractions, source_texts),
+        *case_2_fabricated_quotes(extractions + decision_rows + risk_rows, source_texts),
         *case_3_owner(pairing, golden, by_id),
         *case_4_dates(pairing, golden, by_id, extractions),
     ]
+    if "decisions" in capabilities or decision_rows:
+        report.metrics += case_5_decisions(decided, deferred, decision_rows)
+    if "risks" in capabilities or risk_rows:
+        report.metrics += case_m5_risks(golden_risks, risk_rows)
     report.calibration = calibration(pairing, extractions, len(golden))
     return report
 
@@ -662,6 +792,10 @@ def main() -> int:
     parser.add_argument("--provider", choices=("gemini", "ollama", "fake"))
     parser.add_argument("--runs", type=int, default=1,
                         help="repeat the whole pipeline N times and report the range")
+    parser.add_argument("--capabilities", default=",".join(ALL_CAPABILITIES),
+                        help="comma-separated: actions, decisions, risks. One full run over "
+                             "all three costs eighteen model requests against a free-tier "
+                             "allowance of twenty a day.")
     parser.add_argument("--sources", default=None,
                         help="comma-separated source ids to score instead of the committed "
                              "corpus. Results are printed but never written, so scoring a "
@@ -706,7 +840,14 @@ def main() -> int:
         print(f"written to {args.out}\n")
         return 1 if repeated.failed else 0
 
-    report = run_evaluation(settings, extract=not args.score_only)
+    chosen = tuple(c.strip() for c in args.capabilities.split(",") if c.strip())
+    unknown = set(chosen) - set(ALL_CAPABILITIES)
+    if unknown:
+        print(f"unknown capability: {', '.join(sorted(unknown))}. "
+              f"Choose from {', '.join(ALL_CAPABILITIES)}.")
+        return 1
+
+    report = run_evaluation(settings, extract=not args.score_only, capabilities=chosen)
     print(render(report, colour=sys.stdout.isatty()))
 
     if scoring_other_sources:
