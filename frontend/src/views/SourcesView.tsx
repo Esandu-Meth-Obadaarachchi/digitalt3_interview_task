@@ -18,7 +18,7 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
   const [sources, setSources] = useState<Source[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [report, setReport] = useState<IngestionReport | null>(null);
-  const [run, setRun] = useState<ExtractionRun | null>(null);
+  const [runs, setRuns] = useState<ExtractionRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ code?: string; message: string } | null>(null);
 
@@ -37,7 +37,7 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
 
   useEffect(() => {
     setReport(null);
-    setRun(null);
+    setRuns([]);
     if (selected) api.report(selected).then(setReport).catch(() => setReport(null));
   }, [selected]);
 
@@ -57,9 +57,11 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
   const extract = async (id: string) => {
     setBusy(true);
     setError(null);
-    setRun(null);
+    setRuns([]);
     try {
-      setRun(await api.extractActions(id));
+      // Actions, decisions and risks in one call. Each runs independently, so
+      // one failing does not cost the work the others already did.
+      setRuns(await api.extractAll(id));
       onExtracted();
     } catch (exc) {
       fail(exc);
@@ -141,8 +143,13 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
               subtitle={active.id}
               actions={
                 active.status === "ingested" ? (
-                  <Button tone="info" disabled={busy} onClick={() => extract(active.id)}>
-                    Extract actions
+                  <Button
+                    tone="info"
+                    disabled={busy}
+                    onClick={() => extract(active.id)}
+                    title="Runs M3 actions, M4 decisions and M5 risks. Each is independent, so one failing does not lose the others."
+                  >
+                    {busy ? "extracting…" : "Extract"}
                   </Button>
                 ) : (
                   <Button
@@ -153,7 +160,7 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
                         : "This source was rejected at ingestion and has no stored segments."
                     }
                   >
-                    Extract actions
+                    Extract
                   </Button>
                 )
               }
@@ -225,23 +232,48 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
               </Panel>
             )}
 
-            {run && (
-              <Panel title="Extraction run" subtitle={`prompt v${run.prompt_version} · ${run.provider}:${run.model}`}>
-                <div className="grid grid-cols-3 gap-4 px-4 py-3">
-                  <Field label="Chunks">{run.chunks}</Field>
-                  <Field label="Candidates">{run.candidates}</Field>
-                  <Field label="Duplicates removed">{run.duplicates_removed}</Field>
-                  <Field label="Stored">{run.stored}</Field>
-                  <Field label="Quotes verified">
-                    <span className="text-[var(--color-ok)]">{run.verified_quotes}</span>
-                    {run.unverified_quotes > 0 && (
-                      <span className="text-[var(--color-bad)]"> · {run.unverified_quotes} unverified</span>
-                    )}
-                  </Field>
-                  <Field label="Abstentions">
-                    {run.unspecified_owner} owner · {run.unspecified_due_date} date
-                  </Field>
-                </div>
+            {runs.length > 0 && (
+              <Panel
+                title="Extraction runs"
+                subtitle={`${runs[0].provider}:${runs[0].model} · ${runs.reduce((n, r) => n + r.chunks, 0)} chunk call(s)`}
+              >
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--color-line)] text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                      <th className="px-4 py-2 text-left font-medium">Type</th>
+                      <th className="px-2 py-2 text-right font-medium">Found</th>
+                      <th className="px-2 py-2 text-right font-medium">Deduped</th>
+                      <th className="px-2 py-2 text-right font-medium">Stored</th>
+                      <th className="px-2 py-2 text-right font-medium">Verified</th>
+                      <th className="px-4 py-2 text-right font-medium">Prompt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runs.map((run) => (
+                      <tr key={run.extraction_type} className="border-b border-[var(--color-line)] last:border-0">
+                        <td className="px-4 py-2">{run.extraction_type}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{run.candidates}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{run.duplicates_removed}</td>
+                        <td className="px-2 py-2 text-right tabular-nums font-medium">{run.stored}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">
+                          <span className="text-[var(--color-ok)]">{run.verified_quotes}</span>
+                          {run.unverified_quotes > 0 && (
+                            <span className="text-[var(--color-bad)]"> +{run.unverified_quotes}?</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right text-xs text-[var(--color-muted)]">
+                          v{run.prompt_version}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {runs.some((r) => r.failed_chunks.length > 0) && (
+                  <div className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-bad)]">
+                    {runs.reduce((n, r) => n + r.failed_chunks.length, 0)} chunk(s) failed, so this run is
+                    incomplete. Usually a rate limit or an exhausted free-tier quota.
+                  </div>
+                )}
               </Panel>
             )}
           </>

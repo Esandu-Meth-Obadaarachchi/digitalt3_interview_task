@@ -141,6 +141,7 @@ export interface QueueSummary {
 
 export interface ExtractionRun {
   source_id: string;
+  extraction_type: ExtractionType;
   prompt_version: string;
   provider: string;
   model: string;

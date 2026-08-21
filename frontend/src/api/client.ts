@@ -11,6 +11,7 @@
 import type {
   Extraction,
   ExtractionRun,
+  ExtractionType,
   Health,
   IngestionReport,
   QueueSummary,
@@ -89,10 +90,13 @@ export const api = {
   // --- extraction ----------------------------------------------------------
   extractActions: (id: string) =>
     post<ExtractionRun>(`/api/extractions/${encodeURIComponent(id)}/actions`),
+  extractAll: (id: string) =>
+    post<ExtractionRun[]>(`/api/extractions/${encodeURIComponent(id)}/all`),
 
   // --- review --------------------------------------------------------------
-  queue: (params: { status?: ReviewStatus | ""; source_id?: string } = {}) =>
-    request<Extraction[]>(`/api/review${query(params)}`),
+  queue: (
+    params: { status?: ReviewStatus | ""; source_id?: string; extraction_type?: ExtractionType | "" } = {},
+  ) => request<Extraction[]>(`/api/review${query(params)}`),
   queueSummary: (sourceId?: string) =>
     request<QueueSummary>(`/api/review/summary${query({ source_id: sourceId })}`),
   history: (id: string) => request<ReviewEvent[]>(`/api/review/${encodeURIComponent(id)}/history`),
