@@ -233,3 +233,64 @@ export interface Chunk {
   context: string;
   estimated_tokens: number;
 }
+
+// --- retrieval ---------------------------------------------------------------
+
+export interface IndexStats {
+  vectors: number;
+  dimensions: number;
+  model: string;
+  by_type: Record<string, number>;
+  index_path: string | null;
+  built_at: string | null;
+}
+
+export interface SearchHit {
+  ref_type: string;
+  ref_id: string;
+  source_id: string;
+  source_title: string | null;
+  text: string;
+  speaker: string | null;
+  timestamp: string | null;
+  char_start: number | null;
+  char_end: number | null;
+  score: number;
+  keyword_rank: number | null;
+  dense_rank: number | null;
+  keyword_score: number | null;
+  dense_score: number | null;
+}
+
+export interface Citation {
+  source_id: string;
+  source_title: string | null;
+  segment_id: string | null;
+  message_id: string | null;
+  speaker: string | null;
+  timestamp: string | null;
+  quote: string;
+  char_start: number | null;
+  char_end: number | null;
+}
+
+export interface AnswerClaim {
+  statement: string;
+  citation: Citation;
+  verified: boolean;
+}
+
+export interface Answer {
+  question: string;
+  found: boolean;
+  answer: string;
+  claims: AnswerClaim[];
+  retrieval_mode: string;
+  considered: SearchHit[];
+  provider: string | null;
+  model: string | null;
+  prompt_version: string | null;
+  dropped_claims: string[];
+  duration_ms: number;
+  answered_at: string;
+}

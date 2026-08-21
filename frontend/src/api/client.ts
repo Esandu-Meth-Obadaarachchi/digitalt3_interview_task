@@ -19,6 +19,9 @@ import type {
   QueueSummary,
   ReviewEvent,
   ReviewStatus,
+  Answer,
+  IndexStats,
+  SearchHit,
   Segment,
   Source,
   TrackerItem,
@@ -163,4 +166,12 @@ export const api = {
   trackerWriteLog: (limit?: number) =>
     request<Record<string, unknown>[]>(`/api/tracker/write-log${query({ limit })}`),
   trackerSync: () => post<WriteResult[]>("/api/tracker/sync"),
+
+  // --- retrieval and question answering ------------------------------------
+  indexStats: () => request<IndexStats>("/api/qa/index"),
+  rebuildIndex: () => post<IndexStats>("/api/qa/index/rebuild"),
+  retrieve: (question: string, mode?: string, limit?: number) =>
+    post<SearchHit[]>("/api/qa/search", { question, mode, limit }),
+  ask: (question: string, mode?: string, limit?: number) =>
+    post<Answer>("/api/qa", { question, mode, limit }),
 };
