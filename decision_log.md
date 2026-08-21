@@ -559,3 +559,50 @@ A test documents this.
 notifier (M10) are built in Phase 8 where they have callers. The anti-patterns
 tab is explicit that an empty file named after an integration implies work that
 does not exist, so they are absent from the tree rather than stubbed.
+
+---
+
+## Phase 4 addendum — what the free tier taught
+
+**D51. The harness refuses to write results from an incomplete run.**
+Discovered by doing it. A three-run evaluation exhausted the Gemini free tier's
+daily cap, every chunk failed with a 429, and the harness scored the empty
+result at recall 0.00 and overwrote a good `eval/results.txt` with it.
+Committing that file would have been fabricated evaluation results, which the
+rubric lists as an automatic failure, and nothing in the process would have
+caught it.
+Any failed chunk now sets `incomplete_reason`, the run prints an INCOMPLETE
+banner, no results file is written, and the exit code is 2. A single transient
+429 absorbed by the retry loop does not count as a failure, and a test pins that
+distinction so the guard cannot become over-eager.
+
+**D52. The binding free-tier limit is per day, not per minute.**
+`gemini-3.6-flash` allows 20 requests a day. One evaluation run costs six. The
+token bucket handles the per-minute limit and does nothing for this one.
+*The workaround, which the ground rules ask to be documented:* the response
+cache. `make eval` reuses cached responses so a re-run is free, and the cache
+key covers the prompt version so a prompt edit always misses it.
+`make eval-fresh` is for once per prompt revision, not for casual use.
+
+**D53. Repeated-run reporting exists, and reports the worst run.**
+`make eval-repeat` runs the whole pipeline N times with the cache bypassed and
+reports each metric as a range. A target counts as met only when every run met
+it: a system that sometimes clears the bar is not a system that clears the bar.
+*Not used for the committed numbers,* because the daily quota cannot pay for
+three runs. The README says so rather than presenting a single run as more than
+it is.
+
+**D54. Backoff is configurable and set to zero in tests.**
+The rate-limit tests took the suite from 5 seconds to 44, all of it spent
+asleep proving that the code sleeps. `LLM_BACKOFF_BASE_SECONDS=0` in the test
+environment. The behaviour is still asserted; the waiting is not.
+
+### Known limitations
+
+**L15.** The committed evaluation is one run of a non-deterministic system.
+Between two runs, owner accuracy moved 0.90 to 1.00 and invented dates moved 0
+to 1. Recall, precision and the fabricated-quote count were stable. With quota
+for three runs the committed figure would be the worst of them.
+
+**L16.** 20 model requests a day is a hard ceiling on how often the numbers can
+be refreshed against live calls.

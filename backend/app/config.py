@@ -40,13 +40,22 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
 
-    # Gemini's free tier allows 15 requests per minute. Staying under a known
-    # limit is better than discovering it and backing off.
+    # Gemini's free tier limits requests per minute AND per day. The per-day
+    # cap is the binding one here: gemini-3.6-flash allows 20 requests a day,
+    # measured during this build when a three-run evaluation exhausted it.
+    # The token bucket handles the per-minute limit; the daily cap is why the
+    # response cache exists, and why `make eval` reuses cached responses by
+    # default while `make eval-fresh` deliberately does not.
     gemini_requests_per_minute: int = 15
+    gemini_requests_per_day: int = 20
 
     llm_temperature: float = 0.0
     llm_max_retries: int = 3
     llm_timeout_seconds: int = 90
+    # Base for exponential backoff after a rate limit, in seconds. Set to 0
+    # in the test environment so the suite does not spend its time asleep
+    # proving that it waits.
+    llm_backoff_base_seconds: float = 2.0
     llm_cache_enabled: bool = True
 
     # --- Storage -------------------------------------------------------------

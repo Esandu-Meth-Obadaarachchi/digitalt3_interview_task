@@ -7,7 +7,14 @@ one line per metric with the measured value and the target.
 
     make eval                 configured provider, cache allowed
     make eval-fresh           cache bypassed, to prove the numbers reproduce
-    python eval/harness.py --score-only    score whatever is already stored
+    make eval-repeat          three uncached runs, reported as a range
+
+Repeated runs exist because the model is not deterministic. Gemini returned
+different action sets for the same chunk at temperature 0, minutes apart, so a
+single run is a sample rather than a measurement. `--runs N` executes the whole
+pipeline N times with the cache bypassed and reports the range. A target is
+counted as met only when the WORST run met it: a system that sometimes clears
+the bar is not a system that clears the bar.
 
 Cases covered here (Phase 3):
 
@@ -66,6 +73,79 @@ SCORED_SOURCES = {
 CONFIDENCE_THRESHOLDS = (0.0, 0.5, 0.7, 0.8, 0.9)
 
 
+class MetricRange(StrictModel):
+    """One metric observed across several independent runs."""
+
+    case: str
+    name: str
+    target: str
+    values: list[str] = []
+    numeric: list[float] = []
+    passes: int = 0
+    total: int = 0
+    targeted: bool = True
+
+    @property
+    def worst(self) -> str:
+        # When every run agreed, report what they said rather than a derived
+        # number: "2/2" is clearer than the 1.00 it converts to.
+        if len(set(self.values)) <= 1:
+            return self.values[0] if self.values else "-"
+        if not self.numeric:
+            return self.values[0]
+        # "Worst" depends on the metric: for a count that must be zero the
+        # worst run is the highest, for a rate with a floor it is the lowest.
+        if self.target.startswith("="):
+            return f"{max(self.numeric):g}"
+        worst_index = self.numeric.index(min(self.numeric))
+        return self.values[worst_index]
+
+    @property
+    def spread(self) -> str:
+        if len(set(self.values)) <= 1:
+            return self.values[0] if self.values else "-"
+        if self.numeric:
+            low, high = min(self.numeric), max(self.numeric)
+            fmt = "{:g}" if self.target.startswith("=") else "{:.2f}"
+            return f"{fmt.format(low)} - {fmt.format(high)}"
+        return " / ".join(self.values)
+
+    @property
+    def stable(self) -> bool:
+        return len(set(self.values)) <= 1
+
+    @property
+    def passed(self) -> bool | None:
+        if not self.targeted:
+            return None
+        return self.passes == self.total
+
+
+class RepeatedReport(StrictModel):
+    """Several runs of the whole pipeline, reported as a range."""
+
+    generated_at: str
+    runs: int
+    is_measurement: bool = True
+    incomplete_reason: str | None = None
+    provider: str
+    model: str
+    prompt_version: str
+    sources: list[str]
+    golden_actions: int
+    extracted_per_run: list[int] = []
+    metrics: list[MetricRange] = []
+    usage: dict = {}
+
+    @property
+    def failed(self) -> list[MetricRange]:
+        return [m for m in self.metrics if m.passed is False]
+
+    @property
+    def unstable(self) -> list[MetricRange]:
+        return [m for m in self.metrics if m.targeted and not m.stable]
+
+
 class Metric(StrictModel):
     case: str
     name: str
@@ -78,6 +158,10 @@ class Metric(StrictModel):
 class EvalReport(StrictModel):
     generated_at: str
     is_measurement: bool = True   #: False when run against the deterministic stub
+    #: Set when chunks failed, typically a rate limit or an exhausted quota.
+    #: An incomplete run scores whatever happened to get through and is not a
+    #: measurement of anything. Committing one would be fabricated results.
+    incomplete_reason: str | None = None
     provider: str
     model: str
     prompt_version: str
@@ -287,10 +371,11 @@ def run_evaluation(settings: Settings | None = None, *, extract: bool = True) ->
     provider = get_llm_provider(cfg)
     prompt = load_prompt("extract_actions")
 
+    failed_chunks: list[str] = []
     if extract:
         ingest_from_manifest(cfg)
         for source_id in sorted(SCORED_SOURCES):
-            extract_actions(source_id, cfg)
+            failed_chunks.extend(extract_actions(source_id, cfg).failed_chunks)
 
     with database.connect(cfg) as conn:
         extractions = [
@@ -319,6 +404,13 @@ def run_evaluation(settings: Settings | None = None, *, extract: bool = True) ->
         sources=sorted(SCORED_SOURCES),
         golden_actions=len(golden),
         extracted_actions=len(extractions),
+        incomplete_reason=(
+            f"{len(failed_chunks)} of the transcript chunks could not be extracted, "
+            f"typically a rate limit or an exhausted free-tier quota. The numbers below "
+            f"describe only the chunks that succeeded and measure nothing."
+            if failed_chunks
+            else None
+        ),
         misses=pairing.missed,
         false_positives=pairing.false_positives,
         usage={
@@ -356,6 +448,8 @@ def render(report: EvalReport, colour: bool = True) -> str:
     w = out.write
 
     w(f"\n{bold}Meeting & Channel Intelligence Agent - evaluation{off}\n")
+    if report.incomplete_reason:
+        w(f"\n  {red}{bold}INCOMPLETE RUN{off}\n  {yellow}{report.incomplete_reason}{off}\n")
     if not report.is_measurement:
         w(f"\n  {red}{bold}NOT A MEASUREMENT{off}\n"
           f"  {yellow}This run used the deterministic stub provider, which answers from the\n"
@@ -417,11 +511,138 @@ def render(report: EvalReport, colour: bool = True) -> str:
     return out.getvalue()
 
 
+def _numeric(value: str) -> float | None:
+    try:
+        return float(value)
+    except ValueError:
+        if "/" in value:  # "2/2"
+            left, _, right = value.partition("/")
+            try:
+                return float(left) / float(right) if float(right) else 0.0
+            except ValueError:
+                return None
+        return None
+
+
+def run_repeated(settings: Settings | None = None, runs: int = 3) -> RepeatedReport:
+    """Run the whole pipeline `runs` times with the cache bypassed.
+
+    The cache must be off or every run after the first would replay the first,
+    which would report perfect stability that does not exist.
+    """
+    cfg = (settings or get_settings()).model_copy(update={"llm_cache_enabled": False})
+    reports = []
+    for index in range(runs):
+        report = run_evaluation(cfg)
+        if report.incomplete_reason:
+            report.incomplete_reason = f"run {index + 1} of {runs}: {report.incomplete_reason}"
+            reports.append(report)
+            break
+        reports.append(report)
+    first = reports[0]
+
+    ordered: list[str] = []
+    by_case: dict[str, MetricRange] = {}
+
+    for report in reports:
+        for metric in report.metrics:
+            if metric.case not in by_case:
+                ordered.append(metric.case)
+                by_case[metric.case] = MetricRange(
+                    case=metric.case,
+                    name=metric.name,
+                    target=metric.target,
+                    targeted=metric.passed is not None,
+                )
+            entry = by_case[metric.case]
+            entry.values.append(metric.measured)
+            number = _numeric(metric.measured)
+            if number is not None:
+                entry.numeric.append(number)
+            if metric.passed is not None:
+                entry.total += 1
+                entry.passes += int(metric.passed)
+
+    # llm_calls accumulates across runs in the same database, so the last
+    # report already holds the total. Summing the reports would count the
+    # first run once per subsequent run.
+    totals = {k: v for k, v in reports[-1].usage.items() if isinstance(v, (int, float))}
+
+    return RepeatedReport(
+        generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        runs=runs,
+        is_measurement=first.is_measurement,
+        incomplete_reason=next((r.incomplete_reason for r in reports if r.incomplete_reason), None),
+        provider=first.provider,
+        model=first.model,
+        prompt_version=first.prompt_version,
+        sources=first.sources,
+        golden_actions=first.golden_actions,
+        extracted_per_run=[r.extracted_actions for r in reports],
+        metrics=[by_case[case] for case in ordered],
+        usage=totals,
+    )
+
+
+def render_repeated(report: RepeatedReport, colour: bool = True) -> str:
+    green, red, yellow, dim, bold, off = (
+        ("\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[1m", "\033[0m") if colour else ("",) * 6
+    )
+    out = io.StringIO()
+    w = out.write
+
+    w(f"\n{bold}Meeting & Channel Intelligence Agent - evaluation over {report.runs} runs{off}\n")
+    if report.incomplete_reason:
+        w(f"\n  {red}{bold}INCOMPLETE{off}  {yellow}{report.incomplete_reason}{off}\n")
+    if not report.is_measurement:
+        w(f"\n  {red}{bold}NOT A MEASUREMENT{off}  {yellow}stub provider{off}\n")
+    w(f"{dim}{report.generated_at}   provider {report.provider}:{report.model}   "
+      f"prompt extract_actions v{report.prompt_version}   cache bypassed{off}\n")
+    w(f"{dim}{report.golden_actions} hand-labelled actions. Extracted per run: "
+      f"{', '.join(str(n) for n in report.extracted_per_run)}{off}\n")
+    w(f"{dim}The model is not deterministic, so a single run is a sample. A target counts as\n"
+      f"met only when every run met it.{off}\n\n")
+
+    w(f"  {'':<4}{'Metric':<28}{'Worst':>8}{'Range':>14}   {'Target':<10} Status\n")
+    w(f"  {'-' * 76}\n")
+    for metric in report.metrics:
+        if metric.passed is None:
+            status = f"{dim}reported{off}"
+        elif metric.passed:
+            status = f"{green}PASS{off}" + ("" if metric.stable else f" {yellow}(varies){off}")
+        else:
+            status = f"{red}FAIL{off} {dim}{metric.passes}/{metric.total} runs{off}"
+        w(f"  {metric.case:<4}{metric.name:<28}{metric.worst:>8}{metric.spread:>14}   "
+          f"{metric.target:<10} {status}\n")
+    w("\n")
+
+    usage = report.usage
+    w(f"  {bold}Model usage across {report.runs} runs{off}  {int(usage.get('attempts', 0))} attempt(s), "
+      f"{int(usage.get('prompt_tokens', 0))} prompt + {int(usage.get('completion_tokens', 0))} "
+      f"completion tokens, {int(usage.get('total_latency_ms', 0))} ms\n\n")
+
+    unstable = report.unstable
+    if unstable:
+        w(f"  {yellow}{bold}{len(unstable)} targeted metric(s) varied between runs{off}: "
+          f"{', '.join(m.name for m in unstable)}\n")
+        w(f"  {dim}This is the model, not the harness. Reported rather than smoothed away.{off}\n\n")
+
+    failed = report.failed
+    if failed:
+        w(f"  {red}{bold}{len(failed)} metric(s) failed in at least one run{off}: "
+          f"{', '.join(m.name for m in failed)}\n\n")
+    else:
+        w(f"  {green}{bold}every targeted metric met in every run{off}\n\n")
+    return out.getvalue()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--score-only", action="store_true", help="score what is already stored")
     parser.add_argument("--no-cache", action="store_true", help="bypass the response cache")
     parser.add_argument("--provider", choices=("gemini", "ollama", "fake"))
+    parser.add_argument("--runs", type=int, default=1,
+                        help="repeat the whole pipeline N times and report the range")
     parser.add_argument("--out", default=str(REPO_ROOT / "eval" / "results.txt"))
     args = parser.parse_args()
 
@@ -439,8 +660,31 @@ def main() -> int:
               f"Set a provider in .env, or pass --score-only to score what is already stored.\n")
         return 1
 
+    if args.runs > 1:
+        repeated = run_repeated(settings, args.runs)
+        print(render_repeated(repeated, colour=sys.stdout.isatty()))
+        if repeated.incomplete_reason:
+            print(f"results not written: {repeated.incomplete_reason}\n"
+                  f"The committed eval/results.txt is left untouched.\n")
+            return 2
+        if not repeated.is_measurement:
+            print("results not written: a stub run is not a measurement\n")
+            return 0
+        Path(args.out).write_text(render_repeated(repeated, colour=False), encoding="utf-8")
+        Path(args.out).with_suffix(".json").write_text(
+            repeated.model_dump_json(indent=2), encoding="utf-8"
+        )
+        print(f"written to {args.out}\n")
+        return 1 if repeated.failed else 0
+
     report = run_evaluation(settings, extract=not args.score_only)
     print(render(report, colour=sys.stdout.isatty()))
+
+    if report.incomplete_reason:
+        print(f"results not written: {report.incomplete_reason}\n"
+              f"The committed eval/results.txt is left untouched. Cached responses make a\n"
+              f"re-run free once the quota resets; `make eval` will use them.\n")
+        return 2
 
     if not report.is_measurement:
         print("results not written: a stub run is not a measurement and must not be "

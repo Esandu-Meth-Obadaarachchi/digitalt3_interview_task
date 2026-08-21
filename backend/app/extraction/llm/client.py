@@ -186,9 +186,11 @@ def call_structured(
                         prompt_version=prompt_version, error=str(exc))
                 if attempt == retries:
                     raise
-                import time
+                delay = backoff_seconds(attempt, base=cfg.llm_backoff_base_seconds)
+                if delay:
+                    import time
 
-                time.sleep(backoff_seconds(attempt))
+                    time.sleep(delay)
                 continue
             except LLMError as exc:
                 failures.append(f"attempt {attempt}: {exc}")

@@ -37,7 +37,20 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 ## Measured quality
 
 Produced by `make eval`, committed at [`eval/results.txt`](eval/results.txt).
-Reproduce with `make eval-fresh`, which bypasses the response cache.
+Reproduce with `make eval-fresh`, which bypasses the response cache, or
+`make eval-repeat` for three uncached runs reported as a range.
+
+> **Free-tier limit, and the workaround.** `gemini-3.6-flash` allows **20
+> requests per day** on the free tier. One evaluation run costs six. A
+> three-run measurement exhausts the day's quota, which is how this was
+> discovered. The response cache is the workaround: `make eval` reuses cached
+> responses so a re-run is free, and the cache key covers the prompt version so
+> editing a prompt always misses it. `make eval-fresh` deliberately does not
+> cache and should be run once per prompt revision, not casually.
+>
+> The committed results are a **single** run for that reason. The harness
+> supports `--runs N` and reports the worst run rather than the average, but
+> running it meaningfully needs a quota this build does not have.
 
 **gemini-3.6-flash, prompt `extract_actions` v2, 13 hand-labelled actions across
 the two valid transcripts.**
@@ -104,10 +117,25 @@ The single failure returns UNSPECIFIED for a commitment whose owner the golden
 set names. An abstention where attribution was possible is the safe direction to
 be wrong in, but it is still wrong.
 
-**Gemini is not deterministic at temperature 0.** Two runs minutes apart over
-the same chunk with the same prompt returned different action sets. This is why
-responses are cached, why the cache key covers the prompt version, and why
-`make eval-fresh` exists to prove the committed numbers reproduce.
+**Gemini is not deterministic at temperature 0, so a single run is a sample.**
+Two runs minutes apart over the same chunk returned different action sets. A
+later re-run scored owner accuracy 1.00 and invented dates 1, against 0.90 and
+0 in the committed run. Recall, precision and the fabricated-quote count were
+identical in both.
+
+That variance is the honest reason `make eval-repeat` exists and why it counts a
+target as met only when the *worst* run met it. It is also why the committed
+file is one run and says so: the free tier's 20 requests a day cannot pay for
+three.
+
+**A quota-exhausted run once overwrote a good results file with meaningless
+numbers.** Every chunk failed with a 429, the harness scored the empty result at
+recall 0.00 and wrote it out. Committing that would have been fabricated
+evaluation results, which is an automatic failure in this exercise. The harness
+now refuses to write anything when any chunk failed, exits non-zero, and says
+which committed file it left alone. Three tests cover it, including one proving
+that a *single* transient 429 is absorbed by the retry loop and does not
+invalidate a run.
 
 ---
 
