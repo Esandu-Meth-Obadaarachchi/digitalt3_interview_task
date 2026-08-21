@@ -857,3 +857,85 @@ sample and the confidence interval around 0.87 is wide.
 **L24.** The confusion is entirely between noise and request. A request is the
 hardest of the five to define, since "can somebody look at this" and "someone
 should look at this" differ only in whether anybody was actually asked.
+
+---
+
+## Phase 8 — The scheduler, digests and outcome records
+
+### Decisions
+
+**D82. A real scheduler, and its next fire times are read from it.**
+APScheduler's BackgroundScheduler starts with the application, and
+`/api/digests/schedule` reports each job's next run FROM the scheduler rather
+than from configuration. A time read back from settings would prove only that
+settings can be read. The brief calls a button with nothing behind it a partial
+implementation, and a next-run timestamp that advances on its own is what
+separates the two.
+
+**D83. Two jobs, and the second is the one the rubric asked for.**
+The digest job is the specified one. The expiry sweep is the answer to "a safe
+default on timeout or no response": an unreviewed proposal ages out to a state
+the approval-gate trigger treats exactly like pending, not writable. Nothing is
+ever approved by the passage of time, and a test asserts the approved count is
+unchanged after a sweep.
+The anti-patterns tab asks that an agent do at least one thing without being
+asked. Refusing to proceed on stale information is that thing.
+
+**D84. Each digest item appears in exactly one section, attention first.**
+Precedence: needs attention, then to decide, then moved. A blocker approved
+today is both progress and a problem, and printed under both it fills two of
+six lines with one fact, which is the opposite of what a fixed-size digest is
+for. Found by rendering one and reading it.
+
+**D85. The clock override is a parameter, not a demo path.**
+`now` is threaded through building, emitting and the scheduled job, so what is
+demonstrated is the same function that runs unattended rather than a parallel
+one written for the walkthrough.
+
+**D86. Posting a digest is not gated by approval.**
+The task catalogue says posting is not an external write, and by the time a
+digest exists every line in it came from something a human approved. A second
+gate would ask a reviewer to approve their own earlier approvals.
+
+**D87. Outcome records carry everything a consumer needs, and are versioned.**
+Each item holds its own quote, speaker, timestamp and source rather than an
+extraction id to look up, because the capability is that a second process can
+reconstruct the approved items with no access to the transcript store. Records
+are never overwritten: a consumer that read version 1 and acted on it should be
+able to see what it read.
+
+**D88. `docs/outcome_schema.json` is generated from the contract.**
+A hand-written schema drifts from what is actually emitted, and a consumer
+trusting the drifted version is worse off than one with no schema at all. A
+test compares the published document against the live Pydantic schema. The
+consumer contract at the top is hand-written, because it says what the fields
+MEAN and JSON Schema cannot carry that.
+
+**D89. A non-consented source gets no outcome record at all.**
+An empty record would imply the source was handled. Refusing says it was not.
+
+**D90. Three adapters, one per external system, each added when first called.**
+Tracker in Phase 4, store and notifier here. None was written ahead of a
+caller, because the anti-patterns tab treats a file named after an unbuilt
+integration as implying work that does not exist.
+
+**D91. The document store refuses a key that escapes its directory.**
+Keys are derived from source ids, which arrive over HTTP. "../../etc/thing"
+must not be writable, and the check belongs in the store rather than in every
+caller.
+
+### Known limitations
+
+**L25.** The digest's selection rules are heuristics, not learned. "Needs
+attention" means a high or medium risk, a blocker, or an action nobody owns.
+They are stated on every line so a reader can disagree with the pick rather
+than only the wording.
+
+**L26.** The scheduler runs in-process. A second instance of the application
+would run the jobs twice. Fine for a single-node review tool, and a real
+deployment would need a lock or an external scheduler.
+
+**L27.** Digests are per channel, and a meeting is treated as its own channel.
+The specification says one digest per channel and a meeting has no other
+natural grouping; doing otherwise would leave every transcript out of the
+digest entirely.
