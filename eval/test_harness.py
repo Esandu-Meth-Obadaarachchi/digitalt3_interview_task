@@ -316,3 +316,24 @@ def test_one_chunk_failing_outright_makes_the_whole_run_incomplete(settings, gol
 def test_a_complete_run_is_not_marked_incomplete(scored):
     assert scored.incomplete_reason is None
     assert "INCOMPLETE" not in render(scored, colour=False)
+
+
+def test_score_only_reports_the_model_that_produced_the_rows(settings, scripted_model):
+    """With --score-only nothing is called, so the configured provider is not
+    necessarily the one whose output is being scored. Reporting the configured
+    model would attribute a result to a model that never saw the transcript."""
+    from app.db import database
+    from app.extraction.llm.factory import set_provider_override
+
+    scripted_model()
+    run_evaluation(settings)
+
+    with database.transaction(settings) as conn:
+        conn.execute("UPDATE extractions SET provider = 'gemini', model_name = 'some-other-model'")
+
+    set_provider_override(None)
+    report = run_evaluation(settings, extract=False)
+
+    assert report.model == "some-other-model"
+    assert report.provider == "gemini"
+    assert report.is_measurement is True

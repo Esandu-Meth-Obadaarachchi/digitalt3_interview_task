@@ -392,14 +392,33 @@ def run_evaluation(settings: Settings | None = None, *, extract: bool = True) ->
     by_id = {e.id: e for e in extractions}
     pairing = pair(golden, extractions)
 
+    # With --score-only nothing was called, so the configured provider is not
+    # necessarily the one that produced the stored extractions. Reporting the
+    # configured model would attribute a result to a model that never saw the
+    # transcript, which is the sort of misattribution this whole harness exists
+    # to prevent. Take it from the rows instead.
+    scored_models = sorted({e.model_name for e in extractions if e.model_name})
+    scored_providers = sorted({e.provider for e in extractions if e.provider})
+    if not extract and scored_models:
+        provider_name = "+".join(scored_providers) or provider.name
+        model_name = "+".join(scored_models)
+    else:
+        provider_name, model_name = provider.name, provider.model
+
+    scored_prompts = sorted({e.prompt_version for e in extractions if e.prompt_version})
+    if not extract and scored_prompts:
+        prompt_tag = "+".join(scored_prompts)
+    else:
+        prompt_tag = prompt.version_tag
+
     report = EvalReport(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         # A run against the deterministic stub exercises the scoring code. It
         # measures nothing about a model and must never be quoted as a result.
-        is_measurement=provider.name != "fake",
-        provider=provider.name,
-        model=provider.model,
-        prompt_version=prompt.version_tag,
+        is_measurement=provider_name != "fake",
+        provider=provider_name,
+        model=model_name,
+        prompt_version=prompt_tag,
         cache_enabled=cfg.llm_cache_enabled,
         sources=sorted(SCORED_SOURCES),
         golden_actions=len(golden),
@@ -643,6 +662,10 @@ def main() -> int:
     parser.add_argument("--provider", choices=("gemini", "ollama", "fake"))
     parser.add_argument("--runs", type=int, default=1,
                         help="repeat the whole pipeline N times and report the range")
+    parser.add_argument("--sources", default=None,
+                        help="comma-separated source ids to score instead of the committed "
+                             "corpus. Results are printed but never written, so scoring a "
+                             "different corpus cannot overwrite the committed baseline.")
     parser.add_argument("--out", default=str(REPO_ROOT / "eval" / "results.txt"))
     args = parser.parse_args()
 
@@ -652,6 +675,12 @@ def main() -> int:
     if args.provider:
         overrides["llm_provider"] = args.provider
     settings = get_settings().model_copy(update=overrides)
+
+    scoring_other_sources = False
+    if args.sources:
+        global SCORED_SOURCES
+        SCORED_SOURCES = {s.strip() for s in args.sources.split(",") if s.strip()}
+        scoring_other_sources = True
 
     provider = get_llm_provider(settings)
     usable, reason = provider.available()
@@ -679,6 +708,12 @@ def main() -> int:
 
     report = run_evaluation(settings, extract=not args.score_only)
     print(render(report, colour=sys.stdout.isatty()))
+
+    if scoring_other_sources:
+        print(f"results not written: --sources was given, so this scored "
+              f"{', '.join(sorted(SCORED_SOURCES))} rather than the committed corpus. "
+              f"eval/results.txt describes a fixed pair of transcripts and stays that way.\n")
+        return 1 if report.failed else 0
 
     if report.incomplete_reason:
         print(f"results not written: {report.incomplete_reason}\n"

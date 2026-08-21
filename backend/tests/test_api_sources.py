@@ -31,12 +31,13 @@ def test_seed_endpoint_ingests_the_committed_sample_data(client):
     assert response.status_code == 200
 
     statuses = {o["source"]["id"]: o["source"]["status"] for o in response.json()}
-    assert statuses == {
-        "meeting-sprint-planning-2024-11-18": "ingested",
-        "meeting-client-status-2024-08-19": "ingested",
-        "meeting-team-sync-2024-11-15": "refused",
-        "meeting-design-review-2024-11-17": "error",
-    }
+    # The four originally supplied meetings, asserted by id. The sample set may
+    # grow, so this checks these four are handled correctly rather than that
+    # nothing else exists.
+    assert statuses["meeting-sprint-planning-2024-11-18"] == "ingested"
+    assert statuses["meeting-client-status-2024-08-19"] == "ingested"
+    assert statuses["meeting-team-sync-2024-11-15"] == "refused"
+    assert statuses["meeting-design-review-2024-11-17"] == "error"
 
 
 def test_refused_and_errored_sources_are_listed_not_hidden(client):
@@ -45,7 +46,7 @@ def test_refused_and_errored_sources_are_listed_not_hidden(client):
     client.post("/api/sources/seed")
 
     listed = {s["id"]: s for s in client.get("/api/sources").json()}
-    assert len(listed) == 4
+    assert len(listed) >= 4
 
     refused = listed["meeting-team-sync-2024-11-15"]
     assert refused["status"] == "refused"
@@ -58,11 +59,12 @@ def test_refused_and_errored_sources_are_listed_not_hidden(client):
 
 def test_sources_can_be_filtered_by_status(client):
     client.post("/api/sources/seed")
-    ingested = client.get("/api/sources", params={"status": "ingested"}).json()
-    assert {s["id"] for s in ingested} == {
-        "meeting-sprint-planning-2024-11-18",
-        "meeting-client-status-2024-08-19",
-    }
+    ingested = {s["id"] for s in client.get("/api/sources", params={"status": "ingested"}).json()}
+    refused = {s["id"] for s in client.get("/api/sources", params={"status": "refused"}).json()}
+
+    assert {"meeting-sprint-planning-2024-11-18", "meeting-client-status-2024-08-19"} <= ingested
+    assert refused == {"meeting-team-sync-2024-11-15"}
+    assert not (ingested & refused)
 
 
 def test_the_ingestion_report_carries_the_consent_evidence(client):

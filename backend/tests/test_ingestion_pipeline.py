@@ -145,7 +145,7 @@ def test_every_golden_quote_is_a_substring_of_the_normalised_source_text():
 # --- end to end --------------------------------------------------------------
 
 
-def test_the_four_supplied_meetings_ingest_to_their_expected_outcomes(settings):
+def test_the_supplied_meetings_ingest_to_their_expected_outcomes(settings):
     outcomes = {o.source.id: o for o in ingest_from_manifest(settings)}
 
     assert outcomes["meeting-sprint-planning-2024-11-18"].source.status is SourceStatus.INGESTED
@@ -158,13 +158,27 @@ def test_the_four_supplied_meetings_ingest_to_their_expected_outcomes(settings):
 
 
 def test_a_rejected_source_leaves_no_segments_behind(settings):
-    """"Does not corrupt the store" is the capability test's wording."""
-    ingest_from_manifest(settings)
+    """"Does not corrupt the store" is the capability test's wording.
+
+    Asserted as a property rather than against a total segment count, so
+    adding a transcript to the sample set does not break the test that has
+    nothing to do with how many transcripts there are.
+    """
+    outcomes = {o.source.id: o for o in ingest_from_manifest(settings)}
 
     with database.connect(settings) as conn:
-        assert segment_repo.count_segments(conn, "meeting-design-review-2024-11-17") == 0
-        assert segment_repo.count_segments(conn, "meeting-team-sync-2024-11-15") == 0
-        assert conn.execute("SELECT COUNT(*) FROM segments").fetchone()[0] == 106
+        for source_id, outcome in outcomes.items():
+            stored = segment_repo.count_segments(conn, source_id)
+            if outcome.source.status is SourceStatus.INGESTED:
+                assert stored == outcome.report.segments_parsed
+            else:
+                assert stored == 0, f"{source_id} is {outcome.source.status.value} and must store nothing"
+
+        total = conn.execute("SELECT COUNT(*) FROM segments").fetchone()[0]
+        assert total == sum(
+            o.report.segments_parsed for o in outcomes.values()
+            if o.source.status is SourceStatus.INGESTED
+        )
 
         stored = source_repo.get_source(conn, "meeting-design-review-2024-11-17")
         assert stored.status is SourceStatus.ERROR
@@ -199,7 +213,8 @@ def test_the_keyword_index_stays_in_step_with_ingestion(settings):
     with database.connect(settings) as conn:
         segments = conn.execute("SELECT COUNT(*) FROM segments").fetchone()[0]
         indexed = conn.execute("SELECT COUNT(*) FROM segments_fts").fetchone()[0]
-        assert segments == indexed == 106
+        assert segments > 0
+        assert segments == indexed
 
         hits = conn.execute(
             "SELECT s.speaker FROM segments_fts f JOIN segments s ON s.rowid = f.rowid"
