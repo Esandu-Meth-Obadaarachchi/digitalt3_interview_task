@@ -35,11 +35,17 @@ data/llm_cache/
 data/audio/*.wav
 data/audio/*.aiff
 
-# Mock adapter write logs are generated at runtime. A seeded example is
-# committed separately under sample_data/ so reviewers see the shape.
+# Everything the mock adapters write is generated at runtime and rebuilt by
+# `make seed`, so none of it is source. These rules named data/digests/ and
+# data/outcome_records/ while the store actually writes under data/documents/,
+# so eleven generated files sat in git and changed on every run - including one
+# transcript a user had uploaded. The shape a reviewer needs is documented
+# instead: the digest layout in docs/components/09-scheduler-digests.md, the
+# outcome record in docs/components/10-outcome-records.md, and its schema
+# published at docs/outcome_schema.json by `make outcome-schema`.
 write_log/*.jsonl
-data/digests/
-data/outcome_records/
+data/documents/
+data/uploads/
 
 # --- Model weights -----------------------------------------------------------
 # Downloaded on first run by `make setup`. Far too large for git.
