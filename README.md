@@ -23,8 +23,8 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
 | M4  | Extract decisions                | MUST     | Not built | Phase 5 |
 | M5  | Extract risks and blockers       | SHOULD   | Not built | Phase 5 |
-| M6  | Review and approval queue        | MUST     | Partial   | Queue, edit, approve, reject, expiry and audit trail all work. The downstream write it gates arrives with M7 |
-| M7  | Write approved items to tracker  | MUST     | Not built | Phase 4. Idempotency constraint written and tested |
+| M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
+| M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
 | M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
 | M9  | Chat signal classification       | SHOULD   | Not built | DM exclusion enforced by schema, no parser yet |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Not built | Phase 8 |
@@ -220,6 +220,26 @@ header names every participant, because without it the model cannot tell that
 The adapter contract asks whether a real integration could be dropped in by
 writing one class and changing one line of wiring. Having written the second
 class is the honest way to answer that.
+
+**Nothing reaches the tracker without approval, and it is enforced three times
+over.** The service layer refuses and explains; `trg_approval_gate_write` refuses
+the audit row; `UNIQUE (tracker_writes.extraction_id)` makes a duplicate
+impossible rather than unlikely. `eval/test_approval_gate.py` proves all three,
+calling the service directly and then going lower still to raw SQLite with no
+Python in the path, which is exactly the "bypassable via the API" red flag.
+
+**The mock tracker starts with a backlog it did not create.** Twelve seeded
+tickets with missing assignees, free-text statuses (`"In Progress "` with
+trailing whitespace sits beside `"In Progress"`), due dates already in the past,
+and a pair of near-duplicates for the same bug raised twice. The contract says
+an agent that only works on clean data has not been tested. `TrackerItem`
+deliberately does not strip whitespace: our own contracts normalise, foreign
+data is kept as it was found.
+
+**A written ticket carries its evidence.** The verbatim quote, who said it,
+when, which meeting, the extraction id, and the rule that resolved any date. An
+UNSPECIFIED owner becomes an unassigned ticket labelled `needs-owner`, never a
+guess.
 
 **One definition of "the text of a source".** Segments joined by single spaces
 after whitespace normalisation. Quote verification checks against that string

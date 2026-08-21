@@ -18,6 +18,10 @@ import type {
   ReviewStatus,
   Segment,
   Source,
+  TrackerItem,
+  TrackerSummary,
+  WriteAttempt,
+  WriteResult,
 } from "./types";
 
 export class ApiFailure extends Error {
@@ -102,4 +106,14 @@ export const api = {
     }),
   reject: (id: string, reviewer: string, note?: string) =>
     post<Extraction>(`/api/review/${encodeURIComponent(id)}/reject`, { reviewer, note }),
+
+  // --- tracker -------------------------------------------------------------
+  trackerSummary: () => request<TrackerSummary>("/api/tracker/summary"),
+  trackerItems: (params: { written_by_agent?: boolean; status?: string } = {}) =>
+    request<TrackerItem[]>(`/api/tracker/items${query(params)}`),
+  trackerAttempts: (extractionId?: string) =>
+    request<WriteAttempt[]>(`/api/tracker/attempts${query({ extraction_id: extractionId })}`),
+  trackerWriteLog: (limit?: number) =>
+    request<Record<string, unknown>[]>(`/api/tracker/write-log${query({ limit })}`),
+  trackerSync: () => post<WriteResult[]>("/api/tracker/sync"),
 };

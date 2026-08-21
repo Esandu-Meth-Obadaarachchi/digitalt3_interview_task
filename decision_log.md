@@ -466,3 +466,96 @@ See A8.
 chunks against the hosted free tier. Acceptable for a batch tool, and the
 per-source cost and latency are recorded in `llm_calls` for anyone who wants to
 optimise it.
+
+---
+
+## Phase 4 — The approval gate and the tracker adapter
+
+### Decisions
+
+**D41. The interface names four operations, and each has a caller.**
+`create_item`, `get_item`, `list_items`, `transition`. The brief's illustrative
+example also lists `add_comment`; it is absent because no capability in this
+build comments on a ticket, and the same contract warns that a capability
+implied but not exercised reads as padding. A test asserts the abstract method
+set, so widening it silently is not possible.
+
+**D42. The approval gate is not in the adapter.**
+It sits in the tracker service above the interface and in a database trigger
+below it. Putting it in the adapter would mean every future implementation had
+to reimplement it, and the one that forgot would be the one that mattered.
+
+**D43. `tracker_items` is separate from `tracker_writes`.**
+`tracker_items` is what the tracker holds, including a seeded backlog the agent
+never created. `tracker_writes` is our audit of what we put there. Conflating
+them would mean the agent could not distinguish its own writes from somebody
+else's tickets, which is exactly the position a real integration is in.
+
+**D44. The write log belongs to the agent, not to the tracker.**
+Recording what the agent attempted is an audit of the agent, so it works
+identically whichever adapter is configured and a real integration inherits it
+for free. JSONL rather than a table, because during a walkthrough a log can be
+read aloud and a table has to be queried.
+*Found by a test:* an earlier version put `log_attempt` on `MockTracker`, which
+made the tracker service import a concrete implementation. That is the mock's
+shape leaking into agent logic, the specific thing the adapter contract
+penalises. `test_nothing_above_the_interface_imports_the_mock` now asserts that
+only `factory.py` names a concrete adapter.
+
+**D45. Foreign data is not normalised.**
+`TrackerItem` sets `str_strip_whitespace=False`, unlike every other contract
+here. A test caught the base model silently turning `"In Progress "` into
+`"In Progress"`, which hid exactly the mess the adapter contract requires the
+agent to cope with. Our own contracts strip; somebody else's data is preserved
+as found. Status filtering compares the trimmed, lowered form instead, because
+that is where the tolerance belongs.
+
+**D46. Every attempt is recorded, including the refused ones.**
+`tracker_write_attempts` and the JSONL log both carry created, deduplicated and
+blocked. A log that recorded only successes could not prove a gate ever fired,
+and proving it is the point.
+
+**D47. Approval writes through, and a failed write does not undo the approval.**
+The task catalogue gives M7 the trigger "on approval". The write happens after
+the approval transaction commits. If it fails, the human decision stands and
+`sync_approved` retries on its next run. An approval that silently reverted
+because a downstream system was unreachable would be worse than one that is
+merely not yet written.
+
+**D48. A compensating delete, not a distributed transaction.**
+The adapter and our audit sit either side of a system boundary and cannot share
+a transaction. If the audit insert fails after the item was created, the item is
+deleted and the error re-raised. A real integration has the same problem and the
+same answer. Reached only if a database-level gate refuses a write the service
+layer already allowed.
+
+**D49. An UNSPECIFIED owner becomes an unassigned ticket.**
+The abstention is carried forward rather than resolved. A ticket assigned to
+nobody is a correct record of a commitment nobody claimed, and inventing an
+assignee at the write stage would undo the discipline the extraction stage
+maintained. The ticket is labelled `needs-owner` so it is findable.
+
+**D50. There is no endpoint that writes an arbitrary payload to the tracker.**
+The only route in is an approved extraction. An endpoint accepting a free-form
+item would be the exact hole the rubric describes, however convenient it would
+be for testing.
+
+### Assumptions
+
+**A9.** A tracker reference is opaque to us. `MOCK-n` is the mock's format;
+nothing outside the mock parses it, and the next reference is derived from the
+highest existing number rather than a row count so it stays correct when the
+seeded items are not contiguous.
+
+### Known limitations
+
+**L13.** Calling the adapter directly, bypassing the tracker service, creates
+an item with no audit row. It is recorded as a boundary rather than claimed to
+be impossible: the item exists but has no `tracker_writes` row, so the
+`written_by_agent` accounting and the write log both show it for what it is.
+A test documents this.
+
+**L14.** Only the tracker adapter exists. The document store (M11) and the
+notifier (M10) are built in Phase 8 where they have callers. The anti-patterns
+tab is explicit that an empty file named after an integration implies work that
+does not exist, so they are absent from the tree rather than stubbed.

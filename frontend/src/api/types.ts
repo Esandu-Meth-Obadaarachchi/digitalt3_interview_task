@@ -159,3 +159,47 @@ export interface ApiError {
   error: string;
   detail: string;
 }
+
+// --- M7 tracker ------------------------------------------------------------
+
+export interface TrackerItem {
+  external_ref: string;
+  title: string;
+  description: string | null;
+  assignee: string | null;
+  /** Free text, kept exactly as the tracker holds it, whitespace included. */
+  status: string;
+  due_date: string | null;
+  labels: string[];
+  /** Our extraction id, or null for the pre-existing backlog. */
+  source_ref: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export type WriteOutcome = "created" | "deduplicated" | "blocked";
+
+export interface WriteAttempt {
+  id: string;
+  extraction_id: string;
+  outcome: WriteOutcome;
+  provider: string;
+  attempted_at: string;
+  external_ref: string | null;
+  reason: string | null;
+}
+
+export interface WriteResult {
+  outcome: WriteOutcome;
+  extraction_id: string;
+  item: TrackerItem | null;
+  reason: string | null;
+}
+
+export interface TrackerSummary {
+  items_total: number;
+  items_written_by_agent: number;
+  items_pre_existing: number;
+  audited_writes: number;
+  attempts: Partial<Record<WriteOutcome, number>>;
+}
