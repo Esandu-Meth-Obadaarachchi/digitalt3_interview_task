@@ -77,8 +77,18 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
           title="Sources"
           subtitle={`${sources.length} ingested, refused or rejected`}
           actions={
-            <Button onClick={seed} disabled={busy}>
-              {busy ? "working…" : "Seed sample data"}
+            <Button
+              onClick={seed}
+              disabled={busy}
+              title={
+                "Re-runs ingestion over the four transcripts declared in " +
+                "sample_data/metadata/sources.json. It does not reset the database, does not " +
+                "load the tracker backlog, and does not extract anything. A file whose content " +
+                "is unchanged is skipped entirely, so pressing this repeatedly is safe. " +
+                "Use `make seed` for a full rebuild from schema.sql."
+              }
+            >
+              {busy ? "working…" : "Re-ingest sample data"}
             </Button>
           }
         >
@@ -164,6 +174,14 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
                   <span className={report?.bytes_read === 0 ? "font-semibold text-[var(--color-bad)]" : ""}>
                     {report ? report.bytes_read.toLocaleString() : "—"}
                   </span>
+                  {report?.unchanged && (
+                    <span
+                      className="ml-1 text-xs text-[var(--color-muted)]"
+                      title="The file was byte-identical to what is stored, so nothing was rewritten and existing extractions and citations were left alone."
+                    >
+                      (unchanged)
+                    </span>
+                  )}
                 </Field>
                 <Field label="Segments">{report?.segments_parsed ?? "—"}</Field>
                 <Field label="Speakers">{report?.speakers.length ?? "—"}</Field>

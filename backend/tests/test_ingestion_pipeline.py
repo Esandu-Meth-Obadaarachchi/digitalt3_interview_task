@@ -206,3 +206,119 @@ def test_the_keyword_index_stays_in_step_with_ingestion(settings):
             " WHERE segments_fts MATCH 'deferred'"
         ).fetchall()
         assert hits, "porter stemming should find 'defer' in the client status call"
+
+
+# --- re-ingestion must not destroy a reviewer's work -------------------------
+
+
+def test_reingesting_does_not_destroy_extractions(settings, scripted_model):
+    """Found by pressing "Seed sample data" with 17 extractions in the queue.
+
+    `INSERT OR REPLACE` on the sources row deleted it before re-inserting, and
+    the delete fired ON DELETE CASCADE against extractions. Fourteen pending
+    items vanished without a word.
+    """
+    from app.db.repositories import extractions as extraction_repo
+    from app.extraction.actions import extract_actions
+
+    ingest_from_manifest(settings)
+    scripted_model()
+    extract_actions("meeting-sprint-planning-2024-11-18", settings)
+
+    with database.connect(settings) as conn:
+        before = len(extraction_repo.list_extractions(conn, source_id="meeting-sprint-planning-2024-11-18"))
+    assert before > 0
+
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        after = len(extraction_repo.list_extractions(conn, source_id="meeting-sprint-planning-2024-11-18"))
+    assert after == before
+
+
+def test_reingesting_does_not_destroy_approved_work_or_its_audit(settings, scripted_model):
+    from app.db.repositories import extractions as extraction_repo
+    from app.extraction.actions import extract_actions
+    from app.models.common import ReviewStatus
+    from app.review import queue
+
+    ingest_from_manifest(settings)
+    scripted_model()
+    extract_actions("meeting-sprint-planning-2024-11-18", settings)
+
+    item = queue.list_queue(settings, source_id="meeting-sprint-planning-2024-11-18")[0]
+    queue.approve(item.id, "esandu", "checked", settings=settings, write_through=False)
+
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        stored = extraction_repo.get(conn, item.id)
+        events = conn.execute("SELECT COUNT(*) AS n FROM review_events WHERE extraction_id = ?",
+                              (item.id,)).fetchone()["n"]
+
+    assert stored is not None
+    assert stored.status is ReviewStatus.APPROVED
+    assert stored.reviewer == "esandu"
+    assert events == 1
+
+
+def test_reingesting_identical_content_is_a_no_op(settings):
+    """Nothing is rewritten, so citations into the existing segments survive."""
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        first = segment_repo.list_segments(conn, "meeting-sprint-planning-2024-11-18")
+        ingested_at = source_repo.get_source(conn, "meeting-sprint-planning-2024-11-18").ingested_at
+
+    outcomes = {o.source.id: o for o in ingest_from_manifest(settings)}
+    report = outcomes["meeting-sprint-planning-2024-11-18"].report
+
+    assert report.unchanged is True
+    with database.connect(settings) as conn:
+        second = segment_repo.list_segments(conn, "meeting-sprint-planning-2024-11-18")
+        assert source_repo.get_source(conn, "meeting-sprint-planning-2024-11-18").ingested_at == ingested_at
+    assert [s.id for s in second] == [s.id for s in first]
+
+
+def test_changed_content_is_reingested_rather_than_skipped(settings, tmp_path):
+    """The no-op is keyed on the content hash, not on the id, so an edited
+    transcript is genuinely re-read."""
+    from app.models.source import SourceMetadata
+
+    path = tmp_path / "changing.txt"
+    path.write_text(
+        "[00:00:01] Sarah Chen: We ship on Friday.\n[00:00:06] David Park: Understood.\n",
+        encoding="utf-8",
+    )
+    meta = SourceMetadata(id="changing", title="Changing", source_type="transcript",
+                          consent_flag=True, meeting_date="2024-11-18")
+
+    first = ingest_transcript(meta, path, settings=settings)
+    assert first.report.unchanged is False
+    assert first.report.segments_parsed == 2
+
+    path.write_text(
+        "[00:00:01] Sarah Chen: We ship on Friday.\n[00:00:06] David Park: Understood.\n"
+        "[00:00:12] Sarah Chen: One more thing, the audit is next week.\n",
+        encoding="utf-8",
+    )
+    second = ingest_transcript(meta, path, settings=settings)
+
+    assert second.report.unchanged is False
+    assert second.report.segments_parsed == 3
+    assert second.report.content_hash != first.report.content_hash
+
+
+def test_a_refused_source_is_not_short_circuited(settings, sample_data_dir):
+    """The no-op only applies to a source already stored as ingested. A refusal
+    must be re-evaluated every time, in case consent changed."""
+    import json
+
+    manifest = json.loads((sample_data_dir / "metadata" / "sources.json").read_text())
+    entry = next(s for s in manifest["sources"] if s["id"] == "meeting-team-sync-2024-11-15")
+
+    for _ in range(2):
+        outcome = ingest_transcript(SourceMetadata(**entry), settings=settings)
+        assert outcome.source.status is SourceStatus.REFUSED
+        assert outcome.report.bytes_read == 0
+        assert outcome.report.unchanged is False
