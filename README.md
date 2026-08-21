@@ -68,6 +68,10 @@ proposed-then-deferred decision across the two original transcripts.**
 | 5b | Decision recall | **1.00** | ≥ 0.70 | pass |
 | M5 | Risk recall | **1.00** | ≥ 0.70 | pass |
 | M5b | Severity defensible from the quote | 4/4 | all | pass |
+| 6  | Retrieval, correct source in top 3 | **5/5** | 5/5 | pass |
+| 6b | **Not-found on the unanswerable** | **1/1** | all | pass |
+| 6d | Answers carrying a verified citation | **5/5** | all | pass |
+| 6c | Retrieval mode comparison | see below | reported | |
 
 Case 5 is the one the brief singles out. A system that finds every decision and
 *also* records the deferral has not passed: it has recorded something that never
@@ -78,6 +82,35 @@ A separate transcript, written independently of this build and never used to
 tune a prompt, scores **recall 0.83, precision 1.00, zero fabricated quotes,
 zero invented dates, owner accuracy 1.00**. Run it with
 `make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15`.
+
+### Retrieval: all three modes, measured
+
+The brief warns that *"keyword search that works and is measured beats a vector
+store that is never evaluated"*. So all three are measured, on every run, at no
+model cost.
+
+| Mode | Correct source in top 3 | Correct **segment** in top 3 | Mean rank of the cited segment |
+|---|---|---|---|
+| keyword (FTS5 / BM25) | 5/5 | 4/5 | 2.4 |
+| dense (FAISS / MiniLM) | 5/5 | **5/5** | **2.0** |
+| hybrid (RRF) | 5/5 | 4/5 | **2.0** |
+
+**The brief's metric saturates.** All three modes put the correct source in the
+top three, because five questions over two transcripts is not a discriminating
+test at source granularity. A stricter segment-level metric was added for that
+reason, since a citation points at a segment rather than at a meeting.
+
+**Hybrid does not beat dense here, and that is reported rather than smoothed
+over.** Dense is ahead on the strict metric by one question and level on mean
+rank. Hybrid is kept as the default on an argument that is *not* measured: the
+two modes fail in different directions, and keyword catches exact tokens
+(names, dates, identifiers) that dense is weakest on. **None of the five golden
+questions probes that**, so the evidence here cannot separate them.
+
+Adding questions designed to favour hybrid *after* seeing it lose would be
+fishing, so they were not added. With more time the right fix is more golden
+questions, written before running anything, deliberately including exact-token
+lookups.
 
 ### What the harness found, and what was done about it
 

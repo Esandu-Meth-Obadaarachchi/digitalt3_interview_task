@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T06:40:42+00:00",
+  "generated_at": "2026-08-21T07:11:35+00:00",
   "is_measurement": true,
   "incomplete_reason": null,
   "provider": "gemini",
@@ -100,6 +100,38 @@
       "target": "all",
       "passed": true,
       "detail": "every high-severity quote states the consequence it rests on"
+    },
+    {
+      "case": "6",
+      "name": "Retrieval, correct source",
+      "measured": "5/5",
+      "target": "5/5",
+      "passed": true,
+      "detail": "correct source in the top three, mode=hybrid"
+    },
+    {
+      "case": "6c",
+      "name": "Mode comparison",
+      "measured": "hybrid",
+      "target": "reported",
+      "passed": null,
+      "detail": "keyword: source 5/5, segment 4/5, mean rank 2.4 | dense: source 5/5, segment 5/5, mean rank 2.0 | hybrid: source 5/5, segment 4/5, mean rank 2.0 [embedder: sentence-transformers/all-MiniLM-L6-v2]"
+    },
+    {
+      "case": "6b",
+      "name": "Not-found on the unanswerable",
+      "measured": "1/1",
+      "target": "all",
+      "passed": true,
+      "detail": "the question with no answer in the corpus was correctly refused"
+    },
+    {
+      "case": "6d",
+      "name": "Answers carrying a verified citation",
+      "measured": "5/5",
+      "target": "all",
+      "passed": true,
+      "detail": "5 answered, 5 with at least one citation that verified against the source it cites"
     }
   ],
   "calibration": [
@@ -143,23 +175,22 @@
     "action_sp_03"
   ],
   "false_positives": [
-    "meeting-client-status-2024-08-19::action::2e500168",
-    "meeting-client-status-2024-08-19::action::e0614815",
-    "meeting-client-status-2024-08-19::action::811ca4c8",
-    "meeting-sprint-planning-2024-11-18::action::a2174aa5",
-    "meeting-sprint-planning-2024-11-18::action::76b73f15"
+    "meeting-client-status-2024-08-19::action::3593d347",
+    "meeting-client-status-2024-08-19::action::44bff1c5",
+    "meeting-client-status-2024-08-19::action::2af32712",
+    "meeting-sprint-planning-2024-11-18::action::44423a41",
+    "meeting-sprint-planning-2024-11-18::action::d800b9e4"
   ],
   "usage": {
-    "attempts": 20,
-    "calls": 18,
-    "retry_rate": 0.1,
-    "cache_hits": 0,
-    "prompt_tokens": 33645,
-    "completion_tokens": 4179,
-    "total_latency_ms": 444051,
+    "attempts": 24,
+    "calls": 24,
+    "retry_rate": 0.0,
+    "cache_hits": 18,
+    "prompt_tokens": 40578,
+    "completion_tokens": 4920,
+    "total_latency_ms": 493498,
     "outcomes": {
-      "error": 2,
-      "ok": 18
+      "ok": 24
     }
   }
 }
