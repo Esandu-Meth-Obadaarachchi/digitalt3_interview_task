@@ -789,3 +789,71 @@ before it could be otherwise.
 **L22.** The React interface has no automated tests. A deliberate cut: the
 brief awards no marks for the interface, and the review surface is exercised
 through the API tests underneath it.
+
+---
+
+## Phase 7 — Chat signals
+
+### Decisions
+
+**D74. Chat does not go through the transcript pipeline.**
+A transcript is a continuous conversation where meaning spans turns, so it is
+chunked with overlap and a context header. A channel is a list of discrete
+messages, each labelled on its own, with an id that must come back attached to
+the right one. Forcing one shape onto both would have made both worse.
+Messages are batched per channel in timestamp order, twenty at a time. Order
+matters even though each is labelled separately, because "can you take a look?"
+is unreadable without the message before it. Twenty at a time because
+seventy-eight messages must not cost seventy-eight requests against a daily
+allowance of twenty.
+
+**D75. Direct messages are excluded by three independent mechanisms.**
+The parser drops them, the schema refuses them via CHECK (is_direct_message = 0),
+and the golden case checks the twelve forbidden ids against what actually
+reached the store. Three, because this is the one property that cannot be
+walked back: a private conversation that reaches the store has already reached
+it.
+A DM is identified by the export's flag OR by a channel name that looks like a
+direct thread. Trusting only the flag would mean an export omitting it leaks
+private conversation silently.
+
+**D76. Noise is deleted, not stored with a label.**
+The brief says discarded, not stored. The schema enforces it from the other
+side: 'noise' is absent from the classification CHECK and could not be written
+even deliberately.
+
+**D77. Only decision, blocker and request are queued for review.**
+Each could produce a downstream write, so each passes the same approval gate as
+M3. A question is classified and kept but not queued, because answering one
+writes nothing anywhere and queueing it would put work in front of a reviewer
+with no downstream effect.
+
+**D78. Precision, not accuracy, and the prompt is built around choosing noise.**
+Every non-noise label becomes something a human must review, so labelling a
+greeting as a request costs more than labelling a borderline request as noise.
+The prompt says exactly that, and gives each of the four real labels the line
+that separates it from the nearest thing it is not.
+
+**D79. A message absent from the store counts as a prediction of noise.**
+That is what its absence means. Getting this wrong would have quietly inflated
+precision by dropping every noise prediction from the denominator.
+
+**D80. Case 7b requires that messages were stored.**
+Zero direct messages is trivially true of an empty store. The case fails with
+"nothing is stored, so zero DMs proves nothing" when the store is empty, so the
+zero cannot be earned by having done nothing.
+
+**D81. Two model failure modes are repaired rather than tolerated.**
+A dropped message triggers a retry, because a missing entry is not the same as
+one labelled noise and the difference changes the precision figure. An invented
+message id triggers a retry, because a label attached to the wrong message is
+worse than no label and the mistake is otherwise invisible.
+
+### Known limitations
+
+**L23.** Precision is 0.87 on twenty hand-labelled messages. Twenty is a small
+sample and the confidence interval around 0.87 is wide.
+
+**L24.** The confusion is entirely between noise and request. A request is the
+hardest of the five to define, since "can somebody look at this" and "someone
+should look at this" differ only in whether anybody was actually asked.
