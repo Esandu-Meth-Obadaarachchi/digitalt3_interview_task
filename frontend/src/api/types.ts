@@ -294,3 +294,41 @@ export interface Answer {
   duration_ms: number;
   answered_at: string;
 }
+
+// --- M9 chat signals ---------------------------------------------------------
+
+export type SignalClass = "decision" | "blocker" | "question" | "request" | "noise";
+
+export interface StoredMessage {
+  id: string;
+  source_id: string;
+  channel: string;
+  author: string;
+  ts: string;
+  text: string;
+  thread_id: string | null;
+  /** Never "noise": noise is discarded, and the schema will not store it. */
+  classification: SignalClass | null;
+  classification_confidence: number | null;
+  classified_at: string | null;
+}
+
+export interface SignalRun {
+  source_id: string;
+  prompt_version: string;
+  provider: string;
+  model: string;
+  batches: number;
+  messages_seen: number;
+  classified: number;
+  noise_discarded: number;
+  queued: number;
+  by_class: Record<string, number>;
+  failed_batches: string[];
+  duration_ms: number;
+}
+
+export interface ChatSummary {
+  by_class: Record<string, number>;
+  channels: string[];
+}

@@ -61,6 +61,7 @@ from golden import (  # noqa: E402
     load_decisions,
     load_questions,
     load_risks,
+    load_signals,
     pair,
     quote_present,
     quotes_overlap,
@@ -68,12 +69,14 @@ from golden import (  # noqa: E402
 
 from app.config import Settings, get_settings  # noqa: E402
 from app.db import database  # noqa: E402
+from app.db.repositories import chat as chat_repo  # noqa: E402
 from app.db.repositories import extractions as extraction_repo  # noqa: E402
 from app.db.repositories import llm_calls as llm_call_repo  # noqa: E402
 from app.db.repositories import segments as segment_repo  # noqa: E402
 from app.extraction.actions import extract_actions  # noqa: E402
 from app.extraction.decisions import extract_decisions  # noqa: E402
 from app.extraction.risks import extract_risks  # noqa: E402
+from app.extraction.signals import classify_signals  # noqa: E402
 from app.retrieval.embeddings import get_embedder  # noqa: E402
 from app.retrieval.qa import answer_question  # noqa: E402
 from app.retrieval.search import search  # noqa: E402
@@ -556,6 +559,111 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
     return metrics
 
 
+def case_7_signals(settings: Settings) -> list[Metric]:
+    """Golden case 7.
+
+    "Precision on the golden-labelled subset is at least 0.7 and the two
+     direct-message records in the export are excluded from processing
+     entirely."
+
+    Precision rather than accuracy, because the cost is asymmetric: every
+    non-noise label becomes something a human has to review, so a greeting
+    labelled a request wastes a person's attention while a borderline request
+    labelled noise merely loses a little signal.
+    """
+    labelled, forbidden_ids = load_signals()
+    metrics: list[Metric] = []
+
+    with database.connect(settings) as conn:
+        stored = {
+            m.id: m for m in chat_repo.list_messages(conn)
+        }
+        total_messages = len(stored)
+        leaked = [mid for mid in forbidden_ids if mid in stored]
+        dm_rows = conn.execute(
+            "SELECT COUNT(*) AS n FROM chat_messages WHERE is_direct_message = 1"
+        ).fetchone()["n"]
+
+    # --- 7b: the direct messages, asserted by absence -----------------------
+    metrics.append(
+        Metric(
+            case="7b",
+            name="Direct messages in the store",
+            measured=str(len(leaked) + dm_rows),
+            target="= 0",
+            passed=(not leaked) and dm_rows == 0 and total_messages > 0,
+            detail=(
+                f"{len(forbidden_ids)} DM ids checked against {total_messages} stored messages"
+                if total_messages
+                else "NOTHING is stored, so zero DMs proves nothing. Ingest the export first."
+            ),
+        )
+    )
+
+    if not any(m.classification for m in stored.values()):
+        metrics.append(
+            Metric(
+                case="7",
+                name="Chat signal precision",
+                measured="-",
+                target=">= 0.70",
+                detail="no message has been classified yet",
+            )
+        )
+        return metrics
+
+    # --- 7 and 7c: precision, overall and per class -------------------------
+    # A message absent from the store was classified noise and discarded, which
+    # is a prediction of noise and has to be counted as one.
+    predicted = {
+        item.message_id: (
+            stored[item.message_id].classification.value
+            if item.message_id in stored and stored[item.message_id].classification
+            else "noise"
+        )
+        for item in labelled
+    }
+    truth = {item.message_id: item.classification for item in labelled}
+
+    classes = sorted({*truth.values(), *predicted.values()})
+    per_class: list[str] = []
+    non_noise_correct = non_noise_predicted = 0
+
+    for label in classes:
+        tp = sum(1 for k in truth if predicted[k] == label and truth[k] == label)
+        fp = sum(1 for k in truth if predicted[k] == label and truth[k] != label)
+        fn = sum(1 for k in truth if predicted[k] != label and truth[k] == label)
+        precision = tp / (tp + fp) if (tp + fp) else None
+        recall = tp / (tp + fn) if (tp + fn) else None
+        per_class.append(
+            f"{label}: P {precision:.2f} R {recall:.2f} ({tp}/{tp + fp})"
+            if precision is not None and recall is not None
+            else f"{label}: none predicted"
+        )
+        if label != "noise":
+            non_noise_correct += tp
+            non_noise_predicted += tp + fp
+
+    precision = non_noise_correct / non_noise_predicted if non_noise_predicted else 0.0
+    exact = sum(1 for k in truth if predicted[k] == truth[k])
+
+    metrics.append(
+        Metric(
+            case="7",
+            name="Chat signal precision",
+            measured=f"{precision:.2f}",
+            target=">= 0.70",
+            passed=precision >= 0.70 if non_noise_predicted else None,
+            detail=f"{non_noise_correct}/{non_noise_predicted} non-noise labels correct, "
+            f"{exact}/{len(truth)} of the labelled subset matched exactly",
+        )
+    )
+    metrics.append(
+        Metric(case="7c", name="Per class", measured="", target="reported", detail=" | ".join(per_class))
+    )
+    return metrics
+
+
 def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[dict]:
     """Does the model's own confidence predict whether it was right?
 
@@ -588,7 +696,18 @@ def calibration(pairing: Pairing, extractions: list, golden_count: int) -> list[
 #: Which capabilities a run exercises. Scoping this matters on a free tier:
 #: one full run over three capabilities and two transcripts costs eighteen
 #: model requests against a daily allowance of twenty.
-ALL_CAPABILITIES = ("actions", "decisions", "risks", "qa")
+ALL_CAPABILITIES = ("actions", "decisions", "risks", "qa", "signals")
+
+
+def _chat_sources(settings: Settings) -> list[str]:
+    with database.connect(settings) as conn:
+        return [
+            r["id"]
+            for r in conn.execute(
+                "SELECT id FROM sources WHERE source_type = 'chat_export'"
+                " AND status = 'ingested' AND consent_flag = 1"
+            )
+        ]
 
 
 def run_evaluation(
@@ -614,6 +733,10 @@ def run_evaluation(
                 continue
             for source_id in sorted(SCORED_SOURCES):
                 failed_chunks.extend(extractors[name](source_id, cfg).failed_chunks)
+
+        if "signals" in capabilities:
+            for source in _chat_sources(cfg):
+                failed_chunks.extend(classify_signals(source, cfg).failed_batches)
 
         # The vector index has to be rebuilt after extraction, because approved
         # extractions are searchable alongside transcript segments.
@@ -706,6 +829,7 @@ def run_evaluation(
         report.metrics += case_m5_risks(golden_risks, risk_rows)
     if VectorIndex(cfg).ready() or cfg.retrieval_mode == "keyword":
         report.metrics += case_6_retrieval(cfg, run_model="qa" in capabilities)
+    report.metrics += case_7_signals(cfg)
     report.calibration = calibration(pairing, extractions, len(golden))
     return report
 

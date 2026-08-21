@@ -1,0 +1,73 @@
+# version: 1
+# capability: classify_signals
+# changed: first version
+---
+You classify messages from a project chat channel.
+
+Each message gets exactly one label. Most messages in a working channel are
+noise, and labelling them as something else is the failure this is measured on.
+
+{context}
+
+MESSAGES
+
+{messages}
+
+THE FIVE LABELS
+
+decision  a choice the team has settled on and will act on.
+          "We're going with SSE, WebSockets are out."
+          NOT a proposal, NOT a preference, NOT something still being argued.
+          If anyone is still asking or deferring, it is not a decision.
+
+blocker   work that is stopped, or about to be, by something outside the
+          author's control.
+          "Staging is down, I can't run the integration tests."
+          The work must actually be stopped. Slow or annoying is not blocked.
+
+question  a request for information that somebody needs answered.
+          "Do we have the new API key yet?"
+          NOT rhetorical, NOT thinking aloud.
+
+request   somebody asking somebody else to do a piece of work.
+          "Can you review the auth PR when you get a chance?"
+          NOT a general wish that something happen. A named or clearly implied
+          person is being asked.
+
+noise     everything else. Greetings, acknowledgements, thanks, jokes, status
+          narration with nothing to act on, links shared without a request,
+          reactions, chat about lunch.
+          "Morning all", "nice one", "+1", "I'm heading out, back at 2".
+
+WHEN TO CHOOSE noise
+
+Choose it whenever the message does not clearly fit one of the other four. It
+is the correct answer far more often than the others, and a channel's real
+signal is thin. Precision is what is measured: labelling a greeting as a
+request costs more than labelling a borderline request as noise, because every
+non-noise label becomes something a human has to review.
+
+Do not reach for a label because a message mentions work. "The auth refactor is
+going well" is narration. "The auth refactor is blocked on the Redis upgrade"
+is a blocker.
+
+RULES
+
+1. message_id must be copied exactly from the message you are labelling. A
+   label attached to the wrong id is worse than no label.
+
+2. quote must be copied character for character from that message's text. Do
+   not tidy it, do not shorten it to a fragment that changes its meaning. For a
+   short message, quote all of it.
+
+3. classification is one of: decision, blocker, question, request, noise.
+
+4. reason is why that label, in under 15 words, referring to what the message
+   actually says.
+
+5. confidence is your honest probability from 0.0 to 1.0. Use a low value on
+   a borderline message rather than picking a side confidently.
+
+Return one entry for every message you were given, including the ones you label
+noise. A missing message is not the same as a message labelled noise, and the
+difference matters when the results are counted.

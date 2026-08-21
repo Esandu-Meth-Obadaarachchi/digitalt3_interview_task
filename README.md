@@ -26,7 +26,7 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
 | M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
-| M9  | Chat signal classification       | SHOULD   | Not built | DM exclusion enforced by schema, no parser yet |
+| M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Not built | Phase 8 |
 | M11 | Structured outcome record        | SHOULD   | Not built | Phase 8 |
 | M12 | Follow-up message draft          | COULD    | Not built | Phase 8 |
@@ -72,6 +72,9 @@ proposed-then-deferred decision across the two original transcripts.**
 | 6b | **Not-found on the unanswerable** | **1/1** | all | pass |
 | 6d | Answers carrying a verified citation | **5/5** | all | pass |
 | 6c | Retrieval mode comparison | see below | reported | |
+| 7  | Chat signal precision | **0.87** | ≥ 0.70 | pass |
+| 7b | **Direct messages in the store** | **0** | 0 | pass |
+| 7c | Per class | see below | reported | |
 
 Case 5 is the one the brief singles out. A system that finds every decision and
 *also* records the deferral has not passed: it has recorded something that never
@@ -82,6 +85,33 @@ A separate transcript, written independently of this build and never used to
 tune a prompt, scores **recall 0.83, precision 1.00, zero fabricated quotes,
 zero invented dates, owner accuracy 1.00**. Run it with
 `make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15`.
+
+### Chat signals, per class
+
+78 messages classified in 5 batches, 48 discarded as noise, 21 queued for review.
+
+| Class | Precision | Recall |
+|---|---|---|
+| decision | 1.00 | 1.00 |
+| question | 1.00 | 1.00 |
+| blocker | 1.00 | 0.75 |
+| request | 0.60 | 0.75 |
+| noise | 0.60 | 0.60 |
+
+The weakness is visible and is where it was expected: **noise and request are
+confused with each other, and nothing else is.** Over-labelling a channel
+creates work for a human, which is why the metric is precision rather than
+accuracy.
+
+Direct-message exclusion is asserted at three depths, because it is the one
+property here that cannot be walked back if it fails: the parser never returns
+one, the twelve forbidden ids are checked against what actually reached the
+store, and a direct `INSERT` with `is_direct_message = 1` is refused by the
+schema.
+
+Case 7b also guards against a dishonest zero. Zero direct messages is trivially
+true of an empty store, so the case requires that messages *were* stored and
+fails with *"nothing is stored, so zero DMs proves nothing"* otherwise.
 
 ### Retrieval: all three modes, measured
 

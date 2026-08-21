@@ -40,6 +40,7 @@ const KIND_FILTERS: { label: string; value: ExtractionType | "" }[] = [
   { label: "Actions", value: "action" },
   { label: "Decisions", value: "decision" },
   { label: "Risks", value: "risk" },
+  { label: "Signals", value: "signal" },
 ];
 
 export function ReviewView({ reviewer }: { reviewer: string }) {

@@ -246,8 +246,82 @@ def _persist(outcome: IngestionOutcome, settings: Settings) -> None:
         source_repo.save_ingestion_report(conn, outcome.report)
 
 
+def ingest_chat_export(
+    metadata: SourceMetadata,
+    path: Path | None = None,
+    settings: Settings | None = None,
+    *,
+    persist: bool = True,
+) -> IngestionOutcome:
+    """M9 ingestion. Same shape as a transcript, same gate, different parser.
+
+    Direct messages never reach the store: the parser drops them and the schema
+    would refuse them. The count of what was dropped is on the report, because
+    the messages themselves leave no trace and "zero DM records" is otherwise
+    indistinguishable from "the export had none".
+
+    Classification is a separate step. Ingestion needs no model, so it works
+    with no key and no quota, exactly like a transcript.
+    """
+    from app.db.repositories import chat as chat_repo
+    from app.ingestion.chat_export import read_chat_export
+
+    cfg = settings or get_settings()
+
+    decision = evaluate_consent(metadata)
+    if decision.refused:
+        outcome = _refusal(metadata, decision.reason, decision)
+        if persist:
+            with database.transaction(cfg) as conn:
+                source_repo.upsert_source(conn, outcome.source)
+                source_repo.save_ingestion_report(conn, outcome.report)
+        return outcome
+
+    resolved = path or (cfg.sample_data_dir / (metadata.file_path or ""))
+    parsed = read_chat_export(resolved)
+    blocking = [d for d in parsed.defects if d.blocking]
+
+    source = Source(
+        id=metadata.id,
+        title=metadata.title,
+        source_type=metadata.source_type,
+        meeting_date=metadata.meeting_date,
+        participants=metadata.participants,
+        consent_flag=metadata.consent_flag,
+        origin_format="json",
+        file_path=metadata.file_path,
+        content_hash=None,
+        ingested_at=_now(),
+        status=SourceStatus.ERROR if blocking else SourceStatus.INGESTED,
+        error_detail=(blocking[0].detail if blocking else None),
+    )
+    report = IngestionReport(
+        source_id=metadata.id,
+        ok=not blocking,
+        status=source.status,
+        consent=decision,
+        origin_format="json",
+        encoding="utf-8",
+        bytes_read=resolved.stat().st_size if resolved.exists() else 0,
+        messages_parsed=0 if blocking else len(parsed.messages),
+        direct_messages_excluded=parsed.direct_messages_excluded,
+        speakers=sorted({m.author for m in parsed.messages}),
+        defects=parsed.defects,
+        rejection_reason=(blocking[0].detail if blocking else None),
+    )
+
+    if persist:
+        with database.transaction(cfg) as conn:
+            source_repo.upsert_source(conn, source)
+            if not blocking:
+                chat_repo.replace_messages(conn, metadata.id, parsed.messages)
+            source_repo.save_ingestion_report(conn, report)
+
+    return IngestionOutcome(source=source, report=report, segments=[])
+
+
 def ingest_from_manifest(settings: Settings | None = None) -> list[IngestionOutcome]:
-    """Ingest every transcript declared in the sample-data manifest."""
+    """Ingest every source declared in the sample-data manifest."""
     import json
 
     cfg = settings or get_settings()
@@ -256,10 +330,11 @@ def ingest_from_manifest(settings: Settings | None = None) -> list[IngestionOutc
     outcomes: list[IngestionOutcome] = []
     for entry in manifest["sources"]:
         metadata = SourceMetadata(**entry)
-        if metadata.source_type is not SourceType.TRANSCRIPT:
-            continue
-        outcomes.append(ingest_transcript(metadata, settings=cfg))
+        if metadata.source_type is SourceType.TRANSCRIPT:
+            outcomes.append(ingest_transcript(metadata, settings=cfg))
+        elif metadata.source_type is SourceType.CHAT_EXPORT:
+            outcomes.append(ingest_chat_export(metadata, settings=cfg))
     return outcomes
 
 
-__all__ = ["IngestionOutcome", "ingest_transcript", "ingest_from_manifest"]
+__all__ = ["IngestionOutcome", "ingest_transcript", "ingest_chat_export", "ingest_from_manifest"]

@@ -27,6 +27,15 @@ const str = (value: unknown, fallback = "—") =>
 
 const SEVERITY_TONE: Record<string, Tone> = { high: "bad", medium: "warn", low: "neutral" };
 
+// A blocker stops work, a request asks for it, a decision settles something.
+// Coloured so a reviewer can read the queue without reading every word.
+const SIGNAL_TONE: Record<string, Tone> = {
+  blocker: "bad",
+  request: "warn",
+  decision: "ok",
+  question: "info",
+};
+
 export const KINDS: Record<ExtractionType, KindView> = {
   action: {
     label: "Action",
@@ -64,9 +73,14 @@ export const KINDS: Record<ExtractionType, KindView> = {
   },
   signal: {
     label: "Signal",
-    headline: (p) => str(p.text ?? p.description),
-    facts: (p) => [{ label: "class", value: str(p.classification) }],
-    hidden: [],
+    headline: (p) => str(p.text),
+    facts: (p) => [
+      { label: "class", value: str(p.classification), tone: SIGNAL_TONE[String(p.classification)] },
+      { label: "channel", value: `#${str(p.channel)}` },
+      { label: "from", value: str(p.author) },
+    ],
+    // message_id is the link back to the message, not something to retype.
+    hidden: ["message_id"],
   },
 };
 

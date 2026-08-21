@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.db import database
 from app.errors import AgentError
-from app.routers import extractions, qa, review, sources, tracker
+from app.routers import chat, extractions, qa, review, sources, tracker
 
 logger = logging.getLogger("agent")
 
@@ -104,3 +104,4 @@ app.include_router(extractions.router)
 app.include_router(review.router)
 app.include_router(tracker.router)
 app.include_router(qa.router)
+app.include_router(chat.router)
