@@ -5,10 +5,11 @@ import { Badge } from "./components/ui";
 import { ReviewView } from "./views/ReviewView";
 import { SourcesView } from "./views/SourcesView";
 import { AskView } from "./views/AskView";
+import { ChannelsView } from "./views/ChannelsView";
 import { PipelineView } from "./views/PipelineView";
 import { TrackerView } from "./views/TrackerView";
 
-type Tab = "sources" | "pipeline" | "review" | "tracker" | "ask";
+type Tab = "sources" | "pipeline" | "channels" | "review" | "tracker" | "ask";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("sources");
@@ -59,6 +60,7 @@ export default function App() {
           [
             ["sources", "Sources"],
             ["pipeline", "Pipeline"],
+            ["channels", "Channels"],
             ["review", "Review queue"],
             ["tracker", "Tracker"],
             ["ask", "Ask"],
@@ -83,6 +85,7 @@ export default function App() {
         {tab === "sources" && <SourcesView onExtracted={() => setRefreshKey((n) => n + 1)} />}
         {tab === "review" && <ReviewView key={refreshKey} reviewer={reviewer} />}
         {tab === "pipeline" && <PipelineView />}
+        {tab === "channels" && <ChannelsView />}
         {tab === "tracker" && <TrackerView />}
         {tab === "ask" && <AskView />}
       </main>

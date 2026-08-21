@@ -9,21 +9,24 @@
  */
 
 import type {
+  Answer,
+  ChatSummary,
   Chunk,
   Extraction,
   ExtractionRun,
   ExtractionType,
   Health,
+  IndexStats,
   IngestionOutcome,
   IngestionReport,
   QueueSummary,
   ReviewEvent,
   ReviewStatus,
-  Answer,
-  IndexStats,
   SearchHit,
   Segment,
+  SignalRun,
   Source,
+  StoredMessage,
   TrackerItem,
   TrackerSummary,
   WriteAttempt,
@@ -174,4 +177,12 @@ export const api = {
     post<SearchHit[]>("/api/qa/search", { question, mode, limit }),
   ask: (question: string, mode?: string, limit?: number) =>
     post<Answer>("/api/qa", { question, mode, limit }),
+
+  // --- M9 chat signals ------------------------------------------------------
+  chatMessages: (params: { source_id?: string; channel?: string; classification?: string } = {}) =>
+    request<StoredMessage[]>(`/api/chat/messages${query(params)}`),
+  chatSummary: (sourceId?: string) =>
+    request<ChatSummary>(`/api/chat/summary${query({ source_id: sourceId })}`),
+  classifySignals: (id: string) =>
+    post<SignalRun>(`/api/chat/${encodeURIComponent(id)}/classify`),
 };
