@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed run api ui test test-inventory verify-clone eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
+.PHONY: help setup seed run api ui test test-inventory verify-clone outcome-schema eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -81,6 +81,9 @@ ui: ## Start the React review interface
 
 test: ## Run the test suite
 	$(PYTEST)
+
+outcome-schema: ## Regenerate docs/outcome_schema.json from the contract
+	$(PY) scripts/emit_outcome_schema.py
 
 verify-clone: ## Clone this branch to a temp dir and run the suite there
 	$(PY) scripts/verify_clone.py

@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Esandu-Meth-Obadaarachchi/digitalt3_interview_task/docs/outcome_schema.json",
+  "title": "OutcomeRecord",
+  "description": "The artefact a delivery agent consumes.",
+  "x-schema-version": "1.0",
+  "x-consumer-contract": [
+    "Check schema_version before reading. This document describes 1.0.",
+    "Every item in actions, decisions, risks and signals was approved by a named human.",
+    "consent_flag is the consent state of the meeting these items came from. Do not act on items from a record whose consent_flag is false; none should exist.",
+    "citation.quote is a literal substring of the source transcript. citation.quote_verified says whether that was machine-checked.",
+    "pending_not_included, rejected_not_included and expired_not_included let you tell an empty record that means 'nothing was found' from one that means 'nothing has been reviewed yet'."
+  ],
+  "$defs": {
+    "OutcomeCitation": {
+      "additionalProperties": false,
+      "description": "Everything needed to check one item, without the transcript store.",
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Title"
+        },
+        "speaker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Speaker"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timestamp"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        },
+        "quote_verified": {
+          "title": "Quote Verified",
+          "type": "boolean"
+        },
+        "char_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Char Start"
+        },
+        "char_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Char End"
+        }
+      },
+      "required": [
+        "source_id",
+        "quote",
+        "quote_verified"
+      ],
+      "title": "OutcomeCitation",
+      "type": "object"
+    },
+    "OutcomeItem": {
+      "additionalProperties": false,
+      "description": "One approved extraction, flattened for a consumer.\n\n`approved_by` and `approved_at` travel with the item because the value of\nthis record is that a human accepted each line in it, and a downstream\nagent acting on one should be able to say who accepted it.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "citation": {
+          "$ref": "#/$defs/OutcomeCitation"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved At"
+        },
+        "edited_by_reviewer": {
+          "default": false,
+          "title": "Edited By Reviewer",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "payload",
+        "citation"
+      ],
+      "title": "OutcomeItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "record_version": {
+      "title": "Record Version",
+      "type": "integer"
+    },
+    "record_id": {
+      "title": "Record Id",
+      "type": "string"
+    },
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    },
+    "source_title": {
+      "title": "Source Title",
+      "type": "string"
+    },
+    "source_type": {
+      "title": "Source Type",
+      "type": "string"
+    },
+    "meeting_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Meeting Date"
+    },
+    "participants": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Participants",
+      "type": "array"
+    },
+    "consent_flag": {
+      "title": "Consent Flag",
+      "type": "boolean"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "generated_by": {
+      "default": "meeting-intelligence-agent",
+      "title": "Generated By",
+      "type": "string"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/OutcomeItem"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "decisions": {
+      "items": {
+        "$ref": "#/$defs/OutcomeItem"
+      },
+      "title": "Decisions",
+      "type": "array"
+    },
+    "risks": {
+      "items": {
+        "$ref": "#/$defs/OutcomeItem"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/OutcomeItem"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "pending_not_included": {
+      "default": 0,
+      "title": "Pending Not Included",
+      "type": "integer"
+    },
+    "rejected_not_included": {
+      "default": 0,
+      "title": "Rejected Not Included",
+      "type": "integer"
+    },
+    "expired_not_included": {
+      "default": 0,
+      "title": "Expired Not Included",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "record_version",
+    "record_id",
+    "source_id",
+    "source_title",
+    "source_type",
+    "consent_flag",
+    "generated_at"
+  ],
+  "type": "object"
+}
