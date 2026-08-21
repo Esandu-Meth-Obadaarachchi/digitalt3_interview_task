@@ -12,6 +12,7 @@ import type {
   Answer,
   ChatSummary,
   Chunk,
+  Digest,
   Extraction,
   ExtractionRun,
   ExtractionType,
@@ -19,9 +20,13 @@ import type {
   IndexStats,
   IngestionOutcome,
   IngestionReport,
+  Notification,
+  OutcomeRecord,
+  OutcomeSummary,
   QueueSummary,
   ReviewEvent,
   ReviewStatus,
+  SchedulerStatus,
   SearchHit,
   Segment,
   SignalRun,
@@ -185,4 +190,25 @@ export const api = {
     request<ChatSummary>(`/api/chat/summary${query({ source_id: sourceId })}`),
   classifySignals: (id: string) =>
     post<SignalRun>(`/api/chat/${encodeURIComponent(id)}/classify`),
+
+  // --- M10 digests and the scheduler ----------------------------------------
+  schedule: () => request<SchedulerStatus>("/api/digests/schedule"),
+  digestScopes: () => request<{ key: string; title: string }[]>("/api/digests/scopes"),
+  previewDigest: (scope: string, now?: string) =>
+    request<Digest>(`/api/digests/${encodeURIComponent(scope)}${query({ now })}`),
+  digestMarkdown: (scope: string, now?: string) =>
+    request<{ scope_key: string; digest_date: string; markdown: string }>(
+      `/api/digests/${encodeURIComponent(scope)}/markdown${query({ now })}`,
+    ),
+  runAllDigests: (now?: string) => post<Digest[]>(`/api/digests/run/all${query({ now })}`),
+  notifications: (limit?: number) =>
+    request<Notification[]>(`/api/digests/posts/log${query({ limit })}`),
+
+  // --- M11 outcome records --------------------------------------------------
+  outcomes: (sourceId?: string) =>
+    request<OutcomeSummary[]>(`/api/outcomes${query({ source_id: sourceId })}`),
+  outcome: (sourceId: string, version?: number) =>
+    request<OutcomeRecord>(`/api/outcomes/${encodeURIComponent(sourceId)}${query({ version })}`),
+  emitOutcome: (sourceId: string) =>
+    post<OutcomeRecord>(`/api/outcomes/${encodeURIComponent(sourceId)}`),
 };

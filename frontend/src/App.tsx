@@ -6,10 +6,11 @@ import { ReviewView } from "./views/ReviewView";
 import { SourcesView } from "./views/SourcesView";
 import { AskView } from "./views/AskView";
 import { ChannelsView } from "./views/ChannelsView";
+import { OutputsView } from "./views/OutputsView";
 import { PipelineView } from "./views/PipelineView";
 import { TrackerView } from "./views/TrackerView";
 
-type Tab = "sources" | "pipeline" | "channels" | "review" | "tracker" | "ask";
+type Tab = "sources" | "pipeline" | "channels" | "review" | "tracker" | "outputs" | "ask";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("sources");
@@ -63,6 +64,7 @@ export default function App() {
             ["channels", "Channels"],
             ["review", "Review queue"],
             ["tracker", "Tracker"],
+            ["outputs", "Digests & records"],
             ["ask", "Ask"],
           ] as const
         ).map(([value, label]) => (
@@ -87,6 +89,7 @@ export default function App() {
         {tab === "pipeline" && <PipelineView />}
         {tab === "channels" && <ChannelsView />}
         {tab === "tracker" && <TrackerView />}
+        {tab === "outputs" && <OutputsView />}
         {tab === "ask" && <AskView />}
       </main>
 

@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.db import database
 from app.errors import AgentError
-from app.routers import chat, extractions, qa, review, sources, tracker
+from app.routers import chat, digests, extractions, outcome, qa, review, sources, tracker
 
 logger = logging.getLogger("agent")
 
@@ -33,14 +33,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)-7s %(name)s %(message)s")
     settings.ensure_directories()
     database.init_db(settings)
+    # A real scheduler, started with the application. The capability test is
+    # explicit that a button with nothing behind it is a partial implementation,
+    # so the jobs are registered here and their next fire times are readable at
+    # /api/digests/schedule.
+    from app.scheduler import jobs
+
+    jobs.start(settings)
+
     logger.info(
-        "ready: db=%s provider=%s retrieval=%s tracker=%s",
+        "ready: db=%s provider=%s retrieval=%s tracker=%s scheduler=%s",
         settings.db_path,
         settings.llm_provider,
         settings.retrieval_mode,
         settings.tracker_provider,
+        "on" if settings.scheduler_enabled else "off",
     )
-    yield
+    try:
+        yield
+    finally:
+        jobs.shutdown()
 
 
 app = FastAPI(
@@ -105,3 +117,5 @@ app.include_router(review.router)
 app.include_router(tracker.router)
 app.include_router(qa.router)
 app.include_router(chat.router)
+app.include_router(outcome.router)
+app.include_router(digests.router)

@@ -27,8 +27,8 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
 | M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
 | M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records |
-| M10 | Scheduled end-of-day digest      | SHOULD   | Not built | Phase 8 |
-| M11 | Structured outcome record        | SHOULD   | Not built | Phase 8 |
+| M10 | Scheduled end-of-day digest      | SHOULD   | Done      | Real APScheduler, two jobs, clock override. Approved items only, every line cited |
+| M11 | Structured outcome record        | SHOULD   | Done      | Versioned, approved items only, schema published at docs/outcome_schema.json |
 | M12 | Follow-up message draft          | COULD    | Not built | Phase 8 |
 | M13 | Per-person digest                | COULD    | Not built | Phase 8 |
 

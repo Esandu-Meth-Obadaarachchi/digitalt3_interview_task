@@ -332,3 +332,108 @@ export interface ChatSummary {
   by_class: Record<string, number>;
   channels: string[];
 }
+
+// --- M10 digests and the scheduler -------------------------------------------
+
+export interface DigestLine {
+  text: string;
+  citation: Citation;
+  extraction_id: string;
+  extraction_type: string;
+  /** Why this line is in this section, so a reader can disagree with the pick. */
+  because: string;
+}
+
+export interface Digest {
+  id: string;
+  scope_type: string;
+  scope_key: string;
+  scope_title: string;
+  digest_date: string;
+  generated_at: string;
+  trigger: string;
+  moved: DigestLine[];
+  attention: DigestLine[];
+  to_decide: DigestLine[];
+  considered: number;
+}
+
+export interface ScheduledJob {
+  id: string;
+  name: string;
+  trigger: string;
+  /** From APScheduler, not from configuration. */
+  next_run_at: string | null;
+  description: string;
+}
+
+export interface SchedulerStatus {
+  running: boolean;
+  enabled: boolean;
+  timezone: string;
+  jobs: ScheduledJob[];
+}
+
+export interface Notification {
+  id: string;
+  channel: string;
+  subject: string;
+  body: string;
+  posted_at: string;
+  provider: string;
+}
+
+// --- M11 outcome records -----------------------------------------------------
+
+export interface OutcomeCitation {
+  source_id: string;
+  source_title: string | null;
+  speaker: string | null;
+  timestamp: string | null;
+  quote: string;
+  quote_verified: boolean;
+}
+
+export interface OutcomeItem {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  citation: OutcomeCitation;
+  confidence: number | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  edited_by_reviewer: boolean;
+}
+
+export interface OutcomeRecord {
+  schema_version: string;
+  record_version: number;
+  record_id: string;
+  source_id: string;
+  source_title: string;
+  source_type: string;
+  meeting_date: string | null;
+  participants: string[];
+  consent_flag: boolean;
+  generated_at: string;
+  actions: OutcomeItem[];
+  decisions: OutcomeItem[];
+  risks: OutcomeItem[];
+  signals: OutcomeItem[];
+  pending_not_included: number;
+  rejected_not_included: number;
+  expired_not_included: number;
+}
+
+export interface OutcomeSummary {
+  source_id: string;
+  schema_version: string;
+  record_version: number;
+  consent_flag: number;
+  file_path: string;
+  created_at: string;
+  actions: number;
+  decisions: number;
+  risks: number;
+  signals: number;
+}

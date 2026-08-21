@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "record_version": 2,
+  "record_id": "bbcded75-ecbe-4e86-96d8-a3486d9452c6",
+  "source_id": "meeting-sprint-planning-2024-11-18",
+  "source_title": "Sprint Planning - Meridian Platform",
+  "source_type": "transcript",
+  "meeting_date": "2024-11-18",
+  "participants": [
+    "Sarah Chen",
+    "Priya Sharma",
+    "Priya Menon",
+    "James Liu",
+    "Marcus Webb",
+    "Tom Reynolds"
+  ],
+  "consent_flag": true,
+  "generated_at": "2026-08-21T12:13:08.939828+00:00",
+  "generated_by": "meeting-intelligence-agent",
+  "actions": [
+    {
+      "id": "meeting-sprint-planning-2024-11-18::action::e830d3ee",
+      "type": "action",
+      "payload": {
+        "what": "Set up the full CI pipeline including deployment to staging",
+        "owner": "James Liu",
+        "due_date": "2024-11-29",
+        "due_date_type": "relative_resolved",
+        "due_date_stated": "end of next week",
+        "due_date_rule": "end of next week = Friday of the week following the meeting week; weeks run Monday to Sunday, anchored to the meeting date 2024-11-18. A bare 'next week' is read as its end, since a commitment due 'next week' is not late until the week is over."
+      },
+      "citation": {
+        "source_id": "meeting-sprint-planning-2024-11-18",
+        "source_title": "Sprint Planning - Meridian Platform",
+        "speaker": "Sarah Chen",
+        "timestamp": "00:01:22",
+        "quote": "Can you get the full pipeline set up by end of next week",
+        "quote_verified": true,
+        "char_start": 971,
+        "char_end": 1027
+      },
+      "confidence": 0.85,
+      "approved_by": "esandu",
+      "approved_at": "2026-08-21T12:13:08.928861+00:00",
+      "edited_by_reviewer": false
+    },
+    {
+      "id": "meeting-sprint-planning-2024-11-18::action::5dcb815b",
+      "type": "action",
+      "payload": {
+        "what": "Finish the authentication module refactor with integration tests",
+        "owner": "Priya Sharma",
+        "due_date": "2024-11-22",
+        "due_date_type": "relative_resolved",
+        "due_date_stated": "Friday",
+        "due_date_rule": "friday = the first friday strictly after the meeting date 2024-11-18"
+      },
+      "citation": {
+        "source_id": "meeting-sprint-planning-2024-11-18",
+        "source_title": "Sprint Planning - Meridian Platform",
+        "speaker": "Priya Sharma",
+        "timestamp": "00:02:17",
+        "quote": "I can have the refactor done with tests by Friday",
+        "quote_verified": true,
+        "char_start": 1648,
+        "char_end": 1697
+      },
+      "confidence": 0.85,
+      "approved_by": "esandu",
+      "approved_at": "2026-08-21T12:13:08.930216+00:00",
+      "edited_by_reviewer": false
+    },
+    {
+      "id": "meeting-sprint-planning-2024-11-18::action::1a07d84e",
+      "type": "action",
+      "payload": {
+        "what": "Redesign the dashboard connection layer for SSE",
+        "owner": "Priya Menon",
+        "due_date": "UNSPECIFIED",
+        "due_date_type": "unspecified",
+        "due_date_stated": "within the sprint",
+        "due_date_rule": "not resolved: no documented rule maps this phrasing to a single date"
+      },
+      "citation": {
+        "source_id": "meeting-sprint-planning-2024-11-18",
+        "source_title": "Sprint Planning - Meridian Platform",
+        "speaker": "Sarah Chen",
+        "timestamp": "00:03:32",
+        "quote": "Priya Menon, can you redesign the connection layer for SSE",
+        "quote_verified": true,
+        "char_start": 2722,
+        "char_end": 2780
+      },
+      "confidence": 0.85,
+      "approved_by": "esandu",
+      "approved_at": "2026-08-21T12:13:08.932095+00:00",
+      "edited_by_reviewer": false
+    }
+  ],
+  "decisions": [],
+  "risks": [],
+  "signals": [],
+  "pending_not_included": 4,
+  "rejected_not_included": 1,
+  "expired_not_included": 0
+}
