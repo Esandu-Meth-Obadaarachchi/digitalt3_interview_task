@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     faiss_index_dir: Path = Path("data/faiss")
     retrieval_top_k: int = 8
+    # A meeting answers a question across turns, not within one, so each
+    # retrieved segment brings the turns either side of it as extra sources.
+    # 0 disables it, which the mode comparison uses so expansion cannot
+    # flatter every mode equally and hide which one found the segment.
+    retrieval_neighbours: int = 1
+    retrieval_max_sources: int = 24
     rrf_k: int = 60
 
     # --- Chunking ------------------------------------------------------------

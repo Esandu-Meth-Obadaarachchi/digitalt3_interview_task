@@ -140,3 +140,134 @@ def test_a_bare_weekday_means_the_next_one_not_today():
 def test_a_named_date_without_a_year_never_resolves_into_the_past():
     assert resolve_due_date("August 5th", "2024-08-19").value == "2025-08-05"
     assert resolve_due_date("October fifteenth", "2024-08-19").value == "2024-10-15"
+
+
+# --- neighbour expansion (M8) ------------------------------------------------
+
+
+def test_neighbour_expansion_adds_the_turns_either_side(settings):
+    """A meeting answers a question across turns, not within one.
+
+    The turn that MATCHES a question is often the one asking it, and the answer
+    is what somebody said next. Those following turns share no words with the
+    question and no embedding neighbourhood with it, so neither retrieval
+    method reaches them alone.
+    """
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+    from app.retrieval.search import SearchHit, expand_with_neighbours
+
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        row = conn.execute(
+            "SELECT id, source_id, speaker, start_ts, text, char_start, char_end"
+            " FROM segments WHERE source_id = ? AND segment_index = 5",
+            ("meeting-sprint-planning-2024-11-18",),
+        ).fetchone()
+        hit = SearchHit(
+            ref_type="segment", ref_id=row["id"], source_id=row["source_id"],
+            text=row["text"], speaker=row["speaker"], timestamp=row["start_ts"],
+            char_start=row["char_start"], char_end=row["char_end"], keyword_rank=1,
+        )
+        widened = expand_with_neighbours(conn, [hit], window=1)
+        indexes = conn.execute(
+            "SELECT segment_index FROM segments WHERE id IN (?,?,?) ORDER BY segment_index",
+            tuple(h.ref_id for h in widened),
+        ).fetchall()
+
+    assert len(widened) == 3
+    assert [r["segment_index"] for r in indexes] == [4, 5, 6]
+
+
+def test_a_neighbour_is_its_own_source_not_a_widened_one(settings):
+    """Widening the matched hit's text would let the model quote a neighbour
+    while citing the matched segment: a citation that verifies against the
+    corpus and points at the wrong line. Every source stays one segment."""
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+    from app.retrieval.search import SearchHit, expand_with_neighbours
+
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        row = conn.execute(
+            "SELECT id, source_id, speaker, start_ts, text, char_start, char_end"
+            " FROM segments WHERE source_id = ? AND segment_index = 5",
+            ("meeting-sprint-planning-2024-11-18",),
+        ).fetchone()
+        original = row["text"]
+        widened = expand_with_neighbours(
+            conn,
+            [SearchHit(ref_type="segment", ref_id=row["id"], source_id=row["source_id"],
+                       text=original, char_start=row["char_start"], char_end=row["char_end"])],
+            window=1,
+        )
+
+    assert widened[0].text == original, "the matched hit's text must not grow"
+    assert len({h.ref_id for h in widened}) == 3
+    assert all(h.char_start is not None for h in widened)
+
+
+def test_neighbours_carry_no_rank_because_they_were_not_retrieved(settings):
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+    from app.retrieval.search import SearchHit, expand_with_neighbours
+
+    ingest_from_manifest(settings)
+    with database.connect(settings) as conn:
+        row = conn.execute(
+            "SELECT id, source_id, text, char_start, char_end FROM segments"
+            " WHERE source_id = ? AND segment_index = 5",
+            ("meeting-sprint-planning-2024-11-18",),
+        ).fetchone()
+        widened = expand_with_neighbours(
+            conn,
+            [SearchHit(ref_type="segment", ref_id=row["id"], source_id=row["source_id"],
+                       text=row["text"], keyword_rank=1, dense_rank=1,
+                       char_start=row["char_start"], char_end=row["char_end"])],
+            window=1,
+        )
+
+    assert widened[0].keyword_rank == 1
+    assert all(h.keyword_rank is None and h.dense_rank is None for h in widened[1:])
+
+
+def test_expansion_can_be_switched_off(settings):
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+    from app.retrieval.search import SearchHit, expand_with_neighbours
+
+    ingest_from_manifest(settings)
+    with database.connect(settings) as conn:
+        row = conn.execute(
+            "SELECT id, source_id, text FROM segments WHERE segment_index = 5 LIMIT 1"
+        ).fetchone()
+        hits = [SearchHit(ref_type="segment", ref_id=row["id"], source_id=row["source_id"],
+                          text=row["text"])]
+        assert expand_with_neighbours(conn, hits, window=0) == hits
+
+
+def test_expansion_is_capped(settings):
+    """A widened source list is a longer prompt. The cap stops eight hits
+    becoming an unbounded number of sources."""
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+    from app.retrieval.search import SearchHit, expand_with_neighbours
+
+    ingest_from_manifest(settings)
+    with database.connect(settings) as conn:
+        # Spread across the transcript, so the neighbourhoods do not overlap and
+        # collapse back under the cap. Eight adjacent hits with window 3 yield
+        # eleven unique segments, which would never reach a cap of twelve.
+        rows = conn.execute(
+            "SELECT id, source_id, text FROM segments WHERE source_id = ?"
+            " AND segment_index IN (0, 10, 20, 30, 40) ORDER BY segment_index",
+            ("meeting-sprint-planning-2024-11-18",),
+        ).fetchall()
+        hits = [SearchHit(ref_type="segment", ref_id=r["id"], source_id=r["source_id"], text=r["text"])
+                for r in rows]
+
+        uncapped = expand_with_neighbours(conn, hits, window=2, cap=1000)
+        assert len(uncapped) > 12, "the fixture must exceed the cap for the cap to mean anything"
+        assert len(expand_with_neighbours(conn, hits, window=2, cap=12)) == 12

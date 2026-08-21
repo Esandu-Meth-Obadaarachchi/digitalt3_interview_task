@@ -216,6 +216,74 @@ def _hydrate(conn: sqlite3.Connection, ref_type: str, ref_id: str) -> SearchHit 
     )
 
 
+def expand_with_neighbours(
+    conn: sqlite3.Connection, hits: list[SearchHit], window: int = 1, cap: int = 24
+) -> list[SearchHit]:
+    """Add the turns either side of each retrieved segment.
+
+    A meeting answers a question across turns, not within one. "How do we split
+    the work for Phase 1?" retrieves at rank 1 for a question about who is doing
+    what, and the answer is the three turns AFTER it: "I'll take the booking
+    engine", "I'll handle reception". Those share no words with the question and
+    no embedding neighbourhood with it either, so neither retrieval method can
+    reach them on their own.
+
+    Neighbours are added as SEPARATE numbered sources rather than by widening
+    the text of the hit they came from. Widening would let the model quote a
+    neighbour while citing the matched segment, producing a citation that
+    verifies against the corpus and points at the wrong line. Every source
+    stays one segment, so every citation stays exact.
+
+    Neighbours are appended after the ranked hits and carry no rank of their
+    own, because they were not retrieved. They are context, and the ordering
+    should not pretend otherwise.
+    """
+    if not hits or window <= 0:
+        return hits
+
+    seen = {(h.ref_type, h.ref_id) for h in hits}
+    neighbours: list[SearchHit] = []
+
+    for hit in hits:
+        if hit.ref_type != "segment":
+            continue
+        row = conn.execute(
+            "SELECT source_id, segment_index FROM segments WHERE id = ?", (hit.ref_id,)
+        ).fetchone()
+        if row is None:
+            continue
+
+        low = row["segment_index"] - window
+        high = row["segment_index"] + window
+        rows = conn.execute(
+            "SELECT s.id, s.source_id, s.speaker, s.start_ts, s.text, s.char_start, s.char_end,"
+            "       src.title FROM segments s JOIN sources src ON src.id = s.source_id"
+            " WHERE s.source_id = ? AND s.segment_index BETWEEN ? AND ? ORDER BY s.segment_index",
+            (row["source_id"], low, high),
+        ).fetchall()
+
+        for neighbour in rows:
+            key = ("segment", neighbour["id"])
+            if key in seen:
+                continue
+            seen.add(key)
+            neighbours.append(
+                SearchHit(
+                    ref_type="segment",
+                    ref_id=neighbour["id"],
+                    source_id=neighbour["source_id"],
+                    source_title=neighbour["title"],
+                    text=neighbour["text"],
+                    speaker=neighbour["speaker"],
+                    timestamp=neighbour["start_ts"],
+                    char_start=neighbour["char_start"],
+                    char_end=neighbour["char_end"],
+                )
+            )
+
+    return (hits + neighbours)[:cap]
+
+
 def reciprocal_rank_fusion(
     rankings: list[list[SearchHit]], k: int = 60, limit: int = 8
 ) -> list[SearchHit]:
@@ -263,30 +331,37 @@ def search(
     *,
     mode: str | None = None,
     limit: int | None = None,
+    neighbours: int | None = None,
 ) -> list[SearchHit]:
-    """Retrieve, by whichever mode is configured or asked for."""
+    """Retrieve, by whichever mode is configured or asked for.
+
+    `neighbours` widens the result with the turns either side of each retrieved
+    segment. Defaults to the configured window. Pass 0 to measure retrieval on
+    its own, which is what the mode comparison does: expansion would flatter
+    every mode equally and hide which one actually found the segment.
+    """
     cfg = settings or get_settings()
     chosen = mode or cfg.retrieval_mode
     top_k = limit or cfg.retrieval_top_k
+    window = cfg.retrieval_neighbours if neighbours is None else neighbours
 
     with database.connect(cfg) as conn:
         if chosen == "keyword":
             hits = keyword_search(conn, question, top_k)
             for hit in hits:
                 hit.score = hit.keyword_score or 0.0
-            return hits
-
-        if chosen == "dense":
+        elif chosen == "dense":
             hits = dense_search(conn, question, top_k, cfg)
             for hit in hits:
                 hit.score = hit.dense_score or 0.0
-            return hits
+        else:
+            # Each half is asked for more than the final list needs, so a result
+            # ranked mid-table by both still has the chance to win on fusion.
+            wide = top_k * 3
+            hits = reciprocal_rank_fusion(
+                [keyword_search(conn, question, wide), dense_search(conn, question, wide, cfg)],
+                k=cfg.rrf_k,
+                limit=top_k,
+            )
 
-        # Each half is asked for more than the final list needs, so a result
-        # ranked mid-table by both still has the chance to win on fusion.
-        wide = top_k * 3
-        return reciprocal_rank_fusion(
-            [keyword_search(conn, question, wide), dense_search(conn, question, wide, cfg)],
-            k=cfg.rrf_k,
-            limit=top_k,
-        )
+        return expand_with_neighbours(conn, hits, window, cap=cfg.retrieval_max_sources)

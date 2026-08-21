@@ -476,7 +476,9 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
         source_hits = segment_hits = 0
         ranks: list[int] = []
         for question in answerable:
-            found = search(question.question, settings, mode=mode, limit=10)
+            # neighbours=0: expansion would flatter every mode equally and
+            # hide which one actually found the cited segment.
+            found = search(question.question, settings, mode=mode, limit=10, neighbours=0)
             top3 = found[:3]
             source_hits += any(h.source_id == question.expected_source_id for h in top3)
 
