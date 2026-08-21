@@ -995,6 +995,20 @@ number stated from memory and never re-checked. The count is now taken from
 `make test-inventory`. The capability table is not yet machine-checked, and
 that is recorded below as `L28`.
 
+**`make verify-clone` reported a dirty working tree, and the reason was a
+`.gitignore` rule pointing at directories that do not exist.** The rules named
+`data/digests/` and `data/outcome_records/`; the mock store writes under
+`data/documents/`. Eleven generated files were tracked, so every run of the
+scheduler left a diff nobody had authored. One of them was a transcript a user
+had uploaded through the interface, committed to the repository as a side
+effect of using the application. That is the part that mattered: files supplied
+at runtime must not enter version control by accident.
+
+This is the second fault caused by a `.gitignore` path being written without
+thinking about what it matches. The first, in Phase 6, excluded every Pydantic
+contract from git for nine phases. Both were found by a tool rather than by
+reading, which is the argument for having built `make verify-clone` at all.
+
 **Writing the evaluation document forced the matching rule to be stated in
 prose.** Every recall and accuracy figure depends on it, and it had only ever
 existed as code. Written out, it is plainly generous — quote overlap or a
