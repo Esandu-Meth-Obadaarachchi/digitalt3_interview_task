@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     db_path: Path = Path("data/meetings.db")
     write_log_path: Path = Path("write_log/tracker_writes.jsonl")
     digest_output_dir: Path = Path("data/digests")
+    document_store_dir: Path = Path("data/documents")
     outcome_record_dir: Path = Path("data/outcome_records")
     llm_cache_dir: Path = Path("data/llm_cache")
     audio_dir: Path = Path("data/audio")
@@ -125,6 +126,7 @@ class Settings(BaseSettings):
         "db_path",
         "write_log_path",
         "digest_output_dir",
+        "document_store_dir",
         "outcome_record_dir",
         "llm_cache_dir",
         "audio_dir",
@@ -148,6 +150,7 @@ class Settings(BaseSettings):
             self.db_path.parent,
             self.write_log_path.parent,
             self.digest_output_dir,
+            self.document_store_dir,
             self.outcome_record_dir,
             self.llm_cache_dir,
             self.audio_dir,
