@@ -43,8 +43,14 @@ data/outcome_records/
 
 # --- Model weights -----------------------------------------------------------
 # Downloaded on first run by `make setup`. Far too large for git.
-models/
-.cache/
+#
+# Anchored with a leading slash so the rule means "the models directory at the
+# repository root" and nothing else. Written as `models/` it matched ANY
+# directory of that name at any depth, which silently excluded
+# backend/app/models/ - every Pydantic contract in the application - from nine
+# commits. A clean clone would not have run.
+/models/
+/.cache/
 
 # --- OS / editor -------------------------------------------------------------
 .DS_Store
