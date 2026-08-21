@@ -24,7 +24,7 @@ from pydantic import ValidationError  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import database  # noqa: E402
 from app.adapters.factory import get_tracker  # noqa: E402
-from app.ingestion.service import ingest_transcript  # noqa: E402
+from app.ingestion.service import ingest_chat_export, ingest_transcript  # noqa: E402
 from app.models.common import SourceType  # noqa: E402
 from app.models.source import SourceMetadata  # noqa: E402
 
@@ -97,8 +97,14 @@ def main() -> int:
     print(f"\n{DIM}ingesting{RESET}")
     failures = 0
     for entry in entries:
-        if entry.source_type is not SourceType.TRANSCRIPT:
-            print(f"  {YELLOW}skip{RESET} {entry.id:<42}{DIM} chat export, wired in at Phase 7{RESET}")
+        if entry.source_type is SourceType.CHAT_EXPORT:
+            outcome = ingest_chat_export(entry, settings=settings)
+            report = outcome.report
+            print(
+                f"  {GREEN}ingested{RESET} {entry.id:<42}"
+                f"{DIM}{report.bytes_read:>7} B  {report.messages_parsed:>3} messages  "
+                f"{report.direct_messages_excluded} direct message(s) excluded{RESET}"
+            )
             continue
 
         outcome = ingest_transcript(entry, settings=settings)
