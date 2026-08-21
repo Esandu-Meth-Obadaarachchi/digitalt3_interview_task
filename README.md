@@ -8,9 +8,10 @@ approves it.
 Built for the DigitalT3 intern selection challenge. The brief is committed at
 [`docs/challenge/`](docs/challenge/).
 
-> **Status: Phase 2 of 12 complete.** This README is rewritten from the code at
-> the end of every phase. The table below reports what runs today, not what is
-> planned. Nothing is marked Done until it runs end to end on the sample data.
+> **Status: all 7 MUST capabilities and all 4 SHOULD capabilities run
+> end to end, M1 partially.** This README is rewritten from the code at the end
+> of every phase. The table below reports what runs today, not what is planned.
+> Nothing is marked Done until it runs end to end on the sample data.
 
 ---
 
@@ -18,19 +19,19 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 | ID  | Capability                       | Priority | Status    | Note |
 |-----|----------------------------------|----------|-----------|------|
-| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription at Phase 9 |
+| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription **not built** |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
 | M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
 | M4  | Extract decisions                | MUST     | Done      | Measured. All 3 golden decisions found, the proposed-then-deferred item correctly absent |
 | M5  | Extract risks and blockers       | SHOULD   | Done      | Measured. Both golden risks found, every high severity defensible from its quote |
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
-| M8  | Cross-source question answering  | MUST     | Not built | Phase 6. FTS5 index is populated at ingestion |
+| M8  | Cross-source question answering  | MUST     | Done      | Measured. 5/5 correct source, 5/5 answers carrying a verified citation, refuses the unanswerable |
 | M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Done      | Real APScheduler, two jobs, clock override. Approved items only, every line cited |
 | M11 | Structured outcome record        | SHOULD   | Done      | Versioned, approved items only, schema published at docs/outcome_schema.json |
-| M12 | Follow-up message draft          | COULD    | Not built | Phase 8 |
-| M13 | Per-person digest                | COULD    | Not built | Phase 8 |
+| M12 | Follow-up message draft          | COULD    | Not built | Out of scope for this submission |
+| M13 | Per-person digest                | COULD    | Not built | Out of scope for this submission |
 
 ---
 
@@ -234,24 +235,31 @@ invalidate a run.
 ```
 backend/app/db/schema.sql            13 tables, 3 FTS5 indexes, 20 triggers
 backend/app/config.py errors.py      typed settings, domain errors
-backend/app/db/                      connection, transaction, repositories
-backend/app/models/                  Pydantic contracts
+backend/app/db/                      connection, transaction, 7 repositories
+backend/app/models/                  9 Pydantic contracts, all strict
 backend/app/ingestion/               M1 parsers, M2 consent gate, validation
 backend/app/extraction/
-  prompts.py                         versioned prompt loading
+  prompts.py                         versioned prompt loading, hash-tagged
   chunker.py                         segment-boundary chunks with context
   quote_verifier.py                  the substring check and where the quote sits
   dates.py                           relative dates, anchored to the meeting
   deduplicator.py                    two rules, within a region and across one
-  actions.py                         M3, the extraction pipeline
-  llm/                               two providers, one interface, retry, cache
+  pipeline.py                        one path shared by M3, M4 and M5
+  actions.py decisions.py risks.py   the three extraction specs
+  signals.py                         M9, chat classification
+  llm/                               three providers, one interface, retry, cache
 backend/app/prompts/*.txt            one versioned file per capability
 backend/app/review/queue.py          M6 rules: edit, approve, reject, expire
-backend/app/routers/                 thin HTTP: sources, extractions, review
-frontend/                            React 19 + TypeScript + Tailwind
+backend/app/tracker/                 M7 writes, idempotent, every attempt logged
+backend/app/retrieval/               M8 FTS5 + FAISS, fused by reciprocal rank
+backend/app/scheduler/               M10 APScheduler, two jobs, clock override
+backend/app/outcome/record.py        M11 versioned outcome record
+backend/app/adapters/                3 interfaces, 3 mocks, one factory
+backend/app/routers/                 thin HTTP, 8 routers
+frontend/src/                        React 19 + TypeScript + Tailwind, 7 views
 eval/harness.py golden.py            the golden cases and the scoring
-backend/tests/ eval/test_harness.py  209 passing tests
-scripts/                             seed, check-env, llm-smoke, fixtures
+backend/tests/ eval/                 328 passing tests, counted by make test-inventory
+scripts/                             seed, check-env, llm-smoke, verify-clone, fixtures
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```
 
@@ -266,6 +274,21 @@ make run                      # API on :8000
 make ui                       # review interface on :5173
 ```
 
+## Documentation
+
+| Document | What it is |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | The required architecture note: data flow, where each gate is enforced, what runs where, and the limitations |
+| [`docs/components/`](docs/components/README.md) | One document per part of the system, 12 in all, each covering what it does, the decisions and their reasons, how it is tested, and what it does not do |
+| [`docs/testing.md`](docs/testing.md) | The testing approach, what is a real implementation rather than a mock, and the count per file |
+| [`decision_log.md`](decision_log.md) | Every decision in order, with the reason and the alternative rejected |
+| [`eval/results.txt`](eval/results.txt) | The committed measurement, reproducible with `make eval` |
+
+Start with the architecture note. [`docs/components/README.md`](docs/components/README.md)
+gives a 20-minute reading order through the rest.
+
+---
+
 ## Setup
 
 Requires Python 3.11 (newest version with settled wheels for `faiss-cpu`,
@@ -279,12 +302,15 @@ make test                     # run the test suite
 make check-env                # show which providers are configured
 ```
 
-`make run` starts the API. `make eval` runs the golden cases. Both report
-honestly that they are not built yet rather than pretending.
+`make run` starts the API, `make ui` the review interface. `make eval` runs the
+golden cases against the live model and refuses to write a results file if any
+chunk failed. `make verify-clone` clones the current branch into a temporary
+directory and runs the whole suite there, so a missing file cannot pass locally
+and fail for a reviewer.
 
 ---
 
-## Design decisions made so far
+## Design decisions
 
 **The consent gate, the approval gate and write idempotency are enforced in
 the database, not only in Python.** The rubric asks whether gating is enforced
