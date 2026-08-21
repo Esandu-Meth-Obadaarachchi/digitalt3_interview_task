@@ -205,3 +205,17 @@ def quote_present(quote: str, extractions: list) -> bool:
     harder to pass by accident.
     """
     return any(quotes_overlap(quote, e.verbatim_quote) for e in extractions)
+
+
+class GoldenQuestion(StrictModel):
+    id: str
+    question: str
+    answerable: bool
+    expected_source_id: str | None = None
+    expected_answer_contains: str | None = None
+    expected_timestamp: str | None = None
+    notes: str | None = None
+
+
+def load_questions() -> list[GoldenQuestion]:
+    return [GoldenQuestion(**item) for item in load_json("golden_questions.json")["questions"]]

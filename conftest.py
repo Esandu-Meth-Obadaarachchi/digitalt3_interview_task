@@ -48,6 +48,12 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Settin
     monkeypatch.setenv("LLM_CACHE_ENABLED", "false")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
     monkeypatch.setenv("LLM_BACKOFF_BASE_SECONDS", "0")
+    # Hashing rather than MiniLM: loading a transformer would put seconds on
+    # every test that touches retrieval, and the index, the search and the
+    # fusion are all exercised for real either way. Retrieval QUALITY is
+    # never asserted here, only mechanics; quality is measured by the harness
+    # against the real model.
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "hashing")
 
     get_settings.cache_clear()
     cfg = get_settings()
@@ -147,6 +153,51 @@ def scripted_model(golden_actions, request):
                     for d in items
                     if normalise_text(d["verbatim_quote"]) in chunk
                 ]})
+
+            if title == "DraftAnswer":
+                # Answering, crudely but honestly. The stub reads the numbered
+                # sources out of the rendered prompt and quotes the first one
+                # that shares content words with the question. When none does,
+                # it says the question cannot be answered, which is what makes
+                # the not-found path testable without a real model.
+                import re
+
+                blocks = re.findall(
+                    r"^\[(\d+)\] meeting:.*?\n\s+speaker:.*?\n\s+text: (.*?)$",
+                    request_.prompt, re.M | re.S,
+                )
+                question = request_.prompt.split("QUESTION", 1)[-1].split("SOURCES", 1)[0]
+                stop = {"what", "when", "where", "who", "why", "how", "did", "we", "the", "a",
+                        "an", "is", "are", "to", "for", "of", "in", "on", "and", "or", "with",
+                        "use", "used", "decide", "our", "that", "this"}
+                wanted = {w for w in re.findall(r"[a-z]{3,}", question.lower()) if w not in stop}
+
+                best, best_overlap = None, 0
+                for number, text in blocks:
+                    overlap = len(wanted & set(re.findall(r"[a-z]{3,}", text.lower())))
+                    if overlap > best_overlap:
+                        best, best_overlap = (number, text), overlap
+
+                # Two content words in common is a low bar, deliberately: the
+                # stub must not be cleverer than the thing it stands in for.
+                if best is None or best_overlap < 2:
+                    return json.dumps({
+                        "answerable": False,
+                        "answer": "The sources do not contain the answer to this question.",
+                        "claims": [],
+                    })
+
+                number, text = best
+                sentence = " ".join(text.split())[:160]
+                return json.dumps({
+                    "answerable": True,
+                    "answer": f"Answered from source {number}.",
+                    "claims": [{
+                        "statement": "The source addresses the question.",
+                        "source_index": int(number),
+                        "quote": sentence,
+                    }],
+                })
 
             if title == "DraftRiskList":
                 return json.dumps({"risks": [

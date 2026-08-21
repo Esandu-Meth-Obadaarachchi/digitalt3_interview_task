@@ -1,6 +1,6 @@
 
 Meeting & Channel Intelligence Agent - evaluation
-2026-08-21T06:40:42+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+2026-08-21T07:11:35+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
 sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
 13 hand-labelled actions, 17 extracted
 
@@ -28,6 +28,14 @@ sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
       2/2 hand-labelled risks found
   M5b Severity defensible                4/4   all        PASS
       every high-severity quote states the consequence it rests on
+  6   Retrieval, correct source          5/5   5/5        PASS
+      correct source in the top three, mode=hybrid
+  6c  Mode comparison                 hybrid   reported   reported
+      keyword: source 5/5, segment 4/5, mean rank 2.4 | dense: source 5/5, segment 5/5, mean rank 2.0 | hybrid: source 5/5, segment 4/5, mean rank 2.0 [embedder: sentence-transformers/all-MiniLM-L6-v2]
+  6b  Not-found on the unanswerable       1/1   all        PASS
+      the question with no answer in the corpus was correctly refused
+  6d  Answers carrying a verified citation       5/5   all        PASS
+      5 answered, 5 with at least one citation that verified against the source it cites
 
   Confidence calibration  does the model's own confidence predict correctness
   threshold     kept  correct  precision   recall
@@ -37,19 +45,19 @@ sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
   >= 0.80         17       12       0.71     0.92
   >= 0.90         13        8       0.61     0.61
 
-  Model usage  20 attempt(s) for 18 call(s), retry rate 10%, 0 cache hit(s)
-  33645 prompt + 4179 completion tokens, 444051 ms total
-  outcomes: {'error': 2, 'ok': 18}
+  Model usage  24 attempt(s) for 24 call(s), retry rate 0%, 18 cache hit(s)
+  40578 prompt + 4920 completion tokens, 493498 ms total
+  outcomes: {'ok': 24}
 
   Missed (in the golden set, not extracted)
     action_sp_03
 
   False positives (extracted, matching no golden action)
-    meeting-client-status-2024-08-19::action::2e500168
-    meeting-client-status-2024-08-19::action::e0614815
-    meeting-client-status-2024-08-19::action::811ca4c8
-    meeting-sprint-planning-2024-11-18::action::a2174aa5
-    meeting-sprint-planning-2024-11-18::action::76b73f15
+    meeting-client-status-2024-08-19::action::3593d347
+    meeting-client-status-2024-08-19::action::44bff1c5
+    meeting-client-status-2024-08-19::action::2af32712
+    meeting-sprint-planning-2024-11-18::action::44423a41
+    meeting-sprint-planning-2024-11-18::action::d800b9e4
 
   every targeted metric met
 

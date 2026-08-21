@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed run api ui test eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
+.PHONY: help setup seed run api ui test test-inventory eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -81,6 +81,11 @@ ui: ## Start the React review interface
 
 test: ## Run the test suite
 	$(PYTEST)
+
+test-inventory: ## Tests per file, so docs/testing.md cannot silently drift
+	@$(PYTEST) --collect-only -q 2>/dev/null | grep ': [0-9]' \
+		| sed 's|backend/tests/||;s|eval/||' \
+		| awk -F': ' '{printf "  %-38s %3d\n", $$1, $$2; total += $$2} END {printf "  %-38s %3d\n", "TOTAL", total}'
 
 eval: ## Run the golden test cases and write eval/results.txt
 	$(PY) eval/harness.py

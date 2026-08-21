@@ -9,14 +9,19 @@
  */
 
 import type {
+  Chunk,
   Extraction,
   ExtractionRun,
   ExtractionType,
   Health,
+  IngestionOutcome,
   IngestionReport,
   QueueSummary,
   ReviewEvent,
   ReviewStatus,
+  Answer,
+  IndexStats,
+  SearchHit,
   Segment,
   Source,
   TrackerItem,
@@ -61,6 +66,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
+/** Multipart, so the browser sets its own boundary. Never send JSON headers here. */
+async function upload<T>(path: string, form: FormData): Promise<T> {
+  const response = await fetch(path, { method: "POST", body: form });
+  if (!response.ok) {
+    let code = String(response.status);
+    let detail = response.statusText;
+    try {
+      const body = await response.json();
+      code = body.error ?? code;
+      detail = Array.isArray(body.detail)
+        ? body.detail.map((d: { msg?: string }) => d.msg ?? String(d)).join("; ")
+        : (body.detail ?? detail);
+    } catch {
+      /* keep the status text */
+    }
+    throw new ApiFailure(detail, code, response.status);
+  }
+  return (await response.json()) as T;
+}
+
 const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
@@ -85,7 +110,28 @@ export const api = {
     request<{ source_id: string; length: number; text: string }>(
       `/api/sources/${encodeURIComponent(id)}/text`,
     ),
-  seed: () => post<unknown[]>("/api/sources/seed"),
+  seed: () => post<IngestionOutcome[]>("/api/sources/seed"),
+  chunks: (id: string) => request<Chunk[]>(`/api/sources/${encodeURIComponent(id)}/chunks`),
+
+  uploadSource: (input: {
+    file: File;
+    source_id: string;
+    title: string;
+    consent_flag: boolean;
+    meeting_date?: string;
+    participants: string[];
+  }) => {
+    const form = new FormData();
+    form.append("file", input.file);
+    form.append("source_id", input.source_id);
+    form.append("title", input.title);
+    // Sent as a string because the backend field is a bool and FormData has no
+    // types. "true"/"false" is what Pydantic parses.
+    form.append("consent_flag", String(input.consent_flag));
+    if (input.meeting_date) form.append("meeting_date", input.meeting_date);
+    form.append("participants", JSON.stringify(input.participants));
+    return upload<IngestionOutcome>("/api/sources/upload", form);
+  },
 
   // --- extraction ----------------------------------------------------------
   extractActions: (id: string) =>
@@ -120,4 +166,12 @@ export const api = {
   trackerWriteLog: (limit?: number) =>
     request<Record<string, unknown>[]>(`/api/tracker/write-log${query({ limit })}`),
   trackerSync: () => post<WriteResult[]>("/api/tracker/sync"),
+
+  // --- retrieval and question answering ------------------------------------
+  indexStats: () => request<IndexStats>("/api/qa/index"),
+  rebuildIndex: () => post<IndexStats>("/api/qa/index/rebuild"),
+  retrieve: (question: string, mode?: string, limit?: number) =>
+    post<SearchHit[]>("/api/qa/search", { question, mode, limit }),
+  ask: (question: string, mode?: string, limit?: number) =>
+    post<Answer>("/api/qa", { question, mode, limit }),
 };

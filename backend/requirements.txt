@@ -23,3 +23,8 @@ httpx==0.28.1                 # HTTP client, used by the Ollama provider
 # --- Phase 0: testing and the eval harness -----------------------------------
 pytest==9.1.1
 rich==15.0.0                  # tables for the eval harness output
+
+# --- Phase 6: hybrid retrieval (M8) ------------------------------------------
+faiss-cpu==1.15.0             # exact vector search, IndexFlatIP over cosine
+sentence-transformers==6.0.0  # all-MiniLM-L6-v2, run locally, no rate limit
+numpy==2.4.6                  # the array contract between the two

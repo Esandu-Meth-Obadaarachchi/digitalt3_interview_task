@@ -76,6 +76,11 @@ class Settings(BaseSettings):
 
     # --- Retrieval -----------------------------------------------------------
     retrieval_mode: Literal["keyword", "dense", "hybrid"] = "hybrid"
+    # minilm  runs all-MiniLM-L6-v2 locally, which is what the reported
+    #         retrieval numbers are measured against
+    # hashing deterministic, no model, no torch. Used by the test suite so a
+    #         search assertion does not cost two seconds of model loading.
+    embedding_provider: Literal["minilm", "hashing"] = "minilm"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     faiss_index_dir: Path = Path("data/faiss")
     retrieval_top_k: int = 8

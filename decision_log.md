@@ -692,3 +692,100 @@ review, which is an argument for the harness and not for the labels.
 **L18.** M4 and M5 have been measured on one run each. Recall of 1.00 on three
 decisions and two risks is a small sample and should be read as "nothing was
 missed in this run", not as an accuracy claim.
+
+---
+
+## Phase 6 — Hybrid retrieval and question answering
+
+### Decisions
+
+**D62. All three retrieval modes are measured, on every run, at no model cost.**
+The brief warns that keyword search that is measured beats a vector store that
+is never evaluated. This build answers that by measuring rather than by
+avoiding the vector store. Case 6c needs no model calls, so it runs regardless
+of quota.
+
+**D63. Reciprocal Rank Fusion, by rank rather than by score.**
+BM25 scores and cosine similarities are not comparable quantities. Any weighted
+sum of them needs a normalisation constant invented out of nothing, and that
+constant would then be tuned on the golden set and quietly reported as a
+result. RRF has no such parameter. k is left at the conventional 60 for the
+same reason.
+
+**D64. Hybrid stays the default even though dense currently measures better.**
+Measured: dense reaches the cited segment in the top three for 5 of 5 questions
+against hybrid's 4 of 5, level on mean rank at 2.0. The honest reading is that
+five questions cannot separate them.
+Hybrid is kept on an argument that is NOT measured: the two fail in different
+directions, and keyword catches exact tokens, names, dates and identifiers,
+where dense is weakest. None of the five golden questions probes that.
+*What was deliberately not done:* adding questions designed to favour hybrid
+after seeing it lose. That is fishing. With more time the fix is more golden
+questions, written before running anything, deliberately including exact-token
+lookups.
+*If forced to choose on the evidence available today, dense would win.* The
+README says so.
+
+**D65. A stricter segment-level retrieval metric was added because the brief's
+saturates.** All three modes put the correct source in the top three, so the
+specified metric does not discriminate at this corpus size. A citation points
+at a segment rather than at a meeting, so segment-level accuracy and the mean
+rank of the cited segment are reported alongside it.
+
+**D66. IndexFlatIP, exact, not approximate.**
+The corpus is 148 segments. An approximate index exists to trade recall for
+speed at a scale this is nowhere near, and using one would mean reporting
+retrieval accuracy that is partly a property of the index rather than of the
+embeddings.
+
+**D67. A citation is verified against the source it cites, not against the
+corpus.** A quote that appears in source 4 while the claim cites source 2 would
+pass a corpus-wide check and produce a citation nobody can follow. The rubric
+flags citations that point at a document rather than a location; one pointing
+at the wrong location is worse, because it looks checkable.
+
+**D68. An answer whose claims all fail verification is a not-found.**
+Not a fluent paragraph with the citations quietly removed. The system would
+rather say nothing than say something a reader cannot check, because a reader
+cannot tell a real answer from an invented one and will believe both.
+
+**D69. Verification runs twice.** Once as a validator inside the retry loop, so
+a bad quote is repaired rather than rejected. Once again afterwards, so the
+stored answer is verified by code that did not also produce it.
+
+**D70. Only approved extractions are searchable.**
+An unapproved extraction is a proposal a human has not accepted. Answering a
+question from one would route around the approval gate.
+
+**D71. A second embedder exists so the test suite does not load a transformer.**
+`HashingEmbedder` produces genuine unit vectors with real cosine geometry, so
+FAISS, the search and the fusion are exercised for real. It has no notion of
+meaning, so no retrieval quality is ever asserted in the suite, and the harness
+prints which embedder produced a comparison.
+
+**D72. The interface shows each pipeline stage's real output.**
+Source text, segments, chunks byte for byte, and the index. The brief says
+chunking decides extraction quality and will be asked about, and the bytes are
+worth more than a description of them.
+
+**D73. The consent control on the upload form has no default.**
+The form cannot be submitted until granted or withheld is chosen. Consent is a
+property of the source and pre-ticking "granted" would quietly make the whole
+guarantee meaningless. Uploading without consent is deliberately allowed,
+because watching the refusal is worth more than reading about it.
+
+### Known limitations
+
+**L19.** Five golden questions cannot separate dense from hybrid. See D64.
+
+**L20.** Retrieval is measured on 148 segments across three transcripts.
+Nothing here says how any mode behaves at a scale where an approximate index
+would be needed.
+
+**L21.** The vector index is rebuilt in full rather than incrementally. Fine at
+this size, and it would need deletion handling that nothing here exercises
+before it could be otherwise.
+
+**L22.** The React interface has no automated tests. A deliberate cut: the
+brief awards no marks for the interface, and the review surface is exercised
+through the API tests underneath it.

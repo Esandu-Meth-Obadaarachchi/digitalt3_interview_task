@@ -15,7 +15,9 @@ from app.config import get_settings
 from app.db import database
 from app.db.repositories import segments as segment_repo
 from app.db.repositories import sources as source_repo
+from app.extraction.chunker import chunk_segments
 from app.ingestion.service import IngestionOutcome, ingest_from_manifest, ingest_transcript
+from app.models.chunk import Chunk
 from app.models.common import SourceStatus, SourceType
 from app.models.source import IngestionReport, Segment, Source, SourceMetadata
 
@@ -72,6 +74,30 @@ def get_source_text(source_id: str) -> dict[str, object]:
             raise HTTPException(status_code=404, detail=f"no source with id {source_id}")
         text = segment_repo.get_source_text(conn, source_id)
     return {"source_id": source_id, "length": len(text), "text": text}
+
+
+@router.get("/{source_id}/chunks", response_model=list[Chunk], summary="Exactly what the model is sent")
+def get_chunks(source_id: str) -> list[Chunk]:
+    """The chunks as the extractor builds them, verbatim.
+
+    Exposed so the pipeline can be inspected rather than trusted. `text` is the
+    transcript lines the model may quote from, and `context` is the non-quotable
+    header naming the meeting, the participants and the time range. Reading this
+    endpoint tells you precisely what went to the provider, which is the only
+    way to check that the chunking strategy does what it is documented to do.
+
+    Computed on demand from the stored segments and the current settings, so it
+    always reflects the configuration a run would actually use rather than a
+    snapshot taken when the source was ingested.
+    """
+    settings = get_settings()
+    with database.connect() as conn:
+        source = source_repo.get_source(conn, source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail=f"no source with id {source_id}")
+        segments = segment_repo.list_segments(conn, source_id)
+
+    return chunk_segments(source, segments, settings)
 
 
 @router.post("/ingest", response_model=IngestionOutcome, summary="Ingest a source already on disk")
