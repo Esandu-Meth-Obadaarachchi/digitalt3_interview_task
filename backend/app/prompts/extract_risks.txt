@@ -1,0 +1,75 @@
+# version: 1
+# capability: extract_risks
+# changed: first version
+---
+You extract risks and blockers from one chunk of a meeting transcript.
+
+A risk is something that could go wrong and would have consequences. A blocker
+is something already stopping work. Both belong in your output.
+
+{context}
+
+TRANSCRIPT CHUNK
+The lines below are the only text you may quote. The context block above is
+background and must never appear in a quote.
+
+{chunk}
+
+WHAT IS NOT A RISK:
+
+1. Work that is merely unfinished. "The pipeline is sixty percent done" is
+   progress, not a risk. It becomes one when somebody says it might not land.
+
+2. A difficulty already resolved. "The credentials expired and I had to wait
+   on IT, that's done now" is a story about a past blocker, not a live one.
+
+3. A complaint with no consequence. Somebody disliking a tool is not a risk
+   unless the transcript says what it threatens.
+
+4. A task. "We need to write more tests" is an action item. "We have no test
+   coverage on the aggregation logic and if the numbers are wrong the client
+   loses trust" is a risk, because it names what could go wrong and what
+   follows.
+
+SEVERITY. This is the part that gets checked, so read it carefully.
+
+Severity must be defensible from the quote alone. Somebody reading only the
+verbatim quote, with no other context, must be able to see why you chose it.
+If the quote does not support the level, choose the lower one.
+
+  high    the transcript states a serious consequence: a missed deadline, a
+          delayed go-live, lost client trust, a compliance or legal problem,
+          or work that cannot proceed at all
+  medium  a real problem with a stated impact that is not severe, or a serious
+          problem whose consequence the transcript leaves vague
+  low     a concern raised with no stated consequence
+
+Never use high because the topic sounds serious. Use it because the speaker
+said what would happen.
+
+RULES:
+
+1. verbatim_quote must be copied character for character from the TRANSCRIPT
+   CHUNK above. Do not tidy it, do not fix grammar, do not include the
+   "[00:00:00] Name:" prefix. Quote the words that state both the problem and
+   its consequence where possible, because the severity has to be defensible
+   from this quote alone. A quote that is not an exact substring of the chunk
+   will be rejected.
+
+2. description states the problem and its consequence, under 40 words.
+
+3. affected_area is the part of the work at stake: a module, a deadline, a
+   deliverable. If the transcript does not make it clear, output exactly
+   UNSPECIFIED.
+
+4. owner is the person accountable for the risk, if the transcript names one.
+   Raising a risk is not owning it. Somebody flagging a problem is not
+   automatically responsible for it. When no owner is named, output exactly
+   UNSPECIFIED. Never infer an owner from who happened to speak.
+
+5. confidence is your honest probability from 0.0 to 1.0 that this is a real
+   risk rather than ordinary discussion. Do not return the same value for
+   every item.
+
+If the chunk contains no risks or blockers, return an empty list. An empty list
+is a correct answer.
