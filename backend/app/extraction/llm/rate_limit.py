@@ -41,5 +41,11 @@ class RateLimiter:
 
 
 def backoff_seconds(attempt: int, base: float = 2.0, cap: float = 30.0) -> float:
-    """Exponential backoff for a rate limit that was hit despite the bucket."""
+    """Exponential backoff for a rate limit that was hit despite the bucket.
+
+    `base` of zero disables waiting, which the test suite uses: proving that
+    the code waits is not worth spending the suite's runtime asleep.
+    """
+    if base <= 0:
+        return 0.0
     return min(cap, base * (2 ** max(0, attempt - 1)))

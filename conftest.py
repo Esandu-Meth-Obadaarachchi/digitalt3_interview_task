@@ -47,6 +47,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Settin
     monkeypatch.setenv("LLM_PROVIDER", "fake")
     monkeypatch.setenv("LLM_CACHE_ENABLED", "false")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
+    monkeypatch.setenv("LLM_BACKOFF_BASE_SECONDS", "0")
 
     get_settings.cache_clear()
     cfg = get_settings()

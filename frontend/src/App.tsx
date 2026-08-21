@@ -4,8 +4,9 @@ import type { Health } from "./api/types";
 import { Badge } from "./components/ui";
 import { ReviewView } from "./views/ReviewView";
 import { SourcesView } from "./views/SourcesView";
+import { TrackerView } from "./views/TrackerView";
 
-type Tab = "sources" | "review";
+type Tab = "sources" | "review" | "tracker";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("sources");
@@ -56,6 +57,7 @@ export default function App() {
           [
             ["sources", "Sources"],
             ["review", "Review queue"],
+            ["tracker", "Tracker"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -74,11 +76,9 @@ export default function App() {
       </nav>
 
       <main className="flex-1">
-        {tab === "sources" ? (
-          <SourcesView onExtracted={() => setRefreshKey((n) => n + 1)} />
-        ) : (
-          <ReviewView key={refreshKey} reviewer={reviewer} />
-        )}
+        {tab === "sources" && <SourcesView onExtracted={() => setRefreshKey((n) => n + 1)} />}
+        {tab === "review" && <ReviewView key={refreshKey} reviewer={reviewer} />}
+        {tab === "tracker" && <TrackerView />}
       </main>
 
       <footer className="border-t border-[var(--color-line)] pt-3 text-xs text-[var(--color-muted)]">

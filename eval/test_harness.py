@@ -219,3 +219,100 @@ def test_the_rendered_report_is_readable_without_colour(scored):
     for heading in ("Action recall", "Fabricated quotes", "UNSPECIFIED compliance",
                     "Invented dates", "Confidence calibration", "Model usage"):
         assert heading in text
+
+
+# --- an incomplete run must never become a committed result ------------------
+
+
+def test_a_quota_exhausted_run_is_marked_incomplete(settings, monkeypatch):
+    """Found the hard way: a three-run evaluation exhausted the Gemini free
+    tier's daily cap of 20 requests, every chunk failed, and the harness
+    cheerfully scored the empty result and overwrote a good results file with
+    meaningless numbers. Committing that would be fabricated evaluation
+    results, which is an automatic failure.
+    """
+    from app.errors import RateLimitedError
+    from app.extraction.llm.factory import set_provider_override
+
+    class Exhausted(FakeProvider):
+        def generate(self, request):
+            raise RateLimitedError("429 RESOURCE_EXHAUSTED: quota exceeded, limit 20 per day")
+
+    set_provider_override(Exhausted())
+    try:
+        report = run_evaluation(settings)
+    finally:
+        set_provider_override(None)
+
+    assert report.incomplete_reason is not None
+    assert "quota" in report.incomplete_reason
+    assert "measure nothing" in report.incomplete_reason
+    assert "INCOMPLETE RUN" in render(report, colour=False)
+
+
+def test_a_transient_rate_limit_is_absorbed_by_the_retry_loop(settings, golden_actions):
+    """One 429 is not a failed chunk. The wrapper backs off and retries, which
+    is what it is for, so the run stays complete."""
+    import json
+
+    from app.errors import RateLimitedError
+    from app.extraction.llm.factory import set_provider_override
+    from app.ingestion.normaliser import normalise_text
+
+    calls = {"n": 0}
+
+    class FlakyOnce(FakeProvider):
+        def generate(self, request):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise RateLimitedError("429 RESOURCE_EXHAUSTED")
+            chunk = normalise_text(request.prompt)
+            return super().generate(request).model_copy(update={"text": json.dumps({"actions": [
+                {"what": g["what"], "owner": g["owner"], "due_date": g["due_date"],
+                 "verbatim_quote": g["verbatim_quote"], "speaker": g["speaker"],
+                 "timestamp": g["timestamp"], "confidence": 0.85}
+                for g in golden_actions if normalise_text(g["verbatim_quote"]) in chunk]})})
+
+    set_provider_override(FlakyOnce())
+    try:
+        report = run_evaluation(settings)
+    finally:
+        set_provider_override(None)
+
+    assert report.incomplete_reason is None
+    assert report.usage["outcomes"].get("rate_limited") == 1
+
+
+def test_one_chunk_failing_outright_makes_the_whole_run_incomplete(settings, golden_actions):
+    """Scoring five chunks out of six and reporting it as a recall figure would
+    understate recall for a reason that has nothing to do with extraction."""
+    import json
+
+    from app.errors import RateLimitedError
+    from app.extraction.llm.factory import set_provider_override
+    from app.ingestion.normaliser import normalise_text
+
+    class OneChunkAlwaysFails(FakeProvider):
+        def generate(self, request):
+            if "This chunk  : 2 of" in request.prompt:
+                raise RateLimitedError("429 RESOURCE_EXHAUSTED: quota exceeded")
+            chunk = normalise_text(request.prompt)
+            return super().generate(request).model_copy(update={"text": json.dumps({"actions": [
+                {"what": g["what"], "owner": g["owner"], "due_date": g["due_date"],
+                 "verbatim_quote": g["verbatim_quote"], "speaker": g["speaker"],
+                 "timestamp": g["timestamp"], "confidence": 0.85}
+                for g in golden_actions if normalise_text(g["verbatim_quote"]) in chunk]})})
+
+    set_provider_override(OneChunkAlwaysFails())
+    try:
+        report = run_evaluation(settings)
+    finally:
+        set_provider_override(None)
+
+    assert report.incomplete_reason is not None
+    assert "could not be extracted" in report.incomplete_reason
+
+
+def test_a_complete_run_is_not_marked_incomplete(scored):
+    assert scored.incomplete_reason is None
+    assert "INCOMPLETE" not in render(scored, colour=False)

@@ -23,6 +23,7 @@ from pydantic import ValidationError  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.db import database  # noqa: E402
+from app.adapters.factory import get_tracker  # noqa: E402
 from app.ingestion.service import ingest_transcript  # noqa: E402
 from app.models.common import SourceType  # noqa: E402
 from app.models.source import SourceMetadata  # noqa: E402
@@ -119,6 +120,19 @@ def main() -> int:
             print(f"           {DIM}listed but never spoke: {', '.join(report.silent_participants)}{RESET}")
         if report.status.value == "error":
             failures += 1
+
+    # --- the mock tracker's pre-existing backlog ----------------------------
+    tracker_seed = settings.sample_data_dir / "tracker" / "seed_items.json"
+    if tracker_seed.exists():
+        payload = json.loads(tracker_seed.read_text(encoding="utf-8"))
+        adapter = get_tracker(settings)
+        loaded = adapter.seed(payload["items"])
+        no_assignee = sum(1 for i in payload["items"] if i.get("assignee") is None)
+        no_due = sum(1 for i in payload["items"] if i.get("due_date") is None)
+        print(f"\n{DIM}mock tracker{RESET}")
+        print(f"  {GREEN}ok{RESET} {loaded} pre-existing item(s) loaded"
+              f"{DIM}, of which {no_assignee} have no assignee and {no_due} no due date. "
+              f"The agent did not create these and must work alongside them.{RESET}")
 
     print(f"\n{DIM}store ready at {path}{RESET}")
     print(f"{DIM}{failures} source(s) rejected as malformed, which is expected: the sample set "

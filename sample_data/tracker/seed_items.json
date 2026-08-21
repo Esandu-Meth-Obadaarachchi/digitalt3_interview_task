@@ -1,0 +1,147 @@
+{
+  "description": "A pre-existing backlog for the mock tracker, loaded by `make seed` before the agent writes anything. Deliberately messy, because the adapter contract requires that mocks return realistically messy data and that an agent which only works on clean data has not been tested. None of these items came from an extraction, so every source_ref is null.",
+  "planted_difficulties": [
+    "MOCK-1 and MOCK-2 are near-duplicates of each other, with different wording and different assignees",
+    "MOCK-1, MOCK-6 and MOCK-11 have no assignee at all",
+    "status is free text throughout: 'In Progress ' carries trailing whitespace, 'blocked - waiting on IT' is a sentence, 'Done.' has a full stop, and casing is inconsistent",
+    "MOCK-3, MOCK-7 and MOCK-9 have due dates that were already in the past when the meetings took place",
+    "MOCK-4, MOCK-6, MOCK-8, MOCK-10 and MOCK-11 have no due date",
+    "MOCK-5 is closed but still assigned, and MOCK-12 is open with a due date two years out",
+    "MOCK-9's title is truncated, as though it were pasted from somewhere",
+    "labels are inconsistent: some kebab-case, some spaced, some absent"
+  ],
+  "items": [
+    {
+      "external_ref": "MOCK-1",
+      "title": "Fix login redirect after session timeout",
+      "description": "Users are bounced to the marketing site instead of the login page.",
+      "assignee": null,
+      "status": "In Progress ",
+      "due_date": null,
+      "labels": ["bug", "auth"],
+      "created_at": "2024-06-11T09:20:00Z",
+      "updated_at": "2024-07-02T16:41:00Z"
+    },
+    {
+      "external_ref": "MOCK-2",
+      "title": "Login redirect bug on timeout",
+      "description": "Duplicate of the redirect issue raised by support. Same symptom, raised separately.",
+      "assignee": "James Liu",
+      "status": "open",
+      "due_date": "2024-09-30",
+      "labels": ["bug"],
+      "created_at": "2024-06-19T11:05:00Z",
+      "updated_at": "2024-06-19T11:05:00Z"
+    },
+    {
+      "external_ref": "MOCK-3",
+      "title": "Rotate staging server credentials",
+      "description": "Expired. Blocked on IT for three weeks.",
+      "assignee": "James Liu",
+      "status": "blocked - waiting on IT",
+      "due_date": "2024-05-15",
+      "labels": [],
+      "created_at": "2024-04-28T08:00:00Z",
+      "updated_at": "2024-05-20T13:12:00Z"
+    },
+    {
+      "external_ref": "MOCK-4",
+      "title": "Investigate WebSocket drops above 50 concurrent users",
+      "description": "Connection layer drops under load. Related to the dashboard metrics view.",
+      "assignee": "Priya Menon",
+      "status": "In Review",
+      "due_date": null,
+      "labels": ["dashboard", "performance"],
+      "created_at": "2024-07-30T14:22:00Z",
+      "updated_at": "2024-08-14T10:03:00Z"
+    },
+    {
+      "external_ref": "MOCK-5",
+      "title": "Upgrade Redis client to 5.x",
+      "description": "",
+      "assignee": "Priya Sharma",
+      "status": "Done.",
+      "due_date": "2024-07-01",
+      "labels": ["infra"],
+      "created_at": "2024-06-02T10:15:00Z",
+      "updated_at": "2024-07-01T17:55:00Z"
+    },
+    {
+      "external_ref": "MOCK-6",
+      "title": "Write aggregation tests for reporting module",
+      "description": "Raised in a previous planning session. Never picked up.",
+      "assignee": null,
+      "status": "backlog",
+      "due_date": null,
+      "labels": ["reporting", "test coverage"],
+      "created_at": "2024-05-09T09:45:00Z",
+      "updated_at": "2024-05-09T09:45:00Z"
+    },
+    {
+      "external_ref": "MOCK-7",
+      "title": "Encryption module: key rotation policy",
+      "description": "Needed before the compliance audit.",
+      "assignee": "Priya Sharma",
+      "status": "In Progress",
+      "due_date": "2024-03-02",
+      "labels": ["compliance", "security"],
+      "created_at": "2024-01-22T12:00:00Z",
+      "updated_at": "2024-08-01T09:30:00Z"
+    },
+    {
+      "external_ref": "MOCK-8",
+      "title": "Meridian Pay integration: retry and backoff",
+      "description": "Third-party API has been unreliable.",
+      "assignee": "Marcus Webb",
+      "status": "open",
+      "due_date": null,
+      "labels": ["payments", "third-party"],
+      "created_at": "2024-08-05T15:10:00Z",
+      "updated_at": "2024-08-05T15:10:00Z"
+    },
+    {
+      "external_ref": "MOCK-9",
+      "title": "Patient portal: accessibility pass for the intake for",
+      "description": "Title looks truncated. Pasted from a spreadsheet.",
+      "assignee": "Rachel Kim",
+      "status": "TODO",
+      "due_date": "2024-04-18",
+      "labels": ["a11y"],
+      "created_at": "2024-03-11T08:20:00Z",
+      "updated_at": "2024-03-11T08:20:00Z"
+    },
+    {
+      "external_ref": "MOCK-10",
+      "title": "Document the CI pipeline stages",
+      "description": "",
+      "assignee": "James Liu",
+      "status": "open",
+      "due_date": null,
+      "labels": ["docs", "ci-cd"],
+      "created_at": "2024-07-18T13:40:00Z",
+      "updated_at": "2024-07-18T13:40:00Z"
+    },
+    {
+      "external_ref": "MOCK-11",
+      "title": "Decide on analytics provider",
+      "description": "Parked pending Q3 usage numbers.",
+      "assignee": null,
+      "status": "on hold",
+      "due_date": null,
+      "labels": [],
+      "created_at": "2024-08-12T11:00:00Z",
+      "updated_at": "2024-08-12T11:00:00Z"
+    },
+    {
+      "external_ref": "MOCK-12",
+      "title": "Migrate legacy patient interaction records",
+      "description": "Four years of records in the old system. Schema mapping unclear.",
+      "assignee": "Marcus Webb",
+      "status": "open",
+      "due_date": "2026-12-31",
+      "labels": ["migration", "legacy data"],
+      "created_at": "2024-08-15T09:00:00Z",
+      "updated_at": "2024-08-15T09:00:00Z"
+    }
+  ]
+}

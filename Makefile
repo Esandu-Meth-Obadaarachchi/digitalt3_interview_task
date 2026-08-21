@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed run api ui test eval eval-fresh llm-smoke clean distclean check-env cache-clear
+.PHONY: help setup seed run api ui test eval eval-fresh eval-repeat llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -87,6 +87,9 @@ eval: ## Run the golden test cases and write eval/results.txt
 
 eval-fresh: ## Same, bypassing the response cache, to prove the numbers reproduce
 	$(PY) eval/harness.py --no-cache
+
+eval-repeat: ## Three uncached runs, reported as a range (the model is not deterministic)
+	$(PY) eval/harness.py --runs $(or $(RUNS),3)
 
 clean: ## Remove the database, indexes and generated artefacts
 	rm -rf data/*.db data/*.db-wal data/*.db-shm data/faiss data/llm_cache \
