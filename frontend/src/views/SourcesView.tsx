@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { api, ApiFailure } from "../api/client";
 import type { ExtractionRun, IngestionReport, Source } from "../api/types";
 import { Badge, Button, Empty, ErrorNote, Field, Panel } from "../components/ui";
+import { UploadPanel } from "../components/UploadPanel";
 
 const STATUS_TONE = { ingested: "ok", refused: "bad", error: "warn" } as const;
 
@@ -75,6 +76,13 @@ export function SourcesView({ onExtracted }: { onExtracted: () => void }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="space-y-4">
+        <UploadPanel
+          onIngested={(result) => {
+            load();
+            setSelected(result.source.id);
+          }}
+        />
+
         <Panel
           title="Sources"
           subtitle={`${sources.length} ingested, refused or rejected`}

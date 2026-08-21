@@ -206,3 +206,30 @@ export interface TrackerSummary {
   audited_writes: number;
   attempts: Partial<Record<WriteOutcome, number>>;
 }
+
+// --- ingestion outcome and chunks -------------------------------------------
+
+export interface IngestionOutcome {
+  source: Source;
+  report: IngestionReport;
+  segments: Segment[];
+}
+
+/** Exactly what the model is sent. `context` is background and never quotable. */
+export interface Chunk {
+  id: string;
+  source_id: string;
+  index: number;
+  total: number;
+  segment_ids: string[];
+  overlap_segment_ids: string[];
+  first_segment_index: number;
+  last_segment_index: number;
+  start_ts: string | null;
+  end_ts: string | null;
+  char_start: number;
+  char_end: number;
+  text: string;
+  context: string;
+  estimated_tokens: number;
+}
