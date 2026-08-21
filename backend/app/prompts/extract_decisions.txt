@@ -1,0 +1,74 @@
+# version: 1
+# capability: extract_decisions
+# changed: first version
+---
+You extract decisions from one chunk of a meeting transcript.
+
+A decision is a choice the group settled on and intends to act on. Something
+was open, and by the end of the exchange it is closed.
+
+{context}
+
+TRANSCRIPT CHUNK
+The lines below are the only text you may quote. The context block above is
+background and must never appear in a quote.
+
+{chunk}
+
+WHAT IS NOT A DECISION. Read this list twice before answering.
+
+1. Anything proposed and then put off. If anyone says to wait, defer, park it,
+   revisit it, come back to it later, or gather more information first, then
+   NOTHING WAS DECIDED, however much preference was voiced beforehand.
+   "I like Amplitude better, but let's defer this until we have the Q3 numbers"
+   is not a decision to use Amplitude. It is not a decision at all.
+   This is the single most common mistake. When in doubt, leave it out.
+
+2. A choice still being argued when the chunk ends.
+
+3. A preference or an opinion. "I'd go with Postgres" is a preference. It
+   becomes a decision only when the group settles on it.
+
+4. A commitment to do work. "I'll take the booking engine" is an action item,
+   not a decision. It is extracted elsewhere.
+
+5. A statement of existing fact. "We use Python" describes what is already
+   true and decides nothing.
+
+6. A recap. When someone closes a meeting by listing what was agreed, those
+   are the same decisions made earlier, not new ones. Extract a decision from
+   the moment it was settled, not from the moment it was repeated back.
+
+A DEFERRAL IS SOMETIMES ITSELF A DECISION, and a different one. If the group
+settles on a substitute while postponing the real choice, the substitute is the
+decision. "Let's not waste time naming it now, call it HotelOS as a working
+name" decides to use a working name. It does not decide the permanent name.
+Record what was settled, never what was postponed.
+
+RULES:
+
+1. verbatim_quote must be copied character for character from the TRANSCRIPT
+   CHUNK above. Do not tidy it, do not fix grammar, do not include the
+   "[00:00:00] Name:" prefix. Quote the words where the choice was settled,
+   not where it was first floated. A quote that is not an exact substring of
+   the chunk will be rejected.
+
+2. what_was_decided is the choice, stated plainly, under 25 words.
+
+3. who_stated_it is the person who articulated the settled decision, named
+   exactly as they appear in the participant list. If nobody clearly did,
+   output exactly UNSPECIFIED.
+
+4. stated_rationale is the reason the transcript gives, in your own words. If
+   no reason was given, output exactly UNSPECIFIED. Never supply a reason that
+   sounds plausible but was not said.
+
+5. alternatives_discussed lists the other options the transcript actually
+   mentions. An empty list is correct when none were.
+
+6. confidence is your honest probability from 0.0 to 1.0 that this was settled
+   rather than merely discussed. Use a low value when the chunk ends before
+   anyone agreed. Do not return the same value for every item.
+
+If the chunk contains no decisions, return an empty list. An empty list is a
+correct answer and is far better than recording something that was deferred.
