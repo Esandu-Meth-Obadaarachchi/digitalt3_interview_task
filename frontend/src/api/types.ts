@@ -358,6 +358,76 @@ export interface Digest {
   considered: number;
 }
 
+// --- M13 per-person digests --------------------------------------------------
+
+export interface Person {
+  key: string;
+  display_name: string;
+  /** Every owner string collapsed into this person, exactly as the transcript
+   *  stated them. Shown rather than hidden: the grouping is a decision. */
+  aliases: string[];
+  /** Two different full names share this first name. */
+  ambiguous: boolean;
+  unassigned: boolean;
+}
+
+export interface PersonDigestLine {
+  text: string;
+  citation: Citation;
+  extraction_id: string;
+  owner_as_stated: string;
+  due_date: string;
+  approved_on: string | null;
+}
+
+export interface PersonDigest {
+  id: string;
+  person_key: string;
+  display_name: string;
+  aliases: string[];
+  unassigned: boolean;
+  digest_date: string;
+  generated_at: string;
+  trigger: string;
+  commitments: PersonDigestLine[];
+  considered: number;
+}
+
+// --- M12 follow-up drafts ----------------------------------------------------
+
+export interface FollowUpLine {
+  text: string;
+  citation: Citation;
+  extraction_id: string;
+  extraction_type: string;
+  section: string;
+  owner: string;
+  due_date: string;
+}
+
+export interface FollowUpDraft {
+  id: string;
+  source_id: string;
+  source_title: string | null;
+  draft_version: number;
+  subject: string;
+  /** What the system wrote. Immutable, enforced by a database trigger. */
+  generated_body: string;
+  /** What the person wrote instead. */
+  edited_body: string | null;
+  edited_by: string | null;
+  edited_at: string | null;
+  status: string;
+  item_count: number;
+  generated_at: string;
+  channel: string | null;
+  /** A person. Never a service: the API and the database both refuse one. */
+  sent_by: string | null;
+  sent_at: string | null;
+  notification_id: string | null;
+  lines: FollowUpLine[];
+}
+
 export interface ScheduledJob {
   id: string;
   name: string;
