@@ -161,26 +161,57 @@ predate the run. See commit `3a0226b`.
 
 ---
 
+### 12. Every writable path in the configuration is redirected
+
+The `settings` fixture points every path in `Settings` at a temporary
+directory. It has to be **every** path, and for a long time it was seven of
+nine: `notification_log_path` and `document_store_dir` were missing, so any test
+touching the notifier or the document store read and wrote the developer's real
+files under `write_log/` and `data/documents/`.
+
+Nothing caught it, because the existing tests assert a post **exists**, which
+stays true whatever else is in the log. It surfaced only when a new test
+asserted that no post had been made and saw 41 left behind by earlier manual
+runs. It also explained the generated files that kept appearing in `git status`:
+the test suite had been writing them.
+
+The general form of the lesson: a test asserting something is present passes in
+a dirty environment. **A test asserting something is absent is the one that
+finds the leak**, so at least one of those is worth having per external
+surface.
+
+---
+
 ## What is covered
 
 | Area | Tests | File |
 |---|---|---|
-| Database-enforced rules | 19 | `test_schema_guarantees.py` |
-| M2 consent gate | 8 | `test_consent_gate.py` |
-| M1 parsing, three formats | 18 | `test_transcript_parsers.py` |
-| M1 validation and storage | 20 | `test_ingestion_pipeline.py` |
-| HTTP surface | 11 | `test_api_sources.py` |
-| LLM wrapper, retry and repair | 17 | `test_llm_client.py` |
-| Provider swappability | 12 | `test_llm_providers.py` |
-| Prompts and chunking | 14 | `test_prompts_and_chunking.py` |
-| Quote verification, date discipline | 33 | `test_quote_and_dates.py` |
+| Quote verification, date discipline | 38 | `test_quote_and_dates.py` |
+| M12 recap draft and the send gate | 32 | `test_followup_draft.py` |
+| M13 name grouping | 25 | `test_person_identity.py` |
+| Harness scoring | 24 | `eval/test_harness.py` |
 | M3 extraction end to end | 21 | `test_action_extraction.py` |
+| M7 tracker adapter and mock | 21 | `test_tracker_adapter.py` |
+| M1 validation and storage | 20 | `test_ingestion_pipeline.py` |
+| M6 review queue | 20 | `test_review_queue.py` |
+| M13 per-person digests | 19 | `test_person_digest.py` |
+| Database-enforced rules | 19 | `test_schema_guarantees.py` |
+| **Golden case 8, approval enforcement** | 19 | `eval/test_approval_gate.py` |
+| M1 parsing, three formats | 18 | `test_transcript_parsers.py` |
+| M9 chat signals, DMs excluded | 17 | `test_chat_signals.py` |
+| LLM wrapper, retry and repair | 17 | `test_llm_client.py` |
+| M10 digests and the scheduler | 15 | `test_digest_and_scheduler.py` |
+| Prompts and chunking | 14 | `test_prompts_and_chunking.py` |
+| M11 outcome records | 13 | `test_outcome_records.py` |
+| Provider swappability | 12 | `test_llm_providers.py` |
+| HTTP surface | 11 | `test_api_sources.py` |
 | M4 decisions, golden case 5 | 11 | `test_decision_extraction.py` |
 | M5 risks, severity defensibility | 10 | `test_risk_extraction.py` |
-| M6 review queue | 20 | `test_review_queue.py` |
-| M7 tracker adapter and mock | 21 | `test_tracker_adapter.py` |
-| **Golden case 8, approval enforcement** | 19 | `eval/test_approval_gate.py` |
-| Harness scoring | 24 | `eval/test_harness.py` |
+| M2 consent gate | 8 | `test_consent_gate.py` |
+| **Total** | **404** | `make test-inventory` |
+
+The counts come from `make test-inventory`, which exists because they were
+stated from memory twice and were wrong twice.
 
 ## What is not covered, and why
 
