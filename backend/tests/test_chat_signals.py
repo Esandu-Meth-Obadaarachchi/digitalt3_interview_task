@@ -62,7 +62,7 @@ def test_the_forbidden_message_ids_never_reach_the_store(ingested):
     assert len(forbidden) == 12
 
     with database.connect(ingested) as conn:
-        stored = {m.id for m in chat_repo.list_messages(conn)}
+        stored = {m.external_id for m in chat_repo.list_messages(conn)}
 
     assert stored, "nothing stored means zero DMs proves nothing"
     assert not (forbidden & stored)
@@ -74,8 +74,9 @@ def test_a_direct_message_cannot_be_stored_even_deliberately(ingested):
     try:
         with pytest.raises(sqlite3.IntegrityError, match="is_direct_message"):
             conn.execute(
-                "INSERT INTO chat_messages (id, source_id, channel, author, ts, text,"
-                " is_direct_message) VALUES ('forced', ?, 'dm-x', 'a', '2024-01-01', 'private', 1)",
+                "INSERT INTO chat_messages (id, external_id, source_id, channel, author, ts,"
+                " text, is_direct_message)"
+                " VALUES ('forced', 'forced', ?, 'dm-x', 'a', '2024-01-01', 'private', 1)",
                 (EXPORT,),
             )
     finally:
@@ -207,14 +208,20 @@ def test_only_signals_that_could_cause_a_write_are_queued(classified):
 
 
 def test_queued_signals_start_pending_and_link_back_to_the_message(classified):
+    """The column points at the stored row, the payload carries the export's
+    own id. Both are checked, because they are two different jobs: one is a
+    reference, the other is what a person reads."""
     settings, _ = classified
     with database.connect(settings) as conn:
         queued = extraction_repo.list_extractions(conn, extraction_type=ExtractionType.SIGNAL)
-        stored = {m.id for m in chat_repo.list_messages(conn)}
+        messages = chat_repo.list_messages(conn)
+        keys = {m.id for m in messages}
+        externals = {m.external_id for m in messages}
 
     for extraction in queued:
         assert extraction.status is ReviewStatus.PENDING
-        assert extraction.message_id in stored
+        assert extraction.message_id in keys
+        assert extraction.payload["message_id"] in externals
         assert extraction.verbatim_quote
 
 
@@ -290,3 +297,69 @@ def test_a_model_inventing_a_message_id_is_asked_again(ingested):
         set_provider_override(None)
 
     assert seen["repaired"], "an unknown message id must be fed back to the model"
+
+
+# --- two exports, both numbering their messages from one ----------------------
+
+
+def test_two_exports_with_the_same_message_ids_can_both_be_stored(settings):
+    """The bug this namespacing exists for.
+
+    Every export tool numbers its messages from one, so msg_001 in two exports
+    is the normal case. Storing the export's own id as the primary key made the
+    second upload fail with a UNIQUE violation, found by uploading a second
+    export through the interface.
+    """
+    from app.ingestion.chat_export import ChatMessage
+
+    def message(n: int) -> ChatMessage:
+        return ChatMessage(
+            id=f"msg_{n:03d}",
+            channel="proj-x",
+            author="Someone",
+            ts=f"2026-09-18T09:{n:02d}:00Z",
+            text=f"Message number {n}.",
+        )
+
+    with database.transaction(settings) as conn:
+        for source_id in ("chat-first", "chat-second"):
+            conn.execute(
+                "INSERT INTO sources (id, title, source_type, consent_flag, ingested_at, status)"
+                " VALUES (?, ?, 'chat_export', 1, '2026-09-18', 'ingested')",
+                (source_id, source_id),
+            )
+            chat_repo.replace_messages(conn, source_id, [message(1), message(2)])
+
+    with database.connect(settings) as conn:
+        stored = chat_repo.list_messages(conn)
+        first = chat_repo.list_messages(conn, source_id="chat-first")
+
+    assert len(stored) == 4, "both exports are stored in full"
+    assert {m.id for m in stored} == {
+        "chat-first::msg_001", "chat-first::msg_002",
+        "chat-second::msg_001", "chat-second::msg_002",
+    }
+    assert {m.external_id for m in first} == {"msg_001", "msg_002"}, "the export's own ids survive"
+
+
+def test_re_uploading_one_export_replaces_only_its_own_messages(settings):
+    from app.ingestion.chat_export import ChatMessage
+
+    def message(n: int, text: str) -> ChatMessage:
+        return ChatMessage(id=f"msg_{n:03d}", channel="proj-x", author="A", ts="2026-09-18T09:00:00Z", text=text)
+
+    with database.transaction(settings) as conn:
+        for source_id in ("chat-a", "chat-b"):
+            conn.execute(
+                "INSERT INTO sources (id, title, source_type, consent_flag, ingested_at, status)"
+                " VALUES (?, ?, 'chat_export', 1, '2026-09-18', 'ingested')",
+                (source_id, source_id),
+            )
+        chat_repo.replace_messages(conn, "chat-a", [message(1, "original a")])
+        chat_repo.replace_messages(conn, "chat-b", [message(1, "original b")])
+        chat_repo.replace_messages(conn, "chat-a", [message(1, "revised a")])
+
+    with database.connect(settings) as conn:
+        texts = {m.source_id: m.text for m in chat_repo.list_messages(conn)}
+
+    assert texts == {"chat-a": "revised a", "chat-b": "original b"}

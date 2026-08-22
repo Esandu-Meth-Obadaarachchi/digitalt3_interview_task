@@ -80,14 +80,20 @@ class SignalRun(StrictModel):
 
 
 def render_batch(messages: list) -> str:
+    """The model sees the export's own id, not the namespaced primary key.
+
+    Short, and it is the id a person reading the channel would recognise. The
+    mapping back to the stored row happens here, where the batch is in hand.
+    """
     return "\n".join(
-        f"[{m.id}] {m.author} at {m.ts} in #{m.channel}\n    {m.text}" for m in messages
+        f"[{m.external_id}] {m.author} at {m.ts} in #{m.channel}\n    {m.text}"
+        for m in messages
     )
 
 
 def _validator(batch: list):
     """Checked inside the retry loop, so a bad batch is repaired not lost."""
-    wanted = {m.id: normalise_text(m.text) for m in batch}
+    wanted = {m.external_id: normalise_text(m.text) for m in batch}
 
     def validate(value: DraftSignalList) -> str | None:
         returned = {s.message_id for s in value.signals}
@@ -189,12 +195,13 @@ def classify_signals(
                 run.failed_batches.append(label)
                 continue
 
-            by_id = {m.id: m for m in batch}
+            by_id = {m.external_id: m for m in batch}
             for signal in result.signals:
                 labelled.append((signal, by_id[signal.message_id]))
 
     # --- store ---------------------------------------------------------------
-    noise_ids = [s.message_id for s, _ in labelled if s.classification is SignalClass.NOISE]
+    # Stored ids, not the export's. discard() deletes by primary key.
+    noise_ids = [m.id for s, m in labelled if s.classification is SignalClass.NOISE]
     now = datetime.now(timezone.utc).isoformat()
 
     with database.transaction(cfg) as conn:
@@ -207,7 +214,7 @@ def classify_signals(
             if signal.classification is SignalClass.NOISE:
                 continue
 
-            chat_repo.classify(conn, signal.message_id, signal.classification, signal.confidence)
+            chat_repo.classify(conn, message.id, signal.classification, signal.confidence)
             run.classified += 1
 
             if signal.classification not in QUEUED_CLASSES:
@@ -219,7 +226,7 @@ def classify_signals(
                 "reason": signal.reason,
                 "channel": message.channel,
                 "author": message.author,
-                "message_id": message.id,
+                "message_id": message.external_id,
             }
             extraction_repo.insert(
                 conn,

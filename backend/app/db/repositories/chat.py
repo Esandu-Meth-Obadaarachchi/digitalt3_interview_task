@@ -16,13 +16,27 @@ from app.ingestion.chat_export import ChatMessage
 from app.models.common import SignalClass, StrictModel
 
 _COLUMNS = (
-    "id, source_id, channel, author, ts, thread_id, text, is_direct_message, "
+    "id, external_id, source_id, channel, author, ts, thread_id, text, is_direct_message, "
     "classification, classification_confidence, classified_at"
 )
 
 
+def stored_id(source_id: str, external_id: str) -> str:
+    """The primary key for one message.
+
+    Namespaced by source, exactly as segments are. A message id is unique
+    inside its own export and nowhere else, so two exports numbering from
+    msg_001 collide the moment the second one is uploaded.
+    """
+    return f"{source_id}::{external_id}"
+
+
 class StoredMessage(StrictModel):
+    #: Namespaced by source: the primary key.
     id: str
+    #: The id the export itself used, kept so a message can be traced back to
+    #: the system it came from, and short enough to show a person.
+    external_id: str
     source_id: str
     channel: str
     author: str
@@ -37,6 +51,7 @@ class StoredMessage(StrictModel):
 def _row(row: sqlite3.Row) -> StoredMessage:
     return StoredMessage(
         id=row["id"],
+        external_id=row["external_id"],
         source_id=row["source_id"],
         channel=row["channel"],
         author=row["author"],
@@ -57,8 +72,12 @@ def replace_messages(conn: sqlite3.Connection, source_id: str, messages: list[Ch
     """
     conn.execute("DELETE FROM chat_messages WHERE source_id = ?", (source_id,))
     conn.executemany(
-        f"INSERT INTO chat_messages ({_COLUMNS}) VALUES (?,?,?,?,?,?,?,0,NULL,NULL,NULL)",
-        [(m.id, source_id, m.channel, m.author, m.ts, m.thread_id, m.text) for m in messages],
+        f"INSERT INTO chat_messages ({_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,0,NULL,NULL,NULL)",
+        [
+            (stored_id(source_id, m.id), m.id, source_id, m.channel, m.author, m.ts,
+             m.thread_id, m.text)
+            for m in messages
+        ],
     )
     return len(messages)
 

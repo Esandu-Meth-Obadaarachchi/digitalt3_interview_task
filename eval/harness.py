@@ -575,8 +575,10 @@ def case_7_signals(settings: Settings) -> list[Metric]:
     metrics: list[Metric] = []
 
     with database.connect(settings) as conn:
+        # Keyed by the export's own id, because that is what the hand-written
+        # golden labels carry. Stored ids are namespaced by source.
         stored = {
-            m.id: m for m in chat_repo.list_messages(conn)
+            m.external_id: m for m in chat_repo.list_messages(conn)
         }
         total_messages = len(stored)
         leaked = [mid for mid in forbidden_ids if mid in stored]

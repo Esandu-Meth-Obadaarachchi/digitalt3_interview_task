@@ -145,8 +145,15 @@ END;
 --
 -- 'noise' is likewise absent from the classification CHECK, because noise is
 -- discarded and not stored. An unclassified message carries NULL.
+-- `id` is namespaced by source, the same convention segments use, because a
+-- message id is only unique inside the export it came from. Two exports both
+-- numbering their messages msg_001 is the normal case, not a corner case, and
+-- storing the export's own id as the primary key made the second upload fail
+-- with a UNIQUE violation. `external_id` keeps the export's own identifier, so
+-- a stored message can still be traced back to the system it came from.
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id                        TEXT PRIMARY KEY,
+    id                        TEXT PRIMARY KEY,          -- source_id::msg_001
+    external_id               TEXT NOT NULL,             -- msg_001, as the export wrote it
     source_id                 TEXT NOT NULL REFERENCES sources (id) ON DELETE CASCADE,
     channel                   TEXT NOT NULL,
     author                    TEXT NOT NULL,
@@ -156,7 +163,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     is_direct_message         INTEGER NOT NULL DEFAULT 0 CHECK (is_direct_message = 0),
     classification            TEXT CHECK (classification IN ('decision', 'blocker', 'question', 'request')),
     classification_confidence REAL,
-    classified_at             TEXT
+    classified_at             TEXT,
+    UNIQUE (source_id, external_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_channel ON chat_messages (channel, ts);
@@ -640,4 +648,4 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value  TEXT NOT NULL
 );
 
-INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('schema_version', '2');
+INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('schema_version', '3');
