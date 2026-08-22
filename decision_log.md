@@ -1165,3 +1165,68 @@ into a shared channel is worse than not posting them.
 **L34.** The recap covers one source. A weekly recap across several meetings
 would need a different selection rule, and inventing one without a user to ask
 would be guessing at the requirement.
+
+---
+
+## Phase 11 — Uploading a chat export
+
+### Decisions
+
+**One endpoint for both kinds of source.** A transcript and a chat export
+differ only in which parser reads the bytes. The consent check on the metadata
+before the file is opened, the refusal leaving nothing on disk, and the report
+shape coming back are identical. Rejected: a second endpoint at
+`/api/sources/upload-chat`. It would have been a second copy of the consent
+gate, and the gate is the one thing in this application that must exist exactly
+once. Two copies of a rule are two chances for them to disagree.
+
+**The kind is chosen by the person uploading, not sniffed from the file.** The
+selector is the first control on the form. A `.json` file is a perfectly good
+transcript, so the extension does not settle it, and guessing wrong would route
+private channel messages through the transcript parser. Rejected: inspecting
+the JSON for a `messages` key. It works for the sample export and fails for the
+next one, and a wrong guess here has a privacy cost rather than a formatting
+cost.
+
+**`audio` is refused by name.** `POST /api/sources/upload` with
+`source_type=audio` returns 422 saying audio ingestion is not built. Letting it
+fall through to the transcript parser would report a parse failure for a file
+nothing here can read, which describes the wrong problem and would make M1 look
+broken rather than incomplete.
+
+**`source_type` defaults to `transcript`, and `consent_flag` still has no
+default.** The asymmetry is deliberate. A wrong default for the kind costs a
+readable parse error. A default for consent would quietly make the whole gate
+meaningless. Defaults are acceptable where the cost of being wrong is an error
+message and unacceptable where it is a guarantee.
+
+**The interface shows the count of direct messages dropped.** In amber, beside
+the message count, in the upload result. The messages themselves leave no
+trace, so the count is the only evidence they were ever seen, and "zero DM
+records in the store" is otherwise indistinguishable from "the export had
+none".
+
+### What building this found
+
+**The gap itself was found by using the system, not by reading it.** The upload
+endpoint had hardcoded `SourceType.TRANSCRIPT` since Phase 1 and every test
+passed, because every test uploaded a transcript. M9 was marked Done and
+measured, and the only way to exercise it on a new export was to edit a file in
+`sample_data/` and re-seed. A capability reachable only by editing the
+repository is not reachable.
+
+Verified end to end against the running API rather than only in tests: the
+committed sample export uploaded through HTTP gives 78 messages stored, 12
+direct messages dropped and 0 direct messages in the database.
+
+### Known limitations
+
+**L35.** Only one export format is accepted, the flat `{"messages": [...]}`
+shape the sample uses. The parser reads several key spellings for each field,
+so a Slack or Teams export would need a converter rather than a rewrite, but
+neither is built or tested.
+
+**L36.** Uploading an export with an id already in the store replaces its
+messages. That follows `replace_messages`, which is right for re-ingesting the
+same export and wrong if two different exports are given the same id by
+accident. Nothing warns about it.

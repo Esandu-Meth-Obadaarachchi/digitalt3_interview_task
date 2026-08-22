@@ -204,11 +204,11 @@ surface.
 | Prompts and chunking | 14 | `test_prompts_and_chunking.py` |
 | M11 outcome records | 13 | `test_outcome_records.py` |
 | Provider swappability | 12 | `test_llm_providers.py` |
-| HTTP surface | 11 | `test_api_sources.py` |
+| HTTP surface, both upload kinds | 17 | `test_api_sources.py` |
 | M4 decisions, golden case 5 | 11 | `test_decision_extraction.py` |
 | M5 risks, severity defensibility | 10 | `test_risk_extraction.py` |
 | M2 consent gate | 8 | `test_consent_gate.py` |
-| **Total** | **404** | `make test-inventory` |
+| **Total** | **410** | `make test-inventory` |
 
 The counts come from `make test-inventory`, which exists because they were
 stated from memory twice and were wrong twice.
