@@ -540,6 +540,99 @@ CREATE INDEX IF NOT EXISTS idx_llm_calls_outcome    ON llm_calls (outcome);
 CREATE INDEX IF NOT EXISTS idx_llm_calls_call       ON llm_calls (call_id, attempt);
 
 -- =============================================================================
+-- FOLLOW-UP DRAFTS  (M12)
+-- =============================================================================
+-- A recap message built from approved items, for a person to edit and send.
+--
+-- The capability is one sentence long and the whole of it is about who acts:
+-- "Generate a recap email/message from approved items. Human edits and sends.
+-- Agent never sends." Drafting is not an external write, because nothing
+-- leaves the machine and every line already passed the approval gate. Sending
+-- is an external write, and the rules below are what stop the agent doing it.
+--
+--   generated_body   what the system produced. Immutable, so the human edit is
+--                    always separable from the machine text.
+--   edited_body      what the person wrote instead. NULL until they touch it.
+--   sent_by          the person who sent it. Never a service.
+--
+-- A row is born a draft and can only reach 'sent' through an UPDATE, which is
+-- where the three send rules apply. Inserting a row already marked sent would
+-- walk straight past them, so that is refused too.
+CREATE TABLE IF NOT EXISTS followup_drafts (
+    id              TEXT PRIMARY KEY,
+    source_id       TEXT NOT NULL REFERENCES sources (id) ON DELETE CASCADE,
+    draft_version   INTEGER NOT NULL,                      -- monotonic per source
+    subject         TEXT NOT NULL,
+    generated_body  TEXT NOT NULL,                         -- immutable, see trigger below
+    edited_body     TEXT,                                  -- what the human wrote instead
+    edited_by       TEXT,
+    edited_at       TEXT,
+    status          TEXT NOT NULL CHECK (status IN ('draft', 'edited', 'sent')),
+    item_count      INTEGER NOT NULL,                      -- approved items it was built from
+    channel         TEXT,                                  -- where a person chose to send it
+    sent_by         TEXT,                                  -- a person. never a service
+    sent_at         TEXT,
+    notification_id TEXT,                                  -- the notifier's record of the send
+    generated_at    TEXT NOT NULL,
+    UNIQUE (source_id, draft_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_followup_source ON followup_drafts (source_id, draft_version);
+CREATE INDEX IF NOT EXISTS idx_followup_status ON followup_drafts (status);
+
+-- Every draft starts as a draft. Without this an INSERT could create a row
+-- already marked sent and never meet the three rules below, all of which are
+-- written on UPDATE.
+CREATE TRIGGER IF NOT EXISTS trg_followup_insert_is_draft
+BEFORE INSERT ON followup_drafts
+FOR EACH ROW
+WHEN NEW.status IS NOT 'draft'
+BEGIN
+    SELECT RAISE(ABORT, 'followup: a draft is created as a draft, not as sent');
+END;
+
+-- What the system wrote stays readable next to what the person sent. Same rule
+-- as original_payload on extractions, and for the same reason: the interesting
+-- question in review is what the human changed.
+CREATE TRIGGER IF NOT EXISTS trg_followup_generated_body_immutable
+BEFORE UPDATE ON followup_drafts
+FOR EACH ROW
+WHEN NEW.generated_body IS NOT OLD.generated_body
+BEGIN
+    SELECT RAISE(ABORT, 'followup: generated_body is immutable, edits belong in edited_body');
+END;
+
+-- A send with nobody attached to it is the agent sending. Refused.
+CREATE TRIGGER IF NOT EXISTS trg_followup_send_requires_person
+BEFORE UPDATE ON followup_drafts
+FOR EACH ROW
+WHEN NEW.status = 'sent' AND (NEW.sent_by IS NULL OR trim(NEW.sent_by) = '')
+BEGIN
+    SELECT RAISE(ABORT, 'followup: sending requires the person who sent it. The agent never sends');
+END;
+
+-- And naming a service instead of a person is the same thing with a label on
+-- it. The capability says the agent never sends, so the database says so too.
+CREATE TRIGGER IF NOT EXISTS trg_followup_agent_cannot_send
+BEFORE UPDATE ON followup_drafts
+FOR EACH ROW
+WHEN NEW.status = 'sent'
+ AND lower(trim(NEW.sent_by)) IN ('agent', 'system', 'scheduler', 'bot', 'service', 'llm', 'model')
+BEGIN
+    SELECT RAISE(ABORT, 'followup: sent_by names a service, not a person. The agent never sends');
+END;
+
+-- Sent is terminal. A message a person has sent cannot be rewritten afterwards
+-- to say something they did not send.
+CREATE TRIGGER IF NOT EXISTS trg_followup_sent_is_final
+BEFORE UPDATE ON followup_drafts
+FOR EACH ROW
+WHEN OLD.status = 'sent'
+BEGIN
+    SELECT RAISE(ABORT, 'followup: this draft was already sent and cannot be changed');
+END;
+
+-- =============================================================================
 -- SCHEMA VERSION
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -547,4 +640,4 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value  TEXT NOT NULL
 );
 
-INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('schema_version', '1');
+INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('schema_version', '2');
