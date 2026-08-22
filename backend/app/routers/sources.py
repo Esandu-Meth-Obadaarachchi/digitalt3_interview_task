@@ -16,7 +16,12 @@ from app.db import database
 from app.db.repositories import segments as segment_repo
 from app.db.repositories import sources as source_repo
 from app.extraction.chunker import chunk_segments
-from app.ingestion.service import IngestionOutcome, ingest_from_manifest, ingest_transcript
+from app.ingestion.service import (
+    IngestionOutcome,
+    ingest_chat_export,
+    ingest_from_manifest,
+    ingest_transcript,
+)
 from app.models.chunk import Chunk
 from app.models.common import SourceStatus, SourceType
 from app.models.source import IngestionReport, Segment, Source, SourceMetadata
@@ -114,14 +119,37 @@ async def upload(
     source_id: str = Form(...),
     title: str = Form(...),
     consent_flag: bool = Form(...),
+    source_type: str = Form(default="transcript"),
     meeting_date: str | None = Form(default=None),
     participants: str = Form(default="[]"),
 ) -> IngestionOutcome:
-    """The consent flag is a required form field with no default.
+    """One endpoint for both kinds of source, because one gate serves both.
 
-    An upload that does not state consent is rejected by validation, which is
-    the same rule the manifest path follows.
+    A transcript and a chat export differ only in which parser reads the bytes.
+    Everything around that is identical: the same consent check on the metadata
+    before the file is opened, the same refusal leaving nothing on disk, the
+    same report shape coming back. A second endpoint would mean a second copy
+    of the gate, and the gate is the one thing in this application that must
+    exist exactly once.
+
+    The consent flag is a required form field with no default. An upload that
+    does not state consent is rejected by validation, which is the same rule
+    the manifest path follows.
     """
+    kind = (source_type or "").strip().lower()
+    if kind == "audio":
+        # Named rather than silently misrouted to the transcript parser, which
+        # would report a parse failure for a file nothing here can read.
+        raise HTTPException(
+            status_code=422,
+            detail="audio ingestion is not built. Upload a transcript or a chat export.",
+        )
+    if kind not in {"transcript", "chat_export"}:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown source_type '{source_type}'. Use 'transcript' or 'chat_export'.",
+        )
+
     try:
         participant_list = json.loads(participants)
     except json.JSONDecodeError:
@@ -130,7 +158,7 @@ async def upload(
     metadata = SourceMetadata(
         id=source_id,
         title=title,
-        source_type=SourceType.TRANSCRIPT,
+        source_type=SourceType(kind),
         consent_flag=consent_flag,
         meeting_date=meeting_date,
         participants=participant_list,
@@ -146,7 +174,8 @@ async def upload(
     # gate refuses, so a non-consented upload leaves nothing behind.
     target.write_bytes(await file.read())
 
-    outcome = ingest_transcript(metadata, target, settings=settings)
+    ingest = ingest_chat_export if kind == "chat_export" else ingest_transcript
+    outcome = ingest(metadata, target, settings=settings)
     if outcome.source.status is SourceStatus.REFUSED:
         target.unlink(missing_ok=True)
     return outcome

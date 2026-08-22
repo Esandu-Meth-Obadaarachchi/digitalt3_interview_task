@@ -177,3 +177,135 @@ def test_a_malformed_upload_is_rejected_with_a_readable_reason(client):
     assert body["source"]["status"] == "error"
     assert "truncated_mid_sentence" in body["source"]["error_detail"]
     assert body["segments"] == []
+
+
+# --- uploading a chat export, not only a transcript ---------------------------
+
+
+def test_a_chat_export_can_be_uploaded_and_direct_messages_never_land(client, settings):
+    """The same endpoint, the same gate, a different parser.
+
+    The assertion worth having is the second one: the export contains direct
+    messages, the report counts them, and the store holds none of them.
+    """
+    content = (REPO_ROOT / "sample_data" / "chat_export" / "channels.json").read_bytes()
+
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("channels.json", io.BytesIO(content), "application/json")},
+        data={
+            "source_id": "upload-chat",
+            "title": "Uploaded channels",
+            "consent_flag": "true",
+            "source_type": "chat_export",
+        },
+    )
+
+    body = response.json()
+    assert body["source"]["status"] == "ingested"
+    assert body["source"]["source_type"] == "chat_export"
+    assert body["report"]["messages_parsed"] > 0
+    assert body["report"]["direct_messages_excluded"] > 0, "the sample export contains DMs"
+    assert body["segments"] == [], "a chat export has messages, not segments"
+
+    with database.connect(settings) as conn:
+        stored = conn.execute(
+            "SELECT COUNT(*) AS n FROM chat_messages WHERE source_id = 'upload-chat'"
+        ).fetchone()
+        dms = conn.execute(
+            "SELECT COUNT(*) AS n FROM chat_messages WHERE is_direct_message = 1"
+        ).fetchone()
+
+    assert stored["n"] == body["report"]["messages_parsed"]
+    assert dms["n"] == 0
+
+
+def test_a_non_consented_chat_export_is_refused_and_leaves_nothing_on_disk(client, settings):
+    """The gate does not care which parser would have run."""
+    content = (REPO_ROOT / "sample_data" / "chat_export" / "channels.json").read_bytes()
+
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("channels.json", io.BytesIO(content), "application/json")},
+        data={
+            "source_id": "upload-chat-no-consent",
+            "title": "Channels without consent",
+            "consent_flag": "false",
+            "source_type": "chat_export",
+        },
+    )
+
+    body = response.json()
+    assert body["source"]["status"] == "refused"
+    assert body["report"]["bytes_read"] == 0
+    assert not list((settings.db_path.parent / "uploads").glob("upload-chat-no-consent*"))
+
+    with database.connect(settings) as conn:
+        stored = conn.execute("SELECT COUNT(*) AS n FROM chat_messages").fetchone()
+    assert stored["n"] == 0
+
+
+def test_a_transcript_uploaded_as_a_chat_export_fails_with_a_readable_reason(client):
+    content = (REPO_ROOT / "sample_data" / "transcripts" / "client_status_call.txt").read_bytes()
+
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("call.txt", io.BytesIO(content), "text/plain")},
+        data={
+            "source_id": "upload-wrong-kind",
+            "title": "Wrong kind",
+            "consent_flag": "true",
+            "source_type": "chat_export",
+        },
+    )
+
+    body = response.json()
+    assert body["source"]["status"] == "error"
+    assert body["report"]["rejection_reason"], "an error must say why"
+
+
+def test_audio_is_named_as_not_built_rather_than_misrouted(client):
+    """Without this it reaches the transcript parser and reports a parse
+    failure, which describes the wrong problem."""
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("meeting.wav", io.BytesIO(b"RIFF"), "audio/wav")},
+        data={
+            "source_id": "upload-audio",
+            "title": "Recording",
+            "consent_flag": "true",
+            "source_type": "audio",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "not built" in response.json()["detail"]
+
+
+def test_an_unknown_source_type_is_refused(client):
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("x.txt", io.BytesIO(b"[00:00:01] Sarah Chen: Hello.\n"), "text/plain")},
+        data={
+            "source_id": "upload-unknown-kind",
+            "title": "Unknown",
+            "consent_flag": "true",
+            "source_type": "spreadsheet",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "transcript" in response.json()["detail"]
+
+
+def test_the_default_is_still_a_transcript(client):
+    """Callers predating the field keep working."""
+    content = (REPO_ROOT / "sample_data" / "transcripts" / "client_status_call.txt").read_bytes()
+
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("call.txt", io.BytesIO(content), "text/plain")},
+        data={"source_id": "upload-default", "title": "Default", "consent_flag": "true"},
+    )
+
+    assert response.json()["source"]["source_type"] == "transcript"
