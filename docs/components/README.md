@@ -18,6 +18,8 @@ tested, and what it does not do.
 | 10 | Outcome records | M11 | [10-outcome-records.md](10-outcome-records.md) |
 | 11 | The review interface | — | [11-frontend.md](11-frontend.md) |
 | 12 | Evaluation | scored separately | [12-evaluation.md](12-evaluation.md) |
+| 13 | Per-person digests | M13 | [13-person-digests.md](13-person-digests.md) |
+| 14 | The follow-up draft | M12 | [14-followup-draft.md](14-followup-draft.md) |
 
 ## Reading order
 
@@ -32,7 +34,7 @@ For a reviewer with twenty minutes:
 ## Related documents
 
 - [`../../README.md`](../../README.md) — capability status and measured results
-- [`../../decision_log.md`](../../decision_log.md) — 91 decisions, 10 assumptions, 27 limitations
+- [`../../decision_log.md`](../../decision_log.md) — every decision in order, with the alternative rejected
 - [`../testing.md`](../testing.md) — testing strategy and the techniques behind it
 - [`../outcome_schema.json`](../outcome_schema.json) — the published M11 schema
 
