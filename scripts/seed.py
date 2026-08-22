@@ -69,9 +69,37 @@ def check_files(entries: list[SourceMetadata], sample_dir: Path) -> int:
     return missing
 
 
+def _seed_tracker(settings) -> None:
+    """The mock tracker's pre-existing backlog.
+
+    Loaded even for an empty store. The point of the seeded items is that the
+    agent did not create them and has to work alongside them, so a tracker that
+    starts empty makes M7 look tidier than it is.
+    """
+    tracker_seed = settings.sample_data_dir / "tracker" / "seed_items.json"
+    if not tracker_seed.exists():
+        return
+
+    payload = json.loads(tracker_seed.read_text(encoding="utf-8"))
+    loaded = get_tracker(settings).seed(payload["items"])
+    no_assignee = sum(1 for i in payload["items"] if i.get("assignee") is None)
+    no_due = sum(1 for i in payload["items"] if i.get("due_date") is None)
+    print(f"\n{DIM}mock tracker{RESET}")
+    print(f"  {GREEN}ok{RESET} {loaded} pre-existing item(s) loaded"
+          f"{DIM}, of which {no_assignee} have no assignee and {no_due} no due date. "
+          f"The agent did not create these and must work alongside them.{RESET}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keep", action="store_true", help="apply schema without dropping the existing database")
+    parser.add_argument(
+        "--empty",
+        action="store_true",
+        help="rebuild the schema and load only the mock tracker's pre-existing backlog. "
+             "No transcripts, no chat export, so the store is ready for data you supply "
+             "yourself while the tracker still has items the agent did not create.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -81,6 +109,13 @@ def main() -> int:
     path = database.init_db(settings) if args.keep else database.reset_db(settings)
     print(f"  {GREEN}ok{RESET} schema applied, version {database.schema_version(settings)}"
           f"{'' if args.keep else ' (rebuilt from scratch)'}")
+
+    if args.empty:
+        _seed_tracker(settings)
+        print(f"\n{DIM}store ready at {path}, with no sources.{RESET}")
+        print(f"{DIM}Ingest your own through the interface, or run `make seed` for the "
+              f"committed sample set.{RESET}\n")
+        return 0
 
     print(f"\n{DIM}sample data manifest{RESET} {settings.sample_data_dir}/metadata/sources.json")
     entries = load_manifest(settings.sample_data_dir)
@@ -127,18 +162,7 @@ def main() -> int:
         if report.status.value == "error":
             failures += 1
 
-    # --- the mock tracker's pre-existing backlog ----------------------------
-    tracker_seed = settings.sample_data_dir / "tracker" / "seed_items.json"
-    if tracker_seed.exists():
-        payload = json.loads(tracker_seed.read_text(encoding="utf-8"))
-        adapter = get_tracker(settings)
-        loaded = adapter.seed(payload["items"])
-        no_assignee = sum(1 for i in payload["items"] if i.get("assignee") is None)
-        no_due = sum(1 for i in payload["items"] if i.get("due_date") is None)
-        print(f"\n{DIM}mock tracker{RESET}")
-        print(f"  {GREEN}ok{RESET} {loaded} pre-existing item(s) loaded"
-              f"{DIM}, of which {no_assignee} have no assignee and {no_due} no due date. "
-              f"The agent did not create these and must work alongside them.{RESET}")
+    _seed_tracker(settings)
 
     print(f"\n{DIM}store ready at {path}{RESET}")
     print(f"{DIM}{failures} source(s) rejected as malformed, which is expected: the sample set "

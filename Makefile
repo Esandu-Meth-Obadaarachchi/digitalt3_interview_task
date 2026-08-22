@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed run api ui test test-inventory verify-clone outcome-schema eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
+.PHONY: help setup seed seed-empty run api ui test test-inventory verify-clone outcome-schema eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -67,6 +67,9 @@ s=get_settings(); print(f'removed {ResponseCache(s.llm_cache_dir).clear()} cache
 seed: ## Rebuild the database from schema.sql and load sample data
 	$(PY) scripts/seed.py
 
+seed-empty: ## Rebuild the database with no sources, ready for your own data
+	$(PY) scripts/seed.py --empty
+
 run: ## Start the API server
 	$(UVICORN) app.main:app --app-dir backend --host $${API_HOST:-127.0.0.1} --port $${API_PORT:-8000} --reload
 
@@ -108,7 +111,8 @@ eval-source: ## Score one source against its golden labels: make eval-source SOU
 
 clean: ## Remove the database, indexes and generated artefacts
 	rm -rf data/*.db data/*.db-wal data/*.db-shm data/faiss data/llm_cache \
-	       data/digests data/outcome_records write_log/*.jsonl
+	       data/documents data/uploads data/digests data/outcome_records \
+	       write_log/*.jsonl
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .pytest_cache
 	@printf "cleaned\n"
