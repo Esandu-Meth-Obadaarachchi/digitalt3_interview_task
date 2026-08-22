@@ -218,10 +218,24 @@ def test_the_expiry_job_is_the_safe_default_not_an_approval(approved):
 
 def test_the_digest_job_runs_what_the_endpoint_runs(approved):
     """Same function, so what is demonstrated is what runs unattended."""
+    from app.scheduler.person_digest import build_person_digest, people
+
+    expected_people = [
+        p for p in people(approved)
+        if not build_person_digest(p.key, approved).empty
+    ]
     written = jobs.run_digest_job(approved)
 
     with database.connect(approved) as conn:
         rows = conn.execute("SELECT DISTINCT trigger FROM digests").fetchall()
+        by_type = dict(
+            conn.execute("SELECT scope_type, COUNT(*) AS n FROM digests GROUP BY scope_type")
+            .fetchall()
+        )
 
-    assert written == len(scopes(approved))
+    # One per channel (M10) and one per person who has something (M13). The
+    # job writes both because both are the end of the same day.
+    assert written == len(scopes(approved)) + len(expected_people)
+    assert by_type["channel"] == len(scopes(approved))
+    assert by_type["person"] == len(expected_people)
     assert [r["trigger"] for r in rows] == ["scheduler"]

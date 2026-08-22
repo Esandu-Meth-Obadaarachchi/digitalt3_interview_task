@@ -244,3 +244,45 @@ def test_person_digests_are_not_posted_by_default(approved):
 
     emit_all_people(approved, now=NOW)
     assert get_notifier(approved).list_posts() == []
+
+
+# --- the HTTP surface ---------------------------------------------------------
+
+
+def test_the_api_lists_people_with_the_grouping_visible(approved, client):
+    body = client.get("/api/digests/people").json()
+
+    assert body, "somebody was approved"
+    for person in body:
+        assert set(person) == {"key", "display_name", "aliases", "ambiguous", "unassigned"}
+    keys = [p["key"] for p in body]
+    assert keys[-1] == UNASSIGNED, "unowned work sorts last"
+
+
+def test_the_api_previews_a_person_without_writing_anything(approved, client):
+    key = client.get("/api/digests/people").json()[0]["key"]
+
+    body = client.get(f"/api/digests/people/{key}").json()
+
+    assert body["commitments"]
+    with database.connect(approved) as conn:
+        stored = conn.execute("SELECT COUNT(*) AS n FROM digests").fetchone()
+    assert stored["n"] == 0, "a preview writes nothing"
+
+
+def test_the_api_refuses_to_produce_a_digest_for_somebody_with_nothing(approved, client):
+    assert client.get("/api/digests/people/nobody/markdown").status_code == 404
+    assert client.post("/api/digests/people/nobody").status_code == 404
+
+
+def test_the_api_runs_the_whole_person_job(approved, client):
+    body = client.post("/api/digests/people/run/all").json()
+
+    assert body
+    assert all(item["commitments"] for item in body), "nobody empty is written"
+
+
+def test_the_scheduler_status_describes_the_person_digest(approved, client):
+    body = client.get("/api/digests/schedule").json()
+    digest_job = next(j for j in body["jobs"] if j["id"] == "end_of_day_digest")
+    assert "person" in digest_job["description"]

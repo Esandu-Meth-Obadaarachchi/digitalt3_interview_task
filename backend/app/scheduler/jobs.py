@@ -59,13 +59,24 @@ class SchedulerStatus(StrictModel):
 
 
 def run_digest_job(settings: Settings | None = None) -> int:
-    """The end-of-day job. Returns how many digests were written."""
+    """The end-of-day job. Returns how many digests were written.
+
+    One per channel (M10), then one per person who has something approved
+    (M13). Both run in the same job because both are the end of the same day,
+    and a person opening a digest at six o'clock should not find their channel
+    digest an hour older than their own.
+    """
     from app.scheduler.digest import emit_all
+    from app.scheduler.person_digest import emit_all_people
 
     cfg = settings or get_settings()
     digests = emit_all(cfg, trigger="scheduler")
-    logger.info("scheduled digest job wrote %s digest(s)", len(digests))
-    return len(digests)
+    personal = emit_all_people(cfg, trigger="scheduler")
+    logger.info(
+        "scheduled digest job wrote %s channel digest(s) and %s person digest(s)",
+        len(digests), len(personal),
+    )
+    return len(digests) + len(personal)
 
 
 def run_expiry_job(settings: Settings | None = None) -> int:
@@ -135,8 +146,10 @@ def status(settings: Settings | None = None) -> SchedulerStatus:
 
     descriptions = {
         "end_of_day_digest": (
-            "Builds one digest per channel from approved items only, writes it "
-            "through the document store and posts it through the notifier."
+            "Builds one digest per channel from approved items only, then one per "
+            "person who has approved commitments, writes them through the document "
+            "store and posts the channel digests through the notifier. Somebody with "
+            "no commitments gets no digest."
         ),
         "expiry_sweep": (
             f"Moves pending extractions older than {cfg.pending_expiry_hours}h to 'expired'. "
