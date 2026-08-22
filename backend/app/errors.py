@@ -53,6 +53,17 @@ class DuplicateWrite(AgentError):
     code = "duplicate_write"
 
 
+class AgentSendRefused(AgentError):
+    """M12. Something tried to send a follow-up without a person behind it.
+
+    The capability is explicit that the agent never sends. A send with no
+    sent_by, or with a service name in it, is the agent sending under a label.
+    """
+
+    status_code = 403
+    code = "agent_send_refused"
+
+
 class IngestionError(AgentError):
     """M1. A source could not be parsed into segments."""
 
