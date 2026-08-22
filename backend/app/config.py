@@ -108,6 +108,17 @@ class Settings(BaseSettings):
     digest_minute: int = Field(default=0, ge=0, le=59)
     expiry_sweep_hour: int = Field(default=2, ge=0, le=23)
 
+    # --- Per-person digests (M13) --------------------------------------------
+    #: How two owner strings are decided to be the same person.
+    #:   first_name  everyone sharing a first name is one person. Priya Sharma
+    #:               and Priya Menon share a digest, and the digest says so.
+    #:   full_name   only an identical full name is the same person, which
+    #:               splits "Priya" from "Priya Sharma".
+    person_identity: Literal["first_name", "full_name"] = "first_name"
+    #: Posting a person digest to a channel would show one person's workload to
+    #: everybody in it, so person digests are written and not posted by default.
+    post_person_digests: bool = False
+
     # --- Audio ---------------------------------------------------------------
     whisper_model: str = "base"
     whisper_compute_type: str = "int8"
