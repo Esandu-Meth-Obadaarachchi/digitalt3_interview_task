@@ -1028,3 +1028,140 @@ process keeps them in step beyond rewriting both at the end of each phase.
 
 **L30.** Audio ingestion is documented as not built rather than as future work.
 `backend/app/audio/` holds an empty package. M1 stays Partial.
+
+---
+
+## Phase 10 — The follow-up draft and the per-person digest
+
+Both are COULD capabilities, built after the SHOULDs were finished and
+measured, on the basis that a capability nobody expects is worth more built than
+a capability everybody expects built twice.
+
+### Decisions
+
+**The recap is rendered from approved rows, not written by the model.** This is
+the decision to defend. A model asked to summarise approved items produces
+sentences nobody approved: the reviewer approved a task description and a quote,
+and a paraphrase of five of those is new text that passed no gate. A template
+produces exactly the approved text with the quote attached. Rejected: a model
+pass over the rendered draft. It would work with a check on every sentence
+against an approved quote, but the check is the hard half, the plain version is
+already correct, and it costs a model call against a twenty-a-day allowance.
+
+**Sending is gated. Drafting is not.** Drafting is not an external write:
+nothing leaves the machine and every line already passed the approval gate. A
+gate there would ask a reviewer to approve their own earlier approvals, the same
+argument the digest makes. Sending is the only thing in this build a person
+triggers by hand every single time.
+
+**`sent_by` is the capability, so it is refused four ways.** Blank and
+service-named senders are refused in `followup/draft.py` for a readable message,
+and again by `trg_followup_send_requires_person` and
+`trg_followup_agent_cannot_send` when the service layer is bypassed. The
+endpoint has no default for the field: a default would be the agent sending
+under whatever name the default carried, and a test asserts a request omitting
+it fails validation. `trg_followup_insert_is_draft` closes the way round, since
+an INSERT arriving already marked sent would walk past every rule written on
+UPDATE.
+
+**One test is structural rather than behavioural.** No file under
+`app/scheduler` mentions follow-ups at all. A scheduled job that sent a recap
+would satisfy every behavioural test in the file and break the one rule M12
+states, so the test is about what the code does not contain.
+
+**The generated recap and the human's edit are stored side by side.** Same split
+as `original_payload` on extractions, same reason: which half a reader is
+looking at is the first question worth asking about a machine-drafted message.
+`trg_followup_generated_body_immutable` makes the answer unforgeable, and
+`trg_followup_sent_is_final` stops a sent message being rewritten afterwards to
+say something the sender did not send.
+
+**There is no recap of nothing.** A source with no approved items raises rather
+than producing an empty message, because an empty recap sent by mistake states
+that the meeting produced nothing, which is a claim the system has no basis for.
+
+**People are grouped by their first name, casefolded.** Instructed, and
+defensible for the common case: the owner of an action is free text lifted from
+a transcript, so one person is "Priya" in one line and "Priya Sharma" in
+another, and grouping on the raw string produces two digests neither of which is
+a per-person view of anything. The cost is that Priya Sharma and Priya Menon
+share a digest, and the sprint planning transcript contains exactly that pair on
+purpose.
+
+The cost is paid back in evidence rather than hidden. Every line carries the
+owner string exactly as the transcript gave it, a grouped person reports itself
+as ambiguous, the digest text names the full names it covers, and the interface
+badges the person and lists the aliases. Rejected: splitting on the full name.
+It is worse in the common case, because the transcript usually says "Priya" and
+the split leaves the person reading two partial digests.
+`PERSON_IDENTITY=full_name` switches to the strict rule and both are tested.
+
+**A bare first name takes its full name from the participant list when exactly
+one participant matches.** That is a lookup in metadata the meeting supplied,
+not a guess. With two candidates it declines and keeps the bare first name,
+which is the same abstention discipline the extraction uses.
+
+**Unowned work gets its own digest and says so.** Dropping it hides real work
+and assigning it invents an owner, so everything with `owner = UNSPECIFIED`
+collapses into one bucket headed "Assignee unspecified" where every line states
+the task and then says the assignee is unspecified. No placeholder is ever
+promoted into a display name, and a test asserts no unowned item reaches a named
+person's digest.
+
+**The person digest reuses the M10 machinery and none of its shape.** It is
+cross-source, because a commitment is a commitment whichever meeting it was made
+in. It is uncapped, because the 3/2/1 shape exists to force a choice across a
+whole channel and capping somebody's own commitments would drop the fourth one
+silently. Somebody with nothing approved gets no digest at all, enforced where
+digests are emitted rather than by rendering an empty file.
+
+**Person digests are written and not posted.** A channel digest belongs in its
+channel. One person's workload posted into a shared channel is a different thing
+from the digest they asked for. `POST_PERSON_DIGESTS` turns it on for a
+demonstration and a test asserts the default is off.
+
+### What building this found
+
+**The test fixture redirected seven of the nine writable paths.**
+`notification_log_path` and `document_store_dir` were missing, so every test
+touching the notifier or the document store read and wrote the real files under
+`write_log/` and `data/documents/`. It surfaced only when a new test asserted
+that no post had been made and saw 41 left by earlier manual runs. Existing
+tests never caught it because they assert a post exists, which stays true
+whatever else is in the log. It also explains the generated files that kept
+appearing in `git status`: the suite was writing them.
+
+The general form is worth keeping. A test asserting something is present passes
+in a dirty environment, and only a test asserting something is absent finds the
+leak.
+
+**The health test pinned `schema_version` to the literal "1".** It broke the
+moment the schema gained a table, which is the test doing its job, but the
+assertion was on the number rather than on the reporting. It now compares
+against what the store reports.
+
+**The architecture note's component line counts did not match the source, by a
+wide margin, and the counting method was never recorded.** There was no way to
+tell what the old numbers had measured, so they were recounted and the command
+is now printed under the table. The coverage table in `docs/testing.md` had
+drifted the same way: five files missing outright and one count wrong by five.
+It is generated from `make test-inventory` now.
+
+### Known limitations
+
+**L31.** Name matching handles first names, full names and titles. It does not
+handle nicknames, initials or email addresses. Each needs a source of truth this
+build does not have, and guessing that Bob is Robert is exactly the kind of
+inference the rest of the system refuses to make.
+
+**L32.** The recap has no model polish pass. It would be a real improvement in
+readability and it is not built, because every sentence would need checking
+against an approved quote before display and the check is the harder half.
+
+**L33.** A person digest is written to the document store and not delivered to
+that person. Delivery is the notifier's problem, and posting personal workloads
+into a shared channel is worse than not posting them.
+
+**L34.** The recap covers one source. A weekly recap across several meetings
+would need a different selection rule, and inventing one without a user to ask
+would be guessing at the requirement.

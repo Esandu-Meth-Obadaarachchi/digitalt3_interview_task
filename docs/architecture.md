@@ -14,8 +14,10 @@ structured records that are validated against a schema and checked so that every
 quote is a literal substring of the source. Every record lands in a review queue
 as a **proposal**. Nothing reaches an external system until a human approves it.
 Approved records are written to a mock tracker, indexed for question answering,
-rolled into scheduled digests, and emitted as versioned outcome records that a
-downstream agent can consume without this application.
+rolled into scheduled digests for each channel and for each person, drafted into
+a recap for somebody to edit and send, and emitted as versioned outcome records
+that a downstream agent can consume without this application. The agent sends
+nothing itself.
 
 ---
 
@@ -72,16 +74,26 @@ downstream agent can consume without this application.
         ║   approve → writable      expire → not writable ║
         ╚════════════════════┬════════════════════════════╝
                              │  approved only
-             ┌───────────────┼───────────────┬──────────────┐
-             ▼               ▼               ▼              ▼
-      ┌────────────┐  ┌────────────┐  ┌────────────┐ ┌────────────┐
-      │ M7 TRACKER │  │ M8 INDEX   │  │ M10 DIGEST │ │ M11 OUTCOME│
-      │  adapter   │  │ FTS5+FAISS │  │ scheduler  │ │  RECORD    │
-      └─────┬──────┘  └─────┬──────┘  └─────┬──────┘ └─────┬──────┘
-            │               │               │              │
-        mock tracker    citations       notifier       document
-        + write log     with spans      + markdown      store
+      ┌──────┬─────────┼───────────────┬──────────────┬─────────────┐
+      ▼      ▼         ▼               ▼              ▼             ▼
+ ┌─────────┐ ┌──────────┐  ┌────────────┐ ┌──────────┐ ┌──────────────┐
+ │M7TRACKER│ │M8 INDEX  │  │ M10 DIGEST │ │M11OUTCOME│ │ M12 FOLLOW-UP│
+ │ adapter │ │FTS5+FAISS│  │ M13 PERSON │ │  RECORD  │ │    DRAFT     │
+ └────┬────┘ └────┬─────┘  └─────┬──────┘ └────┬─────┘ └──────┬───────┘
+      │           │              │             │              │
+  mock tracker  citations     notifier      document      a person edits
+  + write log   with spans    + markdown     store        ▼ and sends it
+                                                    ┌──────────────┐
+                                                    │ SEND GATE    │
+                                                    │ named person │
+                                                    │ or refused   │
+                                                    └──────────────┘
 ```
+
+The send gate is the only one below the review queue. Everything else under
+that line is a write the approval already authorised. A recap addressed to
+people is not: M12 says the agent never sends, so a second, differently shaped
+gate stands in front of it and asks for a name.
 
 ---
 
@@ -122,6 +134,31 @@ pushed through.
 
 ---
 
+## Where the send gate sits
+
+The second gate, and the only one below the review queue. M12 says *"Human
+edits and sends. Agent never sends."* Drafting a recap is not an external write:
+nothing leaves the machine, and every line already passed the approval gate.
+Sending is, so `sent_by` is refused four ways.
+
+| Depth | Mechanism | Refuses |
+|---|---|---|
+| 1 | `followup/draft.py` | a blank name → `AgentSendRefused`, 403 |
+| 2 | `followup/draft.py` | `agent`, `system`, `scheduler`, `bot`, `service`, `llm`, `model` |
+| 3 | `trg_followup_send_requires_person` | any UPDATE to `sent` with no `sent_by` |
+| 4 | `trg_followup_agent_cannot_send` | any UPDATE to `sent` naming a service |
+
+`trg_followup_insert_is_draft` closes the way round: a row arriving already
+marked sent would walk past every rule written on UPDATE, so a draft is born a
+draft. `trg_followup_sent_is_final` stops a sent message being rewritten
+afterwards to say something the sender did not send.
+
+The HTTP endpoint has **no default for `sent_by`**, and a test asserts a request
+omitting it fails validation. A default would be the agent sending under
+whatever name the default carried.
+
+---
+
 ## Where the consent gate sits
 
 Three layers, and the first one is why the evidence is machine-checkable.
@@ -146,18 +183,27 @@ it fails validation, because absent consent is not consent.
 
 | Area | Lines | Responsibility |
 |---|---|---|
-| `ingestion/` | 2,311 | M1 parsing and validation, M2 consent, M9 chat export |
-| `extraction/` | 3,444 | The LLM wrapper, chunking, M3/M4/M5/M9 extractors |
-| `retrieval/` | 1,442 | M8 embeddings, FAISS, FTS5, fusion, question answering |
-| `review/` | 436 | M6 the queue and its rules |
-| `tracker/` | 475 | M7 the service that owns the gate, and the write log |
-| `scheduler/` | 711 | M10 APScheduler jobs and digest building |
-| `outcome/` | 348 | M11 versioned records |
-| `adapters/` | 820 | Three interfaces and three mocks |
-| `db/` | 2,188 | `schema.sql` plus one repository per entity |
-| `models/` | 1,495 | Every Pydantic contract |
-| `routers/` | 1,049 | HTTP only — routing, validation, serialisation |
+| `extraction/` | 2,351 | The LLM wrapper, chunking, M3/M4/M5/M9 extractors |
+| `db/` | 1,846 | `schema.sql` plus one repository per entity |
+| `ingestion/` | 1,644 | M1 parsing and validation, M2 consent, M9 chat export |
+| `models/` | 1,263 | Every Pydantic contract |
+| `retrieval/` | 991 | M8 embeddings, FAISS, FTS5, fusion, question answering |
+| `routers/` | 831 | HTTP only — routing, validation, serialisation |
+| `scheduler/` | 710 | M10 APScheduler jobs, M10 channel and M13 person digests |
+| `adapters/` | 526 | Three interfaces and three mocks |
 | `prompts/` | 356 | Five versioned prompt files |
+| `followup/` | 329 | M12 the recap draft, and the send refusal |
+| `tracker/` | 296 | M7 the service that owns the gate, and the write log |
+| `review/` | 276 | M6 the queue and its rules |
+| `outcome/` | 208 | M11 versioned records |
+| `people/` | 166 | M13 deciding which commitments belong to the same person |
+
+12,244 lines across `backend/app`, counted with
+
+```bash
+find backend/app -type f \( -name '*.py' -o -name '*.sql' -o -name '*.txt' \) \
+  -not -path '*__pycache__*' -print0 | xargs -0 cat | wc -l
+```
 
 **Layering rule, enforced by convention and by tests:** routers call services,
 services call repositories, repositories are the only place SQL lives. No
@@ -250,8 +296,9 @@ attributed to a prompt that did not produce it.
 ## Storage
 
 SQLite via raw `sqlite3`, not an ORM. `schema.sql` is then literally the schema
-a reviewer reads, which is what the brief requires. **29 tables** (13 real, plus
-FTS5 internals), **20 triggers**, **21 indexes**.
+a reviewer reads, which is what the brief requires. The built database holds
+**30 tables** — 14 application tables, `schema_meta`, 3 FTS5 virtual tables and
+their 12 shadow tables — with **25 triggers** and **23 indexes**.
 
 Business rules enforced in the database, not only in Python:
 
@@ -267,6 +314,11 @@ Business rules enforced in the database, not only in Python:
 | A direct message cannot be stored | `CHECK (is_direct_message = 0)` |
 | `noise` is not a storable classification | `CHECK (classification IN ...)` |
 | A refusal must state its reason | `trg_sources_reason_required_insert` |
+| A recap cannot be sent with nobody behind it | `trg_followup_send_requires_person` |
+| A service cannot send a recap | `trg_followup_agent_cannot_send` |
+| A draft is born a draft | `trg_followup_insert_is_draft` |
+| A sent message cannot be rewritten | `trg_followup_sent_is_final` |
+| The generated recap text is immutable | `trg_followup_generated_body_immutable` |
 
 The database is a **build artefact**, not source. `make seed` rebuilds it from
 `schema.sql`. Seed data is disposable, so migration tooling that would never be
@@ -317,7 +369,7 @@ APScheduler's `BackgroundScheduler`, started with the application. Two jobs:
 
 | Job | Trigger | What it does |
 |---|---|---|
-| `end_of_day_digest` | cron, 18:00 | One digest per channel, approved items only, every line cited |
+| `end_of_day_digest` | cron, 18:00 | One digest per channel (M10), then one per person who has approved commitments (M13). Approved items only, every line cited |
 | `expiry_sweep` | cron, 02:00 | Pending items older than the window become `expired` |
 
 `/api/digests/schedule` reports next fire times **from the scheduler**, not from
@@ -327,6 +379,14 @@ be read.
 The expiry sweep is the rubric's *"safe default on timeout or no response"*.
 Nothing is ever approved by the passage of time, and a test asserts the approved
 count is unchanged after a sweep.
+
+**Nothing scheduled sends anything.** Channel digests are posted through the
+notifier, which the task catalogue is explicit is not an external write, since
+every line already passed the approval gate. The M12 recap is different: it is
+addressed to people, and M12 says the agent never sends. A test asserts that no
+file under `app/scheduler` so much as mentions follow-ups, because a scheduled
+job that sent a recap would pass every behavioural test and break the one rule
+the capability states.
 
 ---
 
@@ -363,7 +423,9 @@ provider.
   `decision_log.md` L13 as a boundary rather than claimed impossible: the item
   exists but has no `tracker_writes` row, so the accounting shows it for what it
   is.
+- **People are grouped by first name.** Two participants sharing one share a
+  digest. Deliberate, and the digest says which full names it covers, but it is
+  a heuristic standing in for an identity service this build does not have.
 
-Full reasoning for every choice above is in [`decision_log.md`](../decision_log.md),
-91 decisions and 27 recorded limitations. Per-component detail is in
-[`components/`](components/).
+Full reasoning for every choice above is in [`decision_log.md`](../decision_log.md).
+Per-component detail is in [`components/`](components/).

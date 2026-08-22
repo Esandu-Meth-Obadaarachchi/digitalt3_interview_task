@@ -11,13 +11,17 @@ import io
 import json
 
 from app.config import REPO_ROOT
+from app.db import database
 
 
-def test_health_reports_configuration_without_leaking_the_key(client):
+def test_health_reports_configuration_without_leaking_the_key(client, settings):
     body = client.get("/health").json()
 
     assert body["status"] == "ok"
-    assert body["schema_version"] == "1"
+    # Read from the store rather than pinned to a literal. The literal said "1"
+    # and went stale the moment the schema gained a table, which tested the
+    # number rather than the reporting.
+    assert body["schema_version"] == database.schema_version(settings)
     assert body["llm_provider"] == "fake"
     assert set(body) == {
         "status", "schema_version", "llm_provider", "llm_model", "llm_key_present",

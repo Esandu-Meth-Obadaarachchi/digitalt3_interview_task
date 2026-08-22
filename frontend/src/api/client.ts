@@ -16,6 +16,7 @@ import type {
   Extraction,
   ExtractionRun,
   ExtractionType,
+  FollowUpDraft,
   Health,
   IndexStats,
   IngestionOutcome,
@@ -23,6 +24,8 @@ import type {
   Notification,
   OutcomeRecord,
   OutcomeSummary,
+  Person,
+  PersonDigest,
   QueueSummary,
   ReviewEvent,
   ReviewStatus,
@@ -96,6 +99,9 @@ async function upload<T>(path: string, form: FormData): Promise<T> {
 
 const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+
+const put = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) });
 
 function query(params: Record<string, string | number | boolean | undefined>): string {
   const search = new URLSearchParams();
@@ -203,6 +209,27 @@ export const api = {
   runAllDigests: (now?: string) => post<Digest[]>(`/api/digests/run/all${query({ now })}`),
   notifications: (limit?: number) =>
     request<Notification[]>(`/api/digests/posts/log${query({ limit })}`),
+
+  // --- M13 per-person digests -----------------------------------------------
+  people: () => request<Person[]>("/api/digests/people"),
+  personDigest: (key: string, now?: string) =>
+    request<PersonDigest>(`/api/digests/people/${encodeURIComponent(key)}${query({ now })}`),
+  runAllPersonDigests: (now?: string) =>
+    post<PersonDigest[]>(`/api/digests/people/run/all${query({ now })}`),
+
+  // --- M12 follow-up drafts --------------------------------------------------
+  followups: (sourceId?: string) =>
+    request<FollowUpDraft[]>(`/api/followups${query({ source_id: sourceId })}`),
+  previewFollowup: (sourceId: string) =>
+    request<FollowUpDraft>(`/api/followups/preview/${encodeURIComponent(sourceId)}`),
+  createFollowup: (sourceId: string) =>
+    post<FollowUpDraft>(`/api/followups/${encodeURIComponent(sourceId)}`),
+  editFollowup: (draftId: string, body: string, editedBy: string) =>
+    put<FollowUpDraft>(`/api/followups/${encodeURIComponent(draftId)}`, { body, edited_by: editedBy }),
+  /** sent_by has no default anywhere in the stack. A default would be the agent
+   *  sending, which is the one thing M12 says must not happen. */
+  sendFollowup: (draftId: string, sentBy: string, channel: string) =>
+    post<FollowUpDraft>(`/api/followups/${encodeURIComponent(draftId)}/send`, { sent_by: sentBy, channel }),
 
   // --- M11 outcome records --------------------------------------------------
   outcomes: (sourceId?: string) =>

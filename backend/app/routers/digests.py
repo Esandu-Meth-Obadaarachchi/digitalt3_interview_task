@@ -16,9 +16,10 @@ from app.adapters.factory import get_notifier
 from app.adapters.notifier import Notification
 from app.config import get_settings
 from app.db import database
-from app.models.digest import Digest
+from app.models.digest import Digest, PersonDigest
 from app.scheduler import jobs
 from app.scheduler.digest import build_digest, emit_all, emit_digest, scopes
+from app.scheduler.person_digest import build_person_digest, emit_all_people, emit_person_digest, people
 
 router = APIRouter(prefix="/api/digests", tags=["digests"])
 
@@ -37,6 +38,76 @@ def schedule() -> jobs.SchedulerStatus:
 @router.get("/scopes", summary="Every scope a digest can be produced for")
 def list_scopes() -> list[dict[str, str]]:
     return [{"key": key, "title": title} for key, title in scopes(get_settings())]
+
+
+# --- M13, per-person digests -------------------------------------------------
+# Declared before /{scope_key}, because a path parameter matching a single
+# segment would otherwise swallow /people.
+
+
+@router.get("/people", summary="Everyone a digest can be produced for")
+def list_people() -> list[dict]:
+    """Who has approved commitments, and what each grouping covers.
+
+    `aliases` is every owner string collapsed into the person, and `ambiguous`
+    says two different full names share the first name. Both are returned
+    rather than hidden, so the interface shows the grouping instead of asking
+    anybody to take it on trust.
+    """
+    return [
+        {
+            "key": person.key,
+            "display_name": person.display_name,
+            "aliases": person.aliases,
+            "ambiguous": person.ambiguous,
+            "unassigned": person.unassigned,
+        }
+        for person in people(get_settings())
+    ]
+
+
+@router.get("/people/{key}", response_model=PersonDigest, summary="Preview one person's digest")
+def preview_person(
+    key: str,
+    now: datetime | None = Query(default=None, description="clock override"),
+) -> PersonDigest:
+    return build_person_digest(
+        key, get_settings(), now=now, trigger="clock_override" if now else "manual"
+    )
+
+
+@router.get("/people/{key}/markdown", summary="One person's digest as they would read it")
+def person_markdown(key: str, now: datetime | None = Query(default=None)) -> dict[str, str]:
+    digest = build_person_digest(key, get_settings(), now=now)
+    if digest.empty:
+        # M13: a person with no commitments gets no digest. Returning an empty
+        # document would be a digest.
+        raise HTTPException(status_code=404, detail=f"no approved commitments for {key}")
+    return {"person_key": key, "digest_date": digest.digest_date, "markdown": digest.render()}
+
+
+@router.post("/people/{key}", response_model=PersonDigest, summary="Write one person's digest")
+def emit_person(
+    key: str,
+    now: datetime | None = Query(default=None),
+    post: bool | None = Query(default=None),
+) -> PersonDigest:
+    digest = emit_person_digest(
+        key, get_settings(), now=now, trigger="clock_override" if now else "manual", post=post
+    )
+    if digest is None:
+        raise HTTPException(status_code=404, detail=f"no approved commitments for {key}")
+    return digest
+
+
+@router.post("/people/run/all", response_model=list[PersonDigest],
+             summary="Write a digest for everyone who has one")
+def run_all_people(now: datetime | None = Query(default=None)) -> list[PersonDigest]:
+    """Nobody with an empty digest appears in the result, because nobody with
+    an empty digest gets one."""
+    return emit_all_people(
+        get_settings(), now=now, trigger="clock_override" if now else "manual"
+    )
 
 
 @router.get("", summary="Digests already written")
