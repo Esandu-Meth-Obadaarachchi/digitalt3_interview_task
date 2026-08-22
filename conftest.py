@@ -25,10 +25,17 @@ import pytest
 from app.config import REPO_ROOT, Settings, get_settings
 from app.db import database
 
+#: Every path in Settings that a test could write to. All of them, because a
+#: path left out here is a test writing into the developer's real files: the
+#: notifier's log and the document store were missing, so any test reading the
+#: notification log saw 41 posts left by earlier manual runs and any digest
+#: test wrote its output into data/documents/ for real.
 _ENV = {
     "DB_PATH": "test.db",
     "WRITE_LOG_PATH": "write_log/tracker_writes.jsonl",
+    "NOTIFICATION_LOG_PATH": "write_log/notifications.jsonl",
     "DIGEST_OUTPUT_DIR": "digests",
+    "DOCUMENT_STORE_DIR": "documents",
     "OUTCOME_RECORD_DIR": "outcomes",
     "LLM_CACHE_DIR": "llm_cache",
     "AUDIO_DIR": "audio",
