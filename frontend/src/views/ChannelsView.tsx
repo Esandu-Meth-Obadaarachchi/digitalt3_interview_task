@@ -192,6 +192,9 @@ export function ChannelsView() {
                     <Badge tone="warn">unclassified</Badge>
                   )}
                   <span className="font-mono text-[var(--color-muted)]">#{m.channel}</span>
+                  {/* The export's own id, not the namespaced key. It is the one
+                      a person can find again in the source system. */}
+                  <span className="font-mono text-[var(--color-muted)]">{m.external_id}</span>
                   <span className="text-[var(--color-muted)]">{m.author}</span>
                   {m.classification_confidence !== null && (
                     <span className="text-[var(--color-muted)]">

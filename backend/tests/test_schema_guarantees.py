@@ -184,8 +184,9 @@ def test_a_direct_message_cannot_be_stored_at_all(conn):
     _source(conn, "s", consent=1)
     with pytest.raises(sqlite3.IntegrityError, match="is_direct_message"):
         conn.execute(
-            "INSERT INTO chat_messages (id, source_id, channel, author, ts, text, is_direct_message)"
-            " VALUES ('m1', 's', 'dm-thread', 'someone', ?, 'private', 1)",
+            "INSERT INTO chat_messages (id, external_id, source_id, channel, author, ts, text,"
+            " is_direct_message)"
+            " VALUES ('s::m1', 'm1', 's', 'dm-thread', 'someone', ?, 'private', 1)",
             (NOW,),
         )
 
@@ -194,8 +195,9 @@ def test_noise_is_not_a_storable_classification(conn):
     _source(conn, "s", consent=1)
     with pytest.raises(sqlite3.IntegrityError, match="classification"):
         conn.execute(
-            "INSERT INTO chat_messages (id, source_id, channel, author, ts, text, classification)"
-            " VALUES ('m1', 's', 'proj', 'someone', ?, 'lol', 'noise')",
+            "INSERT INTO chat_messages (id, external_id, source_id, channel, author, ts, text,"
+            " classification)"
+            " VALUES ('s::m1', 'm1', 's', 'proj', 'someone', ?, 'lol', 'noise')",
             (NOW,),
         )
 

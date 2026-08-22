@@ -300,7 +300,10 @@ export interface Answer {
 export type SignalClass = "decision" | "blocker" | "question" | "request" | "noise";
 
 export interface StoredMessage {
+  /** Namespaced by source. The primary key. */
   id: string;
+  /** The id the export itself used, and the one worth showing a person. */
+  external_id: string;
   source_id: string;
   channel: string;
   author: string;
