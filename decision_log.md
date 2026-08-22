@@ -1230,3 +1230,66 @@ neither is built or tested.
 messages. That follows `replace_messages`, which is right for re-ingesting the
 same export and wrong if two different exports are given the same id by
 accident. Nothing warns about it.
+
+---
+
+## Phase 11a — A message id is only unique inside its own export
+
+### What happened
+
+Uploading a second chat export returned **500**, `sqlite3.IntegrityError: UNIQUE
+constraint failed: chat_messages.id`. The first export in the store had messages
+`msg_001` upward. So did the second. `chat_messages.id` was the export's own
+identifier used as a global primary key.
+
+Two things were wrong, and the second is worse than the first. Every export tool
+numbers its messages from one, so a collision is the normal case rather than a
+corner case. And it surfaced as an unhandled 500 rather than as a stated
+refusal, which is the failure mode this build is supposed to not have.
+
+### Decisions
+
+**The fix is the convention the codebase already had.** Segments have been
+stored as `source_id::seg0000` since Phase 1, for exactly this reason: the
+identifier is unique inside its own source and nowhere else. Chat messages are
+now `source_id::msg_001`. Rejected: a composite primary key of
+`(source_id, id)`. It would leave `extractions.message_id` ambiguous on its own,
+and every join would need to carry the source alongside it.
+
+**The export's own id is kept, in `external_id`.** Namespacing without keeping
+it would lose the only handle back to the system the message came from. A
+`UNIQUE (source_id, external_id)` constraint keeps one export from containing
+the same id twice.
+
+**Three places had to choose which id they meant.** The model is shown the
+export's id, because it is short and it is the one a person reading the channel
+would recognise, and the mapping back to the stored row happens where the batch
+is already in hand. `extractions.message_id` holds the stored key, because it is
+a reference. The payload holds the export's id, because it is read by people. A
+test asserts both, since they are two different jobs.
+
+**The golden labels were not touched.** The harness keys stored messages by
+`external_id` instead. Correcting hand-written ground truth to accommodate a
+schema change would be the wrong way round, and the same rule applied in Phase 5
+when a golden label was genuinely wrong: labels change only when the source
+says so.
+
+### What this says about the tests
+
+Nothing in 410 tests caught it, and the reason is worth writing down. Every test
+ingested **one** chat export, because the sample data contains one. The property
+"two sources can coexist" was never expressed, so the schema was free to assume
+one. Both regression tests now state it directly: two exports numbering from
+`msg_001` store in full, and re-uploading one leaves the other alone.
+
+This is the third fault of the same shape in this build, after the `.gitignore`
+rules and the test fixture writing to real paths. In each case the code was
+correct for the single case the fixtures exercised, and wrong for the second one
+nobody had.
+
+### Known limitations
+
+**L37.** `schema_version` moves to 3 and there are still no migrations. An
+existing database has to be rebuilt with `make seed` or `make seed-empty`. Fine
+for a review tool where the store is a build artefact, and stated rather than
+hidden.
