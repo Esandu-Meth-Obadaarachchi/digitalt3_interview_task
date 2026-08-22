@@ -43,13 +43,18 @@ export function Panel({
 }) {
   return (
     <section className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)]">
+      {/* The header wraps rather than using shrink-0. Several controls in a
+          narrow column used to push each other under the neighbouring panel,
+          where they could not be reached. */}
       {(title || actions) && (
-        <header className="flex items-start justify-between gap-4 border-b border-[var(--color-line)] px-4 py-3">
-          <div>
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[var(--color-line)] px-4 py-3">
+          <div className="min-w-0">
             {title && <h2 className="text-sm font-semibold">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-xs text-[var(--color-muted)]">{subtitle}</p>}
           </div>
-          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+          {actions && (
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">{actions}</div>
+          )}
         </header>
       )}
       {children}
