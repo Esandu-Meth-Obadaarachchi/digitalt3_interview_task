@@ -162,7 +162,11 @@ export function ChannelsView() {
 
       <Panel
         title="Messages"
-        subtitle="Everything here survived classification"
+        subtitle={
+          unclassified > 0
+            ? "Ingested, not yet classified"
+            : "Everything here survived classification"
+        }
         actions={
           <div className="flex gap-1">
             {FILTERS.map((f) => (
@@ -173,6 +177,19 @@ export function ChannelsView() {
           </div>
         }
       >
+        {/* Ingestion and classification are separate steps on purpose: ingestion
+            needs no model, so it works with no key and no quota. The cost is
+            that a freshly uploaded export looks broken, every message badged
+            unclassified with nothing saying why. This says why. */}
+        {unclassified > 0 && (
+          <p className="border-b border-[var(--color-line)] bg-[var(--color-warn-bg)] px-4 py-2 text-xs">
+            <strong>{unclassified}</strong> message{unclassified === 1 ? "" : "s"} ingested and not yet
+            classified. Ingestion needs no model, so classifying is a separate step: press{" "}
+            <strong>Classify signals</strong> above. Noise is discarded at that point, not before, so
+            everything is still here for now.
+          </p>
+        )}
+
         {messages.length === 0 ? (
           <Empty>
             {unclassified > 0
