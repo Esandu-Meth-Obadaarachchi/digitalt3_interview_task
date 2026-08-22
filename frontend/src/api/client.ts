@@ -132,6 +132,9 @@ export const api = {
     source_id: string;
     title: string;
     consent_flag: boolean;
+    /** transcript or chat_export. The same endpoint and the same consent gate
+     *  serve both; only the parser differs. */
+    source_type?: "transcript" | "chat_export";
     meeting_date?: string;
     participants: string[];
   }) => {
@@ -139,6 +142,7 @@ export const api = {
     form.append("file", input.file);
     form.append("source_id", input.source_id);
     form.append("title", input.title);
+    form.append("source_type", input.source_type ?? "transcript");
     // Sent as a string because the backend field is a bool and FormData has no
     // types. "true"/"false" is what Pydantic parses.
     form.append("consent_flag", String(input.consent_flag));

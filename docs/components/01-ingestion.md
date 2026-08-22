@@ -1,8 +1,9 @@
 # 01 · Ingestion and the consent gate
 
 **Capabilities:** M1 (ingest and normalise a source), M2 (consent gate)
-**Code:** `backend/app/ingestion/` — 2,311 lines
-**Tests:** 46 across `test_consent_gate.py`, `test_transcript_parsers.py`, `test_ingestion_pipeline.py`
+**Code:** `backend/app/ingestion/` — 1,644 lines
+**Tests:** 63 across `test_consent_gate.py` (8), `test_transcript_parsers.py` (18),
+`test_ingestion_pipeline.py` (20), `test_api_sources.py` (17)
 
 ---
 
@@ -154,6 +155,44 @@ defects are now ranked, with `no_parseable_segments` last as the vaguest.
 
 ---
 
+## Two ways in, one gate
+
+| Route | Used by | Declares consent |
+|---|---|---|
+| Manifest | `make seed`, the harness, the test suite | `sample_data/metadata/sources.json` |
+| Upload | `POST /api/sources/upload` | a required form field |
+
+Both kinds of source take the **same endpoint**. A transcript and a chat export
+differ only in which parser reads the bytes: the consent check on the metadata
+before the file is opened, the refusal leaving nothing on disk, and the report
+coming back are identical. A second endpoint would mean **a second copy of the
+gate**, and the gate is the one thing here that must exist exactly once.
+
+`source_type` is a form field with two accepted values, `transcript` and
+`chat_export`. Three details are deliberate:
+
+**The kind is chosen, not sniffed.** The interface asks before the upload rather
+than inferring from the extension. A `.json` file is a perfectly good
+transcript, and guessing wrong would route private channel messages through the
+transcript parser.
+
+**`audio` is named rather than misrouted.** It returns 422 saying audio
+ingestion is not built. Falling through to the transcript parser would report a
+parse failure for a file nothing here can read, which describes the wrong
+problem.
+
+**The field defaults to `transcript`.** Unlike `consent_flag`, which has no
+default at all, a wrong default here costs a readable parse error rather than a
+privacy failure, and callers written before the field keep working.
+
+For an export, the interface shows the **count of direct messages dropped** in
+the result panel. That count is the only trace a direct message was ever seen,
+so it belongs on screen rather than in a report nobody opens. Uploading the
+committed sample export gives 78 messages stored, 12 dropped, none in the
+database.
+
+---
+
 ## One definition of "the text of a source"
 
 ```
@@ -216,7 +255,8 @@ FTS index matches the segment count whatever it is.
 
 ## What it does not do
 
-- **Audio.** `M1` is marked **Partial** in the README for this reason.
+- **Audio.** `M1` is marked **Partial** in the README for this reason. The
+  upload endpoint refuses it by name rather than pretending.
 - **Speaker diarisation** — out of scope per the brief. Labels come from the
   source or are absent; nothing infers who spoke.
 - **Cross-source identity resolution.** "Priya" in one transcript and

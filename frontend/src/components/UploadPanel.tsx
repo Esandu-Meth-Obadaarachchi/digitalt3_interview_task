@@ -1,5 +1,11 @@
 /**
- * Uploading a transcript.
+ * Uploading a source, of either kind.
+ *
+ * A meeting transcript and a chat export take the same route: one endpoint,
+ * one consent gate, different parsers. The choice is the first control on the
+ * form rather than a guess made from the file extension, because a .json file
+ * is a perfectly good transcript and guessing wrong would route private
+ * channel messages through the wrong parser.
  *
  * The consent checkbox starts unchecked and the form cannot be submitted
  * without a decision being made about it. That is the whole reason this
@@ -17,7 +23,17 @@ import { api, ApiFailure } from "../api/client";
 import type { IngestionOutcome } from "../api/types";
 import { Badge, Button, ErrorNote, Field, Panel } from "./ui";
 
-const ACCEPTED = ".txt,.vtt,.json,.md,.log";
+type Kind = "transcript" | "chat_export";
+
+const ACCEPTED: Record<Kind, string> = {
+  transcript: ".txt,.vtt,.json,.md,.log",
+  chat_export: ".json",
+};
+
+const KINDS: { value: Kind; label: string; hint: string }[] = [
+  { value: "transcript", label: "Meeting transcript", hint: "txt, vtt or json. The format is detected from the content." },
+  { value: "chat_export", label: "Channel chat export", hint: "One json file holding every channel. Direct messages are dropped at ingestion." },
+];
 
 function slugify(name: string): string {
   return name
@@ -29,6 +45,7 @@ function slugify(name: string): string {
 }
 
 export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOutcome) => void }) {
+  const [kind, setKind] = useState<Kind>("transcript");
   const [file, setFile] = useState<File | null>(null);
   const [sourceId, setSourceId] = useState("");
   const [title, setTitle] = useState("");
@@ -49,7 +66,8 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
     if (chosen) {
       const slug = slugify(chosen.name);
       const today = new Date().toISOString().slice(0, 10);
-      if (!sourceId) setSourceId(`meeting-${slug}-${today}`);
+      const prefix = kind === "chat_export" ? "chat" : "meeting";
+      if (!sourceId) setSourceId(`${prefix}-${slug}-${today}`);
       if (!title) setTitle(chosen.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "));
     }
   };
@@ -66,6 +84,7 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
         source_id: sourceId.trim(),
         title: title.trim() || file.name,
         consent_flag: consent,
+        source_type: kind,
         meeting_date: meetingDate || undefined,
         participants: participants
           .split(",")
@@ -86,7 +105,27 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
   const ready = Boolean(file) && sourceId.trim().length > 0 && consent !== null && !busy;
 
   return (
-    <Panel title="Upload a transcript" subtitle="txt, vtt or json. The format is detected from the content.">
+    <Panel
+      title="Upload a source"
+      subtitle={KINDS.find((k) => k.value === kind)!.hint}
+      actions={
+        <div className="flex gap-1" role="group" aria-label="What kind of source is this">
+          {KINDS.map((option) => (
+            <Button
+              key={option.value}
+              tone={kind === option.value ? "info" : "neutral"}
+              onClick={() => {
+                setKind(option.value);
+                setOutcome(null);
+                setError(null);
+              }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      }
+    >
       <div className="space-y-3 px-4 py-3">
         <div
           onDragOver={(e) => {
@@ -109,7 +148,7 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
           <input
             ref={input}
             type="file"
-            accept={ACCEPTED}
+            accept={ACCEPTED[kind]}
             className="hidden"
             onChange={(e) => take(e.target.files?.[0] ?? null)}
           />
@@ -119,7 +158,11 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
               <span className="text-[var(--color-muted)]">({file.size.toLocaleString()} bytes)</span>
             </span>
           ) : (
-            <span className="text-[var(--color-muted)]">Drop a transcript here, or click to choose one</span>
+            <span className="text-[var(--color-muted)]">
+              {kind === "chat_export"
+                ? "Drop a channel export here, or click to choose one"
+                : "Drop a transcript here, or click to choose one"}
+            </span>
           )}
         </div>
 
@@ -130,7 +173,7 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
               className="mt-0.5 w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm"
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
-              placeholder="meeting-something-2026-08-21"
+              placeholder={kind === "chat_export" ? "chat-team-2026-08-22" : "meeting-something-2026-08-21"}
             />
           </label>
           <label className="block">
@@ -143,7 +186,10 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
           </label>
           <label className="block">
             <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-              Meeting date <span className="normal-case">(anchors every relative date)</span>
+              {kind === "chat_export" ? "Export date" : "Meeting date"}{" "}
+              <span className="normal-case">
+                {kind === "chat_export" ? "(when the export was taken)" : "(anchors every relative date)"}
+              </span>
             </span>
             <input
               type="date"
@@ -154,7 +200,8 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
           </label>
           <label className="block">
             <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
-              Participants <span className="normal-case">(comma separated)</span>
+              {kind === "chat_export" ? "Channel members" : "Participants"}{" "}
+              <span className="normal-case">(comma separated)</span>
             </span>
             <input
               className="mt-0.5 w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm"
@@ -227,9 +274,30 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
                   {outcome.report.bytes_read.toLocaleString()}
                 </span>
               </Field>
-              <Field label="Segments">{outcome.report.segments_parsed}</Field>
-              <Field label="Format">{outcome.report.origin_format ?? "not read"}</Field>
+              {outcome.source.source_type === "chat_export" ? (
+                <>
+                  <Field label="Messages">{outcome.report.messages_parsed}</Field>
+                  {/* The count is the only trace a direct message was ever seen,
+                      so it is shown rather than buried in the report. */}
+                  <Field label="Direct messages dropped">
+                    <span className="font-semibold text-[var(--color-warn)]">
+                      {outcome.report.direct_messages_excluded}
+                    </span>
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Segments">{outcome.report.segments_parsed}</Field>
+                  <Field label="Format">{outcome.report.origin_format ?? "not read"}</Field>
+                </>
+              )}
             </div>
+            {outcome.source.source_type === "chat_export" && outcome.source.status === "ingested" && (
+              <p className="mt-2 text-xs text-[var(--color-muted)]">
+                Classify the messages on the Channels tab. Ingestion needs no model, so this much works
+                with no key and no quota.
+              </p>
+            )}
             {(outcome.source.refusal_reason || outcome.source.error_detail) && (
               <p className="mt-2 text-xs text-[var(--color-bad)]">
                 {outcome.source.refusal_reason ?? outcome.source.error_detail}

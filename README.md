@@ -19,7 +19,7 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 | ID  | Capability                       | Priority | Status    | Note |
 |-----|----------------------------------|----------|-----------|------|
-| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts done and tested. Audio transcription **not built** |
+| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts, and chat exports, uploadable through the interface or the manifest. Audio transcription **not built**, and refused by name |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
 | M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
 | M4  | Extract decisions                | MUST     | Done      | Measured. All 3 golden decisions found, the proposed-then-deferred item correctly absent |
@@ -27,7 +27,7 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
 | M8  | Cross-source question answering  | MUST     | Done      | Measured. 5/5 correct source, 5/5 answers carrying a verified citation, refuses the unanswerable |
-| M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records |
+| M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records. An export can be uploaded, not only seeded |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Done      | Real APScheduler, two jobs, clock override. Approved items only, every line cited |
 | M11 | Structured outcome record        | SHOULD   | Done      | Versioned, approved items only, schema published at docs/outcome_schema.json |
 | M12 | Follow-up message draft          | COULD    | Done      | Rendered from approved items, never written by the model. A person edits and sends it. A blank or service `sent_by` is refused four ways |
@@ -261,7 +261,7 @@ backend/app/adapters/                3 interfaces, 3 mocks, one factory
 backend/app/routers/                 thin HTTP, 8 routers
 frontend/src/                        React 19 + TypeScript + Tailwind, 8 views
 eval/harness.py golden.py            the golden cases and the scoring
-backend/tests/ eval/                 404 passing tests, counted by make test-inventory
+backend/tests/ eval/                 410 passing tests, counted by make test-inventory
 scripts/                             seed, check-env, llm-smoke, verify-clone, fixtures
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```
