@@ -89,40 +89,48 @@ export function ReviewView({ reviewer }: { reviewer: string }) {
 
       <ErrorNote error={error} />
 
+      {/* Full width, above the columns. Ten controls in the Queue panel header
+          overflowed a half-width column and disappeared under the Item panel,
+          which hid the status filter entirely. The two groups are labelled
+          because "Decisions" and "Pending" answer different questions. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">Type</span>
+          {KIND_FILTERS.map((option) => (
+            <Button
+              key={option.value || "all"}
+              tone={kind === option.value ? "ok" : "neutral"}
+              onClick={() => {
+                setKind(option.value);
+                setSelected(null);
+              }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-[11px] uppercase tracking-wide text-[var(--color-muted)]">Status</span>
+          {FILTERS.map((option) => (
+            <Button
+              key={option.value || "any"}
+              tone={filter === option.value ? "info" : "neutral"}
+              onClick={() => {
+                setFilter(option.value);
+                setSelected(null);
+              }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        <span className="ml-auto text-xs text-[var(--color-muted)]">
+          {items.length} item{items.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Panel
-          title="Queue"
-          subtitle="Unverified quotes sort first"
-          actions={
-            <div className="flex flex-wrap justify-end gap-1">
-              {KIND_FILTERS.map((option) => (
-                <Button
-                  key={option.value || "all"}
-                  tone={kind === option.value ? "ok" : "neutral"}
-                  onClick={() => {
-                    setKind(option.value);
-                    setSelected(null);
-                  }}
-                >
-                  {option.label}
-                </Button>
-              ))}
-              <span className="mx-1 w-px self-stretch bg-[var(--color-line)]" />
-              {FILTERS.map((option) => (
-                <Button
-                  key={option.value || "any"}
-                  tone={filter === option.value ? "info" : "neutral"}
-                  onClick={() => {
-                    setFilter(option.value);
-                    setSelected(null);
-                  }}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          }
-        >
+        <Panel title="Queue" subtitle="Unverified quotes sort first">
           {items.length === 0 ? (
             <Empty>Nothing here. Extract a source to fill the queue.</Empty>
           ) : (
