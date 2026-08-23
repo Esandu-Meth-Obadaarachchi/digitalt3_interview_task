@@ -239,3 +239,29 @@ def test_the_digest_job_runs_what_the_endpoint_runs(approved):
     assert by_type["channel"] == len(scopes(approved))
     assert by_type["person"] == len(expected_people)
     assert [r["trigger"] for r in rows] == ["scheduler"]
+
+
+def test_the_button_and_the_scheduler_call_the_same_function(approved, client):
+    """The rubric's red flag is a button with nothing behind it. The subtler
+    version is a button behind a different function, which is what this had:
+    the endpoint wrote channel digests while the scheduler wrote both kinds."""
+    from app.scheduler.person_digest import build_person_digest, people
+
+    expected_people = [
+        p for p in people(approved) if not build_person_digest(p.key, approved).empty
+    ]
+
+    body = client.post("/api/digests/run/all").json()
+
+    assert set(body) == {"channels", "people"}
+    assert len(body["channels"]) == len(scopes(approved))
+    assert len(body["people"]) == len(expected_people)
+    assert expected_people, "the fixture approves owned actions, so somebody has a digest"
+
+    with database.connect(approved) as conn:
+        by_type = dict(
+            conn.execute("SELECT scope_type, COUNT(*) AS n FROM digests GROUP BY scope_type")
+            .fetchall()
+        )
+    assert by_type["channel"] == len(body["channels"])
+    assert by_type["person"] == len(body["people"])

@@ -38,6 +38,7 @@ export function OutputsView() {
   const [records, setRecords] = useState<OutcomeSummary[]>([]);
   const [record, setRecord] = useState<OutcomeRecord | null>(null);
   const [busy, setBusy] = useState("");
+  const [lastRun, setLastRun] = useState("");
   const [error, setError] = useState<{ code?: string; message: string } | null>(null);
 
   const fail = (exc: unknown) =>
@@ -71,7 +72,10 @@ export function OutputsView() {
     setError(null);
     try {
       const all = await api.runAllDigests(when ? new Date(when).toISOString() : undefined);
-      setDigest(all.find((d) => d.scope_key === scope) ?? all[0] ?? null);
+      // Both kinds are written. The panel shows a channel digest, so the person
+      // digests are reported as a count rather than silently dropped.
+      setDigest(all.channels.find((d) => d.scope_key === scope) ?? all.channels[0] ?? null);
+      setLastRun(`${all.channels.length} channel digest(s) and ${all.people.length} person digest(s) written`);
       api.notifications(20).then(setPosts);
     } catch (exc) {
       fail(exc);
@@ -172,7 +176,7 @@ export function OutputsView() {
               tone="ok"
               disabled={Boolean(busy)}
               onClick={runAll}
-              title="Runs the same function the scheduler runs at the configured hour."
+              title="Runs the same function the scheduler runs at the configured hour: one digest per channel, then one per person."
             >
               Run the job now
             </Button>
@@ -184,6 +188,12 @@ export function OutputsView() {
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--color-line)] border-t-[var(--color-info)]" />
             {busy}…
           </div>
+        )}
+
+        {lastRun && !busy && (
+          <p className="border-b border-[var(--color-line)] bg-[var(--color-ok-bg)] px-4 py-2 text-xs">
+            {lastRun}. Person digests are on the People &amp; recaps tab.
+          </p>
         )}
 
         {!digest && !busy && <Empty>Preview a digest to see it.</Empty>}

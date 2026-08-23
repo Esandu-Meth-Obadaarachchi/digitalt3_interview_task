@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.db import database
 from app.models.digest import Digest, PersonDigest
 from app.scheduler import jobs
-from app.scheduler.digest import build_digest, emit_all, emit_digest, scopes
+from app.scheduler.digest import build_digest, emit_digest, scopes
 from app.scheduler.person_digest import build_person_digest, emit_all_people, emit_person_digest, people
 
 router = APIRouter(prefix="/api/digests", tags=["digests"])
@@ -151,14 +151,18 @@ def emit(
     )
 
 
-@router.post("/run/all", response_model=list[Digest], summary="Run the whole scheduled job now")
-def run_all(now: datetime | None = Query(default=None)) -> list[Digest]:
+@router.post("/run/all", response_model=jobs.EndOfDayResult, summary="Run the whole scheduled job now")
+def run_all(now: datetime | None = Query(default=None)) -> jobs.EndOfDayResult:
     """Exactly what the scheduler runs at the configured hour.
 
-    Same function, same arguments, different trigger label, so what is
-    demonstrated is what runs unattended rather than a parallel path.
+    The same function, so both kinds of digest are written: one per channel and
+    one per person holding approved commitments. Only the trigger label and the
+    clock differ. This endpoint used to call the channel half on its own, which
+    quietly made the demonstration a parallel path.
     """
-    return emit_all(get_settings(), now=now, trigger="clock_override" if now else "manual")
+    return jobs.run_end_of_day(
+        get_settings(), now=now, trigger="clock_override" if now else "manual"
+    )
 
 
 @router.get("/posts/log", response_model=list[Notification], summary="What would have been posted")

@@ -13,6 +13,7 @@ import type {
   ChatSummary,
   Chunk,
   Digest,
+  EndOfDayResult,
   Extraction,
   ExtractionRun,
   ExtractionType,
@@ -210,7 +211,7 @@ export const api = {
     request<{ scope_key: string; digest_date: string; markdown: string }>(
       `/api/digests/${encodeURIComponent(scope)}/markdown${query({ now })}`,
     ),
-  runAllDigests: (now?: string) => post<Digest[]>(`/api/digests/run/all${query({ now })}`),
+  runAllDigests: (now?: string) => post<EndOfDayResult>(`/api/digests/run/all${query({ now })}`),
   notifications: (limit?: number) =>
     request<Notification[]>(`/api/digests/posts/log${query({ limit })}`),
 

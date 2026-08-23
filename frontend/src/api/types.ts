@@ -431,6 +431,13 @@ export interface FollowUpDraft {
   lines: FollowUpLine[];
 }
 
+/** What one run of the end-of-day job wrote. Both kinds, because the button in
+ *  the interface calls the same function the scheduler calls. */
+export interface EndOfDayResult {
+  channels: Digest[];
+  people: PersonDigest[];
+}
+
 export interface ScheduledJob {
   id: string;
   name: string;
