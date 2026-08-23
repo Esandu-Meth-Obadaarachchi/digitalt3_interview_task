@@ -1293,3 +1293,38 @@ nobody had.
 existing database has to be rebuilt with `make seed` or `make seed-empty`. Fine
 for a review tool where the store is a build artefact, and stated rather than
 hidden.
+
+
+---
+
+## Phase 11d — The demo button and the scheduled job had drifted apart
+
+**What happened.** `POST /api/digests/run/all` carried the docstring *"exactly
+what the scheduler runs at the configured hour"* and called `emit_all`, which
+writes channel digests only. Since Phase 10 the scheduled job has written
+channel digests **and then** person digests. The claim had been false for two
+phases, and the button in the interface demonstrated a path nothing runs
+unattended.
+
+**Why it matters more than it looks.** The rubric's stated red flag is a button
+with no scheduler behind it. This is the quieter version: a button behind a real
+function, but not the same one. The obvious version is visible in the code. This
+one is only visible by reading two files side by side and noticing they disagree.
+
+**The fix.** One function, `jobs.run_end_of_day`, returning what it wrote as
+`{channels, people}`. The scheduler calls it with trigger `scheduler`. The
+endpoint calls it with an injectable clock and a different label. Nothing else
+differs, so the claim is true again by construction rather than by discipline.
+
+**The test states the property, not the call.** The endpoint's response and the
+`digests` table have to agree on both kinds. An endpoint narrowing again fails
+it, which the previous test could not do because it only counted channels.
+
+**How it was found.** By being asked what the button does, and reading the code
+to answer rather than answering from memory. Two of the last four faults in this
+build surfaced the same way: not by a test, and not by using the interface, but
+by having to explain a claim precisely enough to check it.
+
+**L38.** The same drift is possible anywhere a demo control and a scheduled path
+are wired separately. Nothing structural prevents it. The guard here is one
+shared function and one test, applied to this pair only.
