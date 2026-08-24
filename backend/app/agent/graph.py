@@ -37,7 +37,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
 from app.agent.model import get_chat_model
-from app.agent.tools import TOOLS, TOOLS_BY_NAME
+from app.agent.tools import TOOLS, TOOLS_BY_NAME, scope_label, set_scope
 from app.config import Settings, get_settings
 from app.models.agent import AgentRun, ToolCall
 
@@ -178,9 +178,16 @@ def run_agent(
     settings: Settings | None = None,
     *,
     max_steps: int | None = None,
+    sources: set[str] | None = None,
 ) -> AgentRun:
-    """One instruction, run to an answer or to the end of the budget."""
+    """One instruction, run to an answer or to the end of the budget.
+
+    `sources` is a hard ceiling on what the tools may read. It is enforced
+    inside the tools rather than asked for in the prompt, so a model that
+    forgets the instruction still cannot reach another project.
+    """
     cfg = settings or get_settings()
+    set_scope(sources)
     run_id = str(uuid.uuid4())
     budget = max_steps or cfg.agent_max_steps
     started = time.perf_counter()
@@ -193,6 +200,7 @@ def run_agent(
         instruction=instruction,
         step_budget=budget,
         tools_available=list(TOOLS_BY_NAME),
+        scope=sorted(sources) if sources else [],
         provider=cfg.agent_provider,
         model=cfg.gemini_model if cfg.agent_provider == "gemini" else "scripted",
         started_at=datetime.now(timezone.utc).isoformat(),
@@ -201,7 +209,18 @@ def run_agent(
     try:
         final = machine.invoke(
             {
-                "messages": [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=instruction)],
+                "messages": [
+                    SystemMessage(content=SYSTEM_PROMPT),
+                    SystemMessage(
+                        content=(
+                            f"SCOPE: this run may read {scope_label()}. The tools enforce it, "
+                            f"so a call outside it is refused rather than answered. Use "
+                            f"focus_on_source to narrow further once you know which source "
+                            f"matters."
+                        )
+                    ),
+                    HumanMessage(content=instruction),
+                ],
                 "steps": 0,
                 "budget": budget,
                 "trace": [],

@@ -138,13 +138,19 @@ def answer_question(
     *,
     mode: str | None = None,
     limit: int | None = None,
+    sources: set[str] | None = None,
 ) -> Answer:
-    """Answer from stored content, or say it cannot be answered."""
+    """Answer from stored content, or say it cannot be answered.
+
+    `sources` narrows retrieval by metadata before ranking, so a scoped run
+    gets the best passages in scope rather than the best in the corpus that
+    happen to be in scope.
+    """
     cfg = settings or get_settings()
     started = time.perf_counter()
     chosen_mode = mode or cfg.retrieval_mode
 
-    hits = search(question, cfg, mode=chosen_mode, limit=limit)
+    hits = search(question, cfg, mode=chosen_mode, limit=limit, sources=sources)
     if not hits:
         return _not_found(
             question, chosen_mode, hits,

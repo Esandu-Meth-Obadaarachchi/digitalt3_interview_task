@@ -46,6 +46,8 @@ class AgentRun(StrictModel):
     steps_used: int = 0
     step_budget: int = 0
     tools_available: list[str] = Field(default_factory=list)
+    #: The sources this run was allowed to read. Empty means every source.
+    scope: list[str] = Field(default_factory=list)
 
     provider: str = ""
     model: str = ""

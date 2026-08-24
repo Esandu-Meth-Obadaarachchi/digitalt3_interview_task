@@ -299,3 +299,103 @@ def test_the_transcript_search_says_it_does_not_cover_chat(agent_settings):
     from app.agent.tools import search_transcripts
 
     assert "does NOT cover chat" in search_transcripts.description
+
+
+# --- scope: metadata filtering, enforced rather than requested -----------------
+
+HOTEL = "meeting-hotel-kickoff-2026-09-15"
+
+
+def test_a_scoped_run_cannot_read_another_source(agent_settings):
+    """The point of enforcing it in the tools rather than asking in the prompt:
+    a model that ignores the instruction still cannot reach the other project."""
+    set_script([
+        call("read_transcript", source_id=HOTEL),
+        call("search_transcripts", query="refactor"),
+        AIMessage(content="scoped"),
+    ])
+
+    run = run_agent("read the sprint planning", agent_settings, sources={SPRINT})
+
+    assert run.scope == [SPRINT]
+    assert "REFUSED" in run.steps[0].observation
+    assert HOTEL in run.steps[0].observation
+    assert "hotel" not in run.steps[1].observation.lower()
+
+
+def test_an_unscoped_run_reads_everything(agent_settings):
+    set_script([call("list_sources"), AIMessage(content="all of them")])
+
+    run = run_agent("what is stored", agent_settings)
+
+    assert run.scope == []
+    assert SPRINT in run.steps[0].observation
+    assert HOTEL in run.steps[0].observation
+
+
+def test_the_agent_may_narrow_within_its_scope(agent_settings):
+    set_script([
+        call("focus_on_source", source_id=HOTEL),
+        call("search_transcripts", query="booking"),
+        AIMessage(content="narrowed"),
+    ])
+
+    run = run_agent("look at the hotel one", agent_settings)
+
+    assert "focused on" in run.steps[0].observation
+    assert all(SPRINT not in line for line in run.steps[1].observation.splitlines())
+
+
+def test_the_agent_cannot_widen_past_its_ceiling(agent_settings):
+    """A run can be narrowed and never widened, which is the same shape as
+    every other rule here: freedom inside a boundary a person drew."""
+    set_script([call("focus_on_source", source_id=HOTEL), AIMessage(content="refused")])
+
+    run = run_agent("try to escape", agent_settings, sources={SPRINT})
+
+    assert "REFUSED" in run.steps[0].observation
+    assert "never widened" in run.steps[0].observation
+
+
+def test_clearing_the_focus_returns_to_the_ceiling_not_to_everything(agent_settings):
+    set_script([
+        call("focus_on_source", source_id=SPRINT),
+        call("focus_on_source", source_id=""),
+        call("list_sources"),
+        AIMessage(content="back"),
+    ])
+
+    run = run_agent("narrow then widen", agent_settings, sources={SPRINT})
+
+    assert "focus cleared" in run.steps[1].observation
+    assert HOTEL not in run.steps[2].observation, "clearing focus must not escape the ceiling"
+
+
+def test_a_proposal_outside_the_scope_is_refused(agent_settings):
+    set_script([
+        call("propose_action_item", source_id=HOTEL, what="x", verbatim_quote="y"),
+        AIMessage(content="refused"),
+    ])
+
+    run = run_agent("propose into the other project", agent_settings, sources={SPRINT})
+
+    assert "outside this run's scope" in run.steps[0].observation
+
+
+def test_retrieval_narrows_before_ranking_not_after(settings, scripted_model):
+    """A metadata filter applied after the query returns the best matches in the
+    corpus that happen to be in scope. Applied in the query, it returns the best
+    matches in scope, which is a different and better list."""
+    from app.retrieval.search import keyword_search
+    from app.db import database
+    from app.ingestion.service import ingest_from_manifest
+
+    ingest_from_manifest(settings)
+
+    with database.connect(settings) as conn:
+        wide = keyword_search(conn, "the", 3)
+        narrow = keyword_search(conn, "the", 3, sources={SPRINT})
+
+    assert len(narrow) == 3, "the scoped query still fills its limit"
+    assert {h.source_id for h in narrow} == {SPRINT}
+    assert len(wide) == 3

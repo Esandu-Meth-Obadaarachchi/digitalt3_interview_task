@@ -33,6 +33,10 @@ from app.db import database
 from app.models.common import StrictModel
 from app.retrieval.vector_index import VectorIndex
 
+#: How far the dense half over-fetches when a scope is set, so the filter
+#: still leaves `limit` results. See dense_search.
+DENSE_SCOPE_OVERFETCH = 10
+
 logger = logging.getLogger("agent.retrieval")
 
 _WORD = re.compile(r"[A-Za-z0-9']+")
@@ -92,14 +96,34 @@ def to_fts_query(question: str) -> str:
     return " OR ".join(f'"{w}"*' for w in words) if words else '""'
 
 
-def keyword_search(conn: sqlite3.Connection, question: str, limit: int) -> list[SearchHit]:
-    """BM25 over segments and approved extractions.
+def _source_clause(sources: set[str] | None, column: str) -> tuple[str, list]:
+    """A metadata filter, as SQL rather than as a filter applied afterwards.
+
+    Narrowing before the ranking matters: BM25 ranks within what it was given,
+    so filtering after the query returns the best matches in the corpus that
+    happen to be in scope, rather than the best matches in scope.
+    """
+    if not sources:
+        return "", []
+    placeholders = ",".join("?" for _ in sources)
+    return f" AND {column} IN ({placeholders})", list(sources)
+
+
+def keyword_search(
+    conn: sqlite3.Connection,
+    question: str,
+    limit: int,
+    sources: set[str] | None = None,
+) -> list[SearchHit]:
+    """BM25 over segments and approved extractions, optionally within a scope.
 
     bm25() returns a smaller number for a better match, so it is negated to
     give a score that sorts the same way as a cosine similarity.
     """
     match = to_fts_query(question)
     hits: list[SearchHit] = []
+    seg_filter, seg_params = _source_clause(sources, "s.source_id")
+    ext_filter, ext_params = _source_clause(sources, "e.source_id")
 
     try:
         rows = conn.execute(
@@ -108,9 +132,9 @@ def keyword_search(conn: sqlite3.Connection, question: str, limit: int) -> list[
             " FROM segments_fts"
             " JOIN segments s ON s.rowid = segments_fts.rowid"
             " JOIN sources src ON src.id = s.source_id"
-            " WHERE segments_fts MATCH ? AND src.consent_flag = 1"
+            " WHERE segments_fts MATCH ? AND src.consent_flag = 1" + seg_filter +
             " ORDER BY rank LIMIT ?",
-            (match, limit),
+            (match, *seg_params, limit),
         ).fetchall()
     except sqlite3.OperationalError as exc:
         logger.warning("keyword query rejected by FTS5: %s", exc)
@@ -139,9 +163,9 @@ def keyword_search(conn: sqlite3.Connection, question: str, limit: int) -> list[
             " FROM extractions_fts"
             " JOIN extractions e ON e.rowid = extractions_fts.rowid"
             " JOIN sources src ON src.id = e.source_id"
-            " WHERE extractions_fts MATCH ? AND e.status = 'approved'"
+            " WHERE extractions_fts MATCH ? AND e.status = 'approved'" + ext_filter +
             " ORDER BY rank LIMIT ?",
-            (match, limit),
+            (match, *ext_params, limit),
         ).fetchall()
     except sqlite3.OperationalError:
         rows = []
@@ -168,20 +192,41 @@ def keyword_search(conn: sqlite3.Connection, question: str, limit: int) -> list[
     return hits[:limit]
 
 
-def dense_search(conn: sqlite3.Connection, question: str, limit: int, settings: Settings) -> list[SearchHit]:
+def dense_search(
+    conn: sqlite3.Connection,
+    question: str,
+    limit: int,
+    settings: Settings,
+    sources: set[str] | None = None,
+) -> list[SearchHit]:
+    """Cosine over the vector index, optionally within a scope.
+
+    IndexFlatIP holds vectors and nothing else, so unlike the keyword half
+    there is no metadata to filter on inside the index. The filter is applied
+    after the search and the fetch widens to compensate, because asking for 8
+    and discarding the out-of-scope ones returns fewer than 8. The multiplier
+    is bounded: at this corpus size scanning the whole index is cheap, and a
+    real deployment would use a FAISS IDSelector or one index per tenant.
+    """
     index = VectorIndex(settings)
     if not index.ready():
         logger.info("no vector index built, dense retrieval returns nothing")
         return []
 
+    fetch = limit if not sources else limit * DENSE_SCOPE_OVERFETCH
+
     hits: list[SearchHit] = []
-    for rank, (ref_type, ref_id, score) in enumerate(index.search(question, limit), start=1):
+    for _, (ref_type, ref_id, score) in enumerate(index.search(question, fetch), start=1):
         hit = _hydrate(conn, ref_type, ref_id)
         if hit is None:
             continue
+        if sources and hit.source_id not in sources:
+            continue
         hit.dense_score = score
-        hit.dense_rank = rank
+        hit.dense_rank = len(hits) + 1
         hits.append(hit)
+        if len(hits) >= limit:
+            break
     return hits
 
 
@@ -332,6 +377,7 @@ def search(
     mode: str | None = None,
     limit: int | None = None,
     neighbours: int | None = None,
+    sources: set[str] | None = None,
 ) -> list[SearchHit]:
     """Retrieve, by whichever mode is configured or asked for.
 
@@ -347,11 +393,11 @@ def search(
 
     with database.connect(cfg) as conn:
         if chosen == "keyword":
-            hits = keyword_search(conn, question, top_k)
+            hits = keyword_search(conn, question, top_k, sources)
             for hit in hits:
                 hit.score = hit.keyword_score or 0.0
         elif chosen == "dense":
-            hits = dense_search(conn, question, top_k, cfg)
+            hits = dense_search(conn, question, top_k, cfg, sources)
             for hit in hits:
                 hit.score = hit.dense_score or 0.0
         else:
@@ -359,7 +405,10 @@ def search(
             # ranked mid-table by both still has the chance to win on fusion.
             wide = top_k * 3
             hits = reciprocal_rank_fusion(
-                [keyword_search(conn, question, wide), dense_search(conn, question, wide, cfg)],
+                [
+                    keyword_search(conn, question, wide, sources),
+                    dense_search(conn, question, wide, cfg, sources),
+                ],
                 k=cfg.rrf_k,
                 limit=top_k,
             )
