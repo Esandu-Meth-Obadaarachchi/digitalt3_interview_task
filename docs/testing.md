@@ -204,11 +204,12 @@ surface.
 | Prompts and chunking | 14 | `test_prompts_and_chunking.py` |
 | M11 outcome records | 13 | `test_outcome_records.py` |
 | Provider swappability | 12 | `test_llm_providers.py` |
-| HTTP surface, both upload kinds | 17 | `test_api_sources.py` |
+| HTTP surface, all three upload kinds | 18 | `test_api_sources.py` |
 | M4 decisions, golden case 5 | 11 | `test_decision_extraction.py` |
 | M5 risks, severity defensibility | 10 | `test_risk_extraction.py` |
 | M2 consent gate | 8 | `test_consent_gate.py` |
-| **Total** | **410** | `make test-inventory` |
+| M1 audio, and the worker boundary | 34 | `test_audio_ingestion.py` |
+| **Total** | **448** | `make test-inventory` |
 
 The counts come from `make test-inventory`, which exists because they were
 stated from memory twice and were wrong twice.
@@ -223,5 +224,9 @@ stated from memory twice and were wrong twice.
 - **The React interface** has no automated tests. A deliberate cut: the brief
   awards no marks for the interface and the review surface is exercised through
   the API tests underneath it. Recorded in `decision_log.md`.
+- **Whisper itself** is never loaded by a test. The suite runs against the
+  stub, so it never downloads a 140MB model or depends on a machine having
+  audio libraries. The real path is covered at its boundary: the worker's
+  output mapping, an error payload, and a worker killed with no output.
 - **Ollama** has never been run against a live daemon on this machine. The
   class is written and its unreachable path is tested. `L8`.

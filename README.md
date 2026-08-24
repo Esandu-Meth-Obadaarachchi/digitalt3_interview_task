@@ -8,8 +8,7 @@ approves it.
 Built for the DigitalT3 intern selection challenge. The brief is committed at
 [`docs/challenge/`](docs/challenge/).
 
-> **Status: all 7 MUST, all 4 SHOULD and both COULD capabilities run end to
-> end, M1 partially.** This README is rewritten from the code at the end
+> **Status: all 13 capabilities run end to end.** 7 MUST, 4 SHOULD, 2 COULD. This README is rewritten from the code at the end
 > of every phase. The table below reports what runs today, not what is planned.
 > Nothing is marked Done until it runs end to end on the sample data.
 
@@ -19,7 +18,7 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 | ID  | Capability                       | Priority | Status    | Note |
 |-----|----------------------------------|----------|-----------|------|
-| M1  | Ingest and normalise a source    | MUST     | Partial   | txt, vtt and json transcripts, and chat exports, uploadable through the interface or the manifest. Audio transcription **not built**, and refused by name |
+| M1  | Ingest and normalise a source    | MUST     | Done      | txt, vtt, json, chat exports **and audio**. Whisper runs in a worker process, produces no speaker labels, and says so on every record |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
 | M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
 | M4  | Extract decisions                | MUST     | Done      | Measured. All 3 golden decisions found, the proposed-then-deferred item correctly absent |
@@ -238,6 +237,7 @@ backend/app/config.py errors.py      typed settings, domain errors
 backend/app/db/                      connection, transaction, 7 repositories
 backend/app/models/                  9 Pydantic contracts, all strict
 backend/app/ingestion/               M1 parsers, M2 consent gate, validation
+backend/app/audio/                   M1 audio, whisper in a worker process
 backend/app/extraction/
   prompts.py                         versioned prompt loading, hash-tagged
   chunker.py                         segment-boundary chunks with context
@@ -261,7 +261,7 @@ backend/app/adapters/                3 interfaces, 3 mocks, one factory
 backend/app/routers/                 thin HTTP, 8 routers
 frontend/src/                        React 19 + TypeScript + Tailwind, 8 views
 eval/harness.py golden.py            the golden cases and the scoring
-backend/tests/ eval/                 410 passing tests, counted by make test-inventory
+backend/tests/ eval/                 448 passing tests, counted by make test-inventory
 scripts/                             seed, check-env, llm-smoke, verify-clone, fixtures
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```

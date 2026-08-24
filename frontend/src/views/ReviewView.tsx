@@ -149,7 +149,14 @@ export function ReviewView({ reviewer }: { reviewer: string }) {
                       <div className="flex items-start justify-between gap-3">
                         <span className="text-sm">{view.headline(item.payload)}</span>
                         <div className="flex shrink-0 gap-1">
-                          <Badge>{view.label}</Badge>
+                          {(() => {
+                            const badge = view.badge?.(item.payload);
+                            return badge ? (
+                              <Badge tone={badge.tone}>{badge.label}</Badge>
+                            ) : (
+                              <Badge>{view.label}</Badge>
+                            );
+                          })()}
                           {!item.quote_verified && <Badge tone="bad">unverified</Badge>}
                           <Badge tone={STATUS_TONE[item.status]}>{item.status}</Badge>
                         </div>

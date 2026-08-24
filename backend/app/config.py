@@ -119,7 +119,10 @@ class Settings(BaseSettings):
     #: everybody in it, so person digests are written and not posted by default.
     post_person_digests: bool = False
 
-    # --- Audio ---------------------------------------------------------------
+    # --- Audio (M1) ----------------------------------------------------------
+    #: whisper transcribes for real. fake is a deterministic stub used by the
+    #: test suite, so no test downloads a model or needs audio libraries.
+    audio_provider: Literal["whisper", "fake"] = "whisper"
     whisper_model: str = "base"
     whisper_compute_type: str = "int8"
     whisper_enabled: bool = True

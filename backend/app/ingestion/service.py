@@ -18,6 +18,8 @@ whole file has parsed and validated, inside one transaction.
 
 from __future__ import annotations
 
+import logging
+
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +34,8 @@ from app.ingestion.validator import summarise, validate
 from app.models.common import SourceStatus, SourceType, StrictModel
 from app.models.ingestion import Defect, DefectCode, DefectSeverity, TranscriptFormat
 from app.models.source import IngestionReport, Segment, Source, SourceMetadata
+
+logger = logging.getLogger("agent.ingestion")
 
 
 class IngestionOutcome(StrictModel):
@@ -244,6 +248,151 @@ def _persist(outcome: IngestionOutcome, settings: Settings) -> None:
         source_repo.upsert_source(conn, outcome.source)
         segment_repo.replace_segments(conn, outcome.source.id, outcome.segments)
         source_repo.save_ingestion_report(conn, outcome.report)
+
+
+def ingest_audio(
+    metadata: SourceMetadata,
+    path: Path | None = None,
+    settings: Settings | None = None,
+    *,
+    persist: bool = True,
+) -> IngestionOutcome:
+    """M1 audio. Same gate, same validation, same storage, a different parser.
+
+    The transcriber produces RawSegments, so everything downstream of it is the
+    text pipeline unchanged: validate, normalise, character offsets, quote
+    verification. Audio adds an input rather than a second pipeline.
+
+    Two properties of a machine transcript are recorded rather than smoothed
+    over. There are no speaker labels, because whisper does not diarise and
+    guessing from context would be inventing an attribution. And the words are
+    a model's best guess, so a warning saying so is attached to every audio
+    source and the model that produced it is named on the report.
+    """
+    import hashlib
+
+    from app.audio.transcribe import get_transcriber, looks_like_audio
+
+    cfg = settings or get_settings()
+
+    # --- 1. Consent gate, before the file is opened -------------------------
+    decision = evaluate_consent(metadata)
+    if decision.refused:
+        outcome = _refusal(metadata, decision.reason, decision)
+        if persist:
+            _persist(outcome, cfg)
+        return outcome
+
+    resolved = path or (cfg.sample_data_dir / (metadata.file_path or ""))
+
+    def failed(reason: str, size: int = 0) -> IngestionOutcome:
+        source = Source(
+            id=metadata.id,
+            title=metadata.title,
+            source_type=metadata.source_type,
+            meeting_date=metadata.meeting_date,
+            participants=metadata.participants,
+            consent_flag=metadata.consent_flag,
+            origin_format=TranscriptFormat.AUDIO.value,
+            file_path=metadata.file_path,
+            ingested_at=_now(),
+            status=SourceStatus.ERROR,
+            error_detail=reason,
+        )
+        report = IngestionReport(
+            source_id=metadata.id,
+            ok=False,
+            status=SourceStatus.ERROR,
+            consent=decision,
+            origin_format=TranscriptFormat.AUDIO.value,
+            bytes_read=size,
+            segments_parsed=0,
+            rejection_reason=reason,
+        )
+        outcome = IngestionOutcome(source=source, report=report, segments=[])
+        if persist:
+            _persist(outcome, cfg)
+        return outcome
+
+    if not resolved.exists():
+        return failed(f"no file at {resolved}")
+    if not looks_like_audio(resolved):
+        # Refused by name rather than handed to a decoder to fail on, so the
+        # message names the real problem.
+        return failed(
+            f"{resolved.suffix or 'this file'} is not an audio format this build reads. "
+            f"Upload it as a transcript, or convert it first."
+        )
+
+    transcriber = get_transcriber(cfg)
+    usable, detail = transcriber.available()
+    if not cfg.whisper_enabled:
+        return failed("audio transcription is switched off by configuration")
+    if not usable:
+        return failed(detail)
+
+    size = resolved.stat().st_size
+    try:
+        transcription = transcriber.transcribe(resolved)
+    except Exception as exc:  # a decoder failure is a source problem, not a crash
+        logger.warning("transcription failed for %s: %s", metadata.id, exc)
+        return failed(f"transcription failed: {exc}", size)
+
+    if not transcription.segments:
+        return failed("nothing audible was transcribed from this recording", size)
+
+    defects = [
+        Defect(
+            code=DefectCode.MISSING_SPEAKER_LABEL,
+            severity=DefectSeverity.WARNING,
+            detail=(
+                f"machine transcription by {transcriber.describe()}: the words are the model's "
+                f"best guess and no speaker labels exist. Every segment is unattributed, so an "
+                f"owner can only be extracted where somebody is named aloud."
+            ),
+        )
+    ]
+
+    segments, _ = normalise(metadata.id, transcription.segments)
+    content_hash = hashlib.sha256(resolved.read_bytes()).hexdigest()
+
+    source = Source(
+        id=metadata.id,
+        title=metadata.title,
+        source_type=metadata.source_type,
+        meeting_date=metadata.meeting_date,
+        participants=metadata.participants,
+        consent_flag=metadata.consent_flag,
+        origin_format=TranscriptFormat.AUDIO.value,
+        file_path=metadata.file_path,
+        content_hash=content_hash,
+        ingested_at=_now(),
+        status=SourceStatus.INGESTED,
+    )
+    report = IngestionReport(
+        source_id=metadata.id,
+        ok=True,
+        status=SourceStatus.INGESTED,
+        consent=decision,
+        origin_format=TranscriptFormat.AUDIO.value,
+        encoding=None,
+        bytes_read=size,
+        content_hash=content_hash,
+        segments_parsed=len(segments),
+        speakers=[],
+        silent_participants=list(metadata.participants),
+        duration_seconds=transcription.duration_seconds,
+        defects=defects,
+    )
+
+    outcome = IngestionOutcome(source=source, report=report, segments=segments)
+    if persist:
+        _persist(outcome, cfg)
+    logger.info(
+        "transcribed %s: %s segment(s), %.1fs of audio, %sms",
+        metadata.id, len(segments), transcription.duration_seconds or 0, transcription.latency_ms,
+    )
+    return outcome
 
 
 def ingest_chat_export(

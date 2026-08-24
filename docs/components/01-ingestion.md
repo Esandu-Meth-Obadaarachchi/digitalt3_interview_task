@@ -1,9 +1,9 @@
 # 01 · Ingestion and the consent gate
 
 **Capabilities:** M1 (ingest and normalise a source), M2 (consent gate)
-**Code:** `backend/app/ingestion/` — 1,644 lines
-**Tests:** 63 across `test_consent_gate.py` (8), `test_transcript_parsers.py` (18),
-`test_ingestion_pipeline.py` (20), `test_api_sources.py` (17)
+**Code:** `backend/app/ingestion/`, `backend/app/audio/`
+**Tests:** 97 across `test_audio_ingestion.py` (34), `test_consent_gate.py` (8), `test_transcript_parsers.py` (18),
+`test_ingestion_pipeline.py` (20), `test_api_sources.py` (18)
 
 ---
 
@@ -155,6 +155,73 @@ defects are now ranked, with `no_parseable_segments` last as the vaguest.
 
 ---
 
+## Audio, and what a machine transcript is evidence of
+
+The transcriber is **a parser, not a pipeline**. It returns `RawSegment`s
+exactly as the txt, vtt and json parsers do, so validation, normalisation,
+character offsets and quote verification are all the same code afterwards.
+
+Two properties of a machine transcript are recorded rather than smoothed over,
+because each changes what a quote drawn from it means.
+
+**Nobody is attributed.** Whisper returns words and timings, not speakers.
+Diarisation is out of scope in the brief, so every segment carries
+`speaker = None` and every named participant is reported as **silent** — not
+because they said nothing, but because nothing knows who spoke. Filling it in
+from the participant list, or from the previous line, would be inventing an
+attribution. The practical consequence is real: an owner can only be extracted
+where somebody is named aloud in the words.
+
+**The words are a guess.** Transcribing a test clip on this machine turned
+*"Nuwan"* into *"new one"* and *"I am blocked"* into *"I unblocked"*. So every
+audio source carries a warning naming the model:
+
+> machine transcription by whisper:base: the words are the model's best guess
+> and no speaker labels exist. Every segment is unattributed, so an owner can
+> only be extracted where somebody is named aloud.
+
+A verbatim quote from a recording is faithful to **the transcript**, not
+necessarily to the room. The warning is what keeps that distinction visible to
+a reviewer.
+
+### It runs in a subprocess, and that is a decision
+
+`faiss` and `ctranslate2` each link their own OpenMP runtime. Loading both into
+one process aborts on macOS:
+
+```
+OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib
+already initialized.
+```
+
+The API loads faiss for retrieval, so it cannot also load whisper. Measured
+here: a faiss search followed by a whisper load in one process kills the
+process.
+
+The documented workaround is `KMP_DUPLICATE_LIB_OK=TRUE`, which the runtime
+itself calls unsafe and capable of **silently producing incorrect results**.
+Silently incorrect is the one failure mode this build refuses everywhere else,
+so it is refused here. `whisper_worker.py` runs standalone, imports nothing
+from `app`, and prints JSON. A few seconds of startup buys correctness, and a
+decoder failure now kills a worker rather than the API.
+
+`available()` probes with `find_spec` rather than importing, for the same
+reason. The first version imported, and aborted the test suite.
+
+### Four refusals, each naming the real problem
+
+| Situation | Result |
+|---|---|
+| Extension is not audio | error **before any decoder sees it** |
+| File missing | error naming the path |
+| `WHISPER_ENABLED=false` | error saying it is switched off |
+| Decoder failed | error carrying the decoder's own message |
+
+Silence is an error too. An empty transcript read as success would report a
+meeting in which nothing was said.
+
+---
+
 ## Two ways in, one gate
 
 | Route | Used by | Declares consent |
@@ -168,18 +235,17 @@ before the file is opened, the refusal leaving nothing on disk, and the report
 coming back are identical. A second endpoint would mean **a second copy of the
 gate**, and the gate is the one thing here that must exist exactly once.
 
-`source_type` is a form field with two accepted values, `transcript` and
-`chat_export`. Three details are deliberate:
+`source_type` is a form field with three accepted values: `transcript`,
+`audio` and `chat_export`. Three details are deliberate:
 
 **The kind is chosen, not sniffed.** The interface asks before the upload rather
 than inferring from the extension. A `.json` file is a perfectly good
 transcript, and guessing wrong would route private channel messages through the
 transcript parser.
 
-**`audio` is named rather than misrouted.** It returns 422 saying audio
-ingestion is not built. Falling through to the transcript parser would report a
-parse failure for a file nothing here can read, which describes the wrong
-problem.
+**An unknown kind is refused by name.** Falling through to the transcript
+parser would report a parse failure for a file nothing here can read, which
+describes the wrong problem.
 
 **The field defaults to `transcript`.** Unlike `consent_flag`, which has no
 default at all, a wrong default here costs a readable parse error rather than a
@@ -255,8 +321,8 @@ FTS index matches the segment count whatever it is.
 
 ## What it does not do
 
-- **Audio.** `M1` is marked **Partial** in the README for this reason. The
-  upload endpoint refuses it by name rather than pretending.
+- **Speaker attribution for audio.** Diarisation is out of scope in the brief,
+  so a recording produces unattributed segments and nothing guesses. `L39`.
 - **Speaker diarisation** — out of scope per the brief. Labels come from the
   source or are absent; nothing infers who spoke.
 - **Cross-source identity resolution.** "Priya" in one transcript and

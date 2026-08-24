@@ -18,6 +18,7 @@ from app.db.repositories import sources as source_repo
 from app.extraction.chunker import chunk_segments
 from app.ingestion.service import (
     IngestionOutcome,
+    ingest_audio,
     ingest_chat_export,
     ingest_from_manifest,
     ingest_transcript,
@@ -125,7 +126,8 @@ async def upload(
 ) -> IngestionOutcome:
     """One endpoint for both kinds of source, because one gate serves both.
 
-    A transcript and a chat export differ only in which parser reads the bytes.
+    A transcript, a recording and a chat export differ only in which parser
+    reads the bytes.
     Everything around that is identical: the same consent check on the metadata
     before the file is opened, the same refusal leaving nothing on disk, the
     same report shape coming back. A second endpoint would mean a second copy
@@ -137,17 +139,13 @@ async def upload(
     the manifest path follows.
     """
     kind = (source_type or "").strip().lower()
-    if kind == "audio":
-        # Named rather than silently misrouted to the transcript parser, which
-        # would report a parse failure for a file nothing here can read.
+    if kind not in {"transcript", "audio", "chat_export"}:
         raise HTTPException(
             status_code=422,
-            detail="audio ingestion is not built. Upload a transcript or a chat export.",
-        )
-    if kind not in {"transcript", "chat_export"}:
-        raise HTTPException(
-            status_code=422,
-            detail=f"unknown source_type '{source_type}'. Use 'transcript' or 'chat_export'.",
+            detail=(
+                f"unknown source_type '{source_type}'. "
+                f"Use 'transcript', 'audio' or 'chat_export'."
+            ),
         )
 
     try:
@@ -174,7 +172,10 @@ async def upload(
     # gate refuses, so a non-consented upload leaves nothing behind.
     target.write_bytes(await file.read())
 
-    ingest = ingest_chat_export if kind == "chat_export" else ingest_transcript
+    ingest = {
+        "chat_export": ingest_chat_export,
+        "audio": ingest_audio,
+    }.get(kind, ingest_transcript)
     outcome = ingest(metadata, target, settings=settings)
     if outcome.source.status is SourceStatus.REFUSED:
         target.unlink(missing_ok=True)
