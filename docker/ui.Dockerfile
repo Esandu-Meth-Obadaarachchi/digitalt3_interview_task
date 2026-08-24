@@ -28,5 +28,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+# 127.0.0.1 rather than localhost. Inside the container localhost resolves to
+# ::1 first, nginx listens on IPv4 only, and busybox wget does not fall back
+# the way curl does. The container served every request correctly and reported
+# itself unhealthy for four minutes.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-  CMD wget -q --spider http://localhost/ || exit 1
+  CMD wget -q --spider http://127.0.0.1/ || exit 1
