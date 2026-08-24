@@ -69,6 +69,8 @@ COPY eval/ eval/
 COPY scripts/ scripts/
 COPY sample_data/ sample_data/
 COPY conftest.py pytest.ini ./
+# The published consumer contract, not documentation. See .dockerignore.
+COPY docs/outcome_schema.json docs/
 
 # The store and the write logs are the only things that outlive a container, so
 # they are the only things on a volume.

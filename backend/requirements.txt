@@ -24,6 +24,14 @@ httpx==0.28.1                 # HTTP client, used by the Ollama provider
 pytest==9.1.1
 rich==15.0.0                  # tables for the eval harness output
 
+# --- Phase 8: the scheduler (M10) --------------------------------------------
+# Undeclared until the container caught it. Installed locally as a transitive
+# dependency of something else, imported directly by app/scheduler/jobs.py, and
+# therefore absent from a clean install. The API started fine on every machine
+# that had already run pip install for another reason, and died on the first
+# machine that had not.
+apscheduler==3.11.3
+
 # --- Phase 6: hybrid retrieval (M8) ------------------------------------------
 faiss-cpu==1.15.0             # exact vector search, IndexFlatIP over cosine
 sentence-transformers==6.0.0  # all-MiniLM-L6-v2, run locally, no rate limit
