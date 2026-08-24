@@ -119,6 +119,14 @@ class Settings(BaseSettings):
     #: everybody in it, so person digests are written and not posted by default.
     post_person_digests: bool = False
 
+    # --- Agent loop (M14) ----------------------------------------------------
+    #: gemini plans for real. fake is a scripted planner used by the tests, so
+    #: the whole graph runs with no key and no quota.
+    agent_provider: Literal["gemini", "fake"] = "gemini"
+    #: How many tool calls one run may make before it has to answer with what
+    #: it has. A loop with no budget is a loop.
+    agent_max_steps: int = 8
+
     # --- Audio (M1) ----------------------------------------------------------
     #: whisper transcribes for real. fake is a deterministic stub used by the
     #: test suite, so no test downloads a model or needs audio libraries.
