@@ -236,3 +236,42 @@ def test_a_request_cannot_ask_for_an_unbounded_loop(agent_settings, client):
     body = client.post("/api/agent", json={"instruction": "x", "max_steps": 5000}).json()
 
     assert body["step_budget"] == 20, "the endpoint caps what a caller may ask for"
+
+
+# --- what the first real run against Gemini exposed ---------------------------
+
+
+def test_an_answer_returned_as_content_parts_is_rendered_as_text(agent_settings):
+    """Gemini returns content as a list of parts. Without unwrapping it the
+    interface shows a JSON blob starting [{"type": "text", ...}]."""
+    set_script([
+        AIMessage(content=[{"type": "text", "text": "Nobody raised it."}]),
+    ])
+
+    run = run_agent("who raised it", agent_settings)
+
+    assert run.answer == "Nobody raised it."
+    assert not run.answer.startswith("[")
+
+
+def test_every_observation_tells_the_model_where_it_is_in_its_budget(agent_settings):
+    """The first real run spent all five steps on single-word searches. The
+    planner could not see its own budget.
+
+    The counter rides on the message the model receives, not on the trace: the
+    trace already carries the step number as a field, and repeating it in the
+    observation would put bookkeeping in front of the evidence a reviewer reads.
+    """
+    from app.agent.graph import _act
+
+    state = {
+        "messages": [call("list_sources")],
+        "steps": 1,
+        "budget": 4,
+        "trace": [],
+    }
+    result = _act(state)
+
+    sent_to_the_model = result["messages"][0].content
+    assert sent_to_the_model.startswith("[step 2 of 4, 2 left]")
+    assert not result["trace"][0].observation.startswith("[step"), "the trace stays clean"

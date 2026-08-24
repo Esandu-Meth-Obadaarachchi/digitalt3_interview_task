@@ -63,8 +63,10 @@ RULES
    part needs a human.
 
 5. Work in steps. Call one or two tools, read what came back, then decide what
-   to do next. When you have enough, answer. You have a limited number of tool
-   calls, so do not browse.
+   to do next. Every observation tells you which step you are on and how many
+   remain. Answer as soon as you have enough: a run ending on the budget is a
+   run that browsed instead of deciding. Repeating a search with a different
+   single word is browsing.
 
 Finish with a short answer in plain prose, with the quotes you relied on."""
 
@@ -96,7 +98,7 @@ def _plan_node(model):
                     )
                 ]
             )
-            return {"messages": [AIMessage(content=final.content)]}
+            return {"messages": [AIMessage(content=_text_of(final.content))]}
         return {"messages": [model.invoke(state["messages"])]}
 
     return plan
@@ -127,7 +129,18 @@ def _act(state: AgentState) -> dict:
                 observation, ok, error = f"{name} failed: {exc}", False, str(exc)[:300]
                 logger.warning("tool %s failed: %s", name, exc)
 
-        outputs.append(ToolMessage(content=observation, tool_call_id=call["id"], name=name))
+        # The step counter rides on the observation. The model is otherwise
+        # blind to its own budget and spends it searching, which is exactly what
+        # the first real run did: four single-word searches and no answer.
+        step_number = state["steps"] + len(trace) + 1
+        remaining = max(0, state["budget"] - step_number)
+        outputs.append(
+            ToolMessage(
+                content=f"[step {step_number} of {state['budget']}, {remaining} left]\n{observation}",
+                tool_call_id=call["id"],
+                name=name,
+            )
+        )
         trace.append(
             ToolCall(
                 step=state["steps"] + len(trace) + 1,
@@ -216,8 +229,29 @@ def run_agent(
     return run
 
 
+def _text_of(content) -> str:
+    """The readable text of one message.
+
+    Gemini returns content as a list of parts rather than a string, so an
+    answer rendered without this reaches the interface as a JSON blob starting
+    [{"type": "text", …}]. Found by running the loop against the real model
+    rather than only against the stub, which returns plain strings.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [
+            part.get("text", "") if isinstance(part, dict) else str(part)
+            for part in content
+        ]
+        return "\n".join(p for p in parts if p).strip()
+    return str(content or "")
+
+
 def _last_text(messages: list) -> str:
     for message in reversed(messages):
-        if isinstance(message, AIMessage) and message.content:
-            return message.content if isinstance(message.content, str) else json.dumps(message.content)
+        if isinstance(message, AIMessage):
+            text = _text_of(message.content)
+            if text:
+                return text
     return ""
