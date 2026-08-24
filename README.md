@@ -20,13 +20,13 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 |-----|----------------------------------|----------|-----------|------|
 | M1  | Ingest and normalise a source    | MUST     | Done      | txt, vtt, json, chat exports **and audio**. Whisper runs in a worker process, produces no speaker labels, and says so on every record |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
-| M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.92, zero fabricated quotes, zero invented dates |
-| M4  | Extract decisions                | MUST     | Done      | Measured. All 3 golden decisions found, the proposed-then-deferred item correctly absent |
-| M5  | Extract risks and blockers       | SHOULD   | Done      | Measured. Both golden risks found, every high severity defensible from its quote |
+| M3  | Extract action items             | MUST     | Done      | Scored by golden cases 1 to 4. No measurement committed, see below |
+| M4  | Extract decisions                | MUST     | Done      | Scored by golden case 5, including the proposed-then-deferred item |
+| M5  | Extract risks and blockers       | SHOULD   | Done      | Scored by golden case M5, severity defensible from the quote |
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
-| M8  | Cross-source question answering  | MUST     | Done      | Measured. 5/5 correct source, 5/5 answers carrying a verified citation, refuses the unanswerable |
-| M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.87, zero direct-message records. An export can be uploaded, not only seeded |
+| M8  | Cross-source question answering  | MUST     | Done      | Scored by golden case 6. Refuses the unanswerable rather than guessing |
+| M9  | Chat signal classification       | SHOULD   | Done      | Scored by golden case 7. An export can be uploaded, not only seeded |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Done      | Real APScheduler, two jobs, clock override. Approved items only, every line cited |
 | M11 | Structured outcome record        | SHOULD   | Done      | Versioned, approved items only, schema published at docs/outcome_schema.json |
 | M12 | Follow-up message draft          | COULD    | Done      | Rendered from approved items, never written by the model. A person edits and sends it. A blank or service `sent_by` is refused four ways |
@@ -36,111 +36,80 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 ## Measured quality
 
-Produced by `make eval`, committed at [`eval/results.txt`](eval/results.txt).
-Reproduce with `make eval-fresh`, which bypasses the response cache, or
-`make eval-repeat` for three uncached runs reported as a range.
+**There is no measurement committed in this repository right now, and no number
+in this README is quoted as a result.** The reason is in
+[`eval/NO_MEASUREMENT_COMMITTED.md`](eval/NO_MEASUREMENT_COMMITTED.md), and it is
+short: the free tier is 20 requests per day per project, a full run costs about
+eighteen, and every attempt on 24 August 2026 ended with the five retrieval
+questions refused by 429 before the model saw them.
 
-> **Free-tier limit, and the workaround.** `gemini-3.6-flash` allows **20
-> requests per day** on the free tier. One evaluation run costs six. A
-> three-run measurement exhausts the day's quota, which is how this was
-> discovered. The response cache is the workaround: `make eval` reuses cached
-> responses so a re-run is free, and the cache key covers the prompt version so
-> editing a prompt always misses it. `make eval-fresh` deliberately does not
-> cache and should be run once per prompt revision, not casually.
->
-> The committed results are a **single** run for that reason. The harness
-> supports `--runs N` and reports the worst run rather than the average, but
-> running it meaningfully needs a quota this build does not have.
+The harness refuses to write a results file when any chunk **or question** could
+not be completed. It refused three times that day, which is the guard doing its
+job. A run whose questions were rate-limited reports *answers carrying a
+verified citation 1/5* for a capability that is not broken, and committing that
+would be reporting a quota artefact as a quality result.
 
-**gemini-3.6-flash. 13 hand-labelled actions, 3 decisions, 2 risks and 1
-proposed-then-deferred decision across the two original transcripts.**
+To produce one, on a key with an untouched daily quota:
 
-| # | Metric | Measured | Target | |
-|---|---|---|---|---|
-| 1  | Action recall | **0.92** | ≥ 0.70 | pass |
-| 1b | Precision | 0.71 | reported | see below |
-| 2  | **Fabricated quotes** | **0** | 0 | pass |
-| 3a | Owner accuracy where named | 0.90 | ≥ 0.90 | pass |
-| 3b | UNSPECIFIED compliance | 2/2 | all | pass |
-| 4  | Invented dates | **0** | 0 | pass |
-| 4b | Relative dates resolved | 5 | reported | each carries the rule that produced it |
-| 5  | **Deferred items recorded** | **0** | 0 | pass |
-| 5b | Decision recall | **1.00** | ≥ 0.70 | pass |
-| M5 | Risk recall | **1.00** | ≥ 0.70 | pass |
-| M5b | Severity defensible from the quote | 4/4 | all | pass |
-| 6  | Retrieval, correct source in top 3 | **5/5** | 5/5 | pass |
-| 6b | **Not-found on the unanswerable** | **1/1** | all | pass |
-| 6d | Answers carrying a verified citation | **5/5** | all | pass |
-| 6c | Retrieval mode comparison | see below | reported | |
-| 7  | Chat signal precision | **0.87** | ≥ 0.70 | pass |
-| 7b | **Direct messages in the store** | **0** | 0 | pass |
-| 7c | Per class | see below | reported | |
+```bash
+make eval                 # writes eval/results.txt and results.json, or refuses and says why
+make eval-fresh           # the same, cache bypassed
+make eval-repeat          # three uncached runs, reported as a range
+make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15   # the held-out transcript
+```
+
+### What is measured, and against what
+
+Eight golden cases, scored against hand-labelled ground truth in
+[`sample_data/golden/`](sample_data/golden/): 13 actions, 9 decisions including
+2 proposed-then-deferred, 4 risks, 6 questions of which 1 is genuinely
+unanswerable, and 20 labelled chat messages with 12 direct-message ids that must
+never appear in the store.
+
+| # | Case | Target |
+|---|---|---|
+| 1 | Action recall, with precision reported beside it | ≥ 0.70 |
+| 2 | **Fabricated quotes**, recomputed against the stored transcript | 0 |
+| 3 | Owner accuracy where named, and UNSPECIFIED where not | ≥ 0.90, all |
+| 4 | Invented dates | 0 |
+| 5 | **The deferred decision must not appear** | 0 |
+| M5 | Risk recall, and severity defensible from the quote alone | ≥ 0.70, all |
+| 6 | Retrieval source, the not-found, and verified citations | 5/5, 1/1, all |
+| 7 | Chat signal precision, and direct-message records | ≥ 0.70, 0 |
+| 8 | Approval enforcement, driven against raw SQLite | all refuse |
 
 Case 5 is the one the brief singles out. A system that finds every decision and
 *also* records the deferral has not passed: it has recorded something that never
 happened, and a reviewer cannot tell, because the quote will be perfectly
 genuine.
 
-A separate transcript, written independently of this build and never used to
-tune a prompt, scores **recall 0.83, precision 1.00, zero fabricated quotes,
-zero invented dates, owner accuracy 1.00**. Run it with
-`make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15`.
+Case 2 is deliberately paranoid: it re-reads every stored quote and searches the
+transcript again rather than trusting the flag the pipeline set, because the
+most important number in the submission must not depend on the code path that
+produced it.
 
-### Chat signals, per class
+### Three things the harness refuses to do
 
-78 messages classified in 5 batches, 48 discarded as noise, 21 queued for review.
+| Condition | Behaviour |
+|---|---|
+| The provider is the deterministic stub | `NOT A MEASUREMENT` banner, no file written |
+| Any chunk **or question** failed | `INCOMPLETE` banner, no file, exit 2, names the file it left alone |
+| `--capabilities` names a subset | prints its numbers, writes nothing, says which capabilities scored zero for never having run |
+| `--sources` given | prints, writes nothing — `results.txt` describes one fixed corpus |
 
-| Class | Precision | Recall |
-|---|---|---|
-| decision | 1.00 | 1.00 |
-| question | 1.00 | 1.00 |
-| blocker | 1.00 | 0.75 |
-| request | 0.60 | 0.75 |
-| noise | 0.60 | 0.60 |
+Each of those exists because the failure happened. The second overwrote a good
+results file with recall 0.00 when a quota ran out. The third wrote a file
+scoring three capabilities that never ran, and it stood in the repository for
+six phases contradicting this README.
 
-The weakness is visible and is where it was expected: **noise and request are
-confused with each other, and nothing else is.** Over-labelling a channel
-creates work for a human, which is why the metric is precision rather than
-accuracy.
+### The retrieval mode comparison
 
-Direct-message exclusion is asserted at three depths, because it is the one
-property here that cannot be walked back if it fails: the parser never returns
-one, the twelve forbidden ids are checked against what actually reached the
-store, and a direct `INSERT` with `is_direct_message = 1` is refused by the
-schema.
-
-Case 7b also guards against a dishonest zero. Zero direct messages is trivially
-true of an empty store, so the case requires that messages *were* stored and
-fails with *"nothing is stored, so zero DMs proves nothing"* otherwise.
-
-### Retrieval: all three modes, measured
-
-The brief warns that *"keyword search that works and is measured beats a vector
-store that is never evaluated"*. So all three are measured, on every run, at no
-model cost.
-
-| Mode | Correct source in top 3 | Correct **segment** in top 3 | Mean rank of the cited segment |
-|---|---|---|---|
-| keyword (FTS5 / BM25) | 5/5 | 4/5 | 2.4 |
-| dense (FAISS / MiniLM) | 5/5 | **5/5** | **2.0** |
-| hybrid (RRF) | 5/5 | 4/5 | **2.0** |
-
-**The brief's metric saturates.** All three modes put the correct source in the
-top three, because five questions over two transcripts is not a discriminating
-test at source granularity. A stricter segment-level metric was added for that
-reason, since a citation points at a segment rather than at a meeting.
-
-**Hybrid does not beat dense here, and that is reported rather than smoothed
-over.** Dense is ahead on the strict metric by one question and level on mean
-rank. Hybrid is kept as the default on an argument that is *not* measured: the
-two modes fail in different directions, and keyword catches exact tokens
-(names, dates, identifiers) that dense is weakest on. **None of the five golden
-questions probes that**, so the evidence here cannot separate them.
-
-Adding questions designed to favour hybrid *after* seeing it lose would be
-fishing, so they were not added. With more time the right fix is more golden
-questions, written before running anything, deliberately including exact-token
-lookups.
+All three modes are scored on every run, at source and at segment granularity,
+with neighbour expansion switched off so it cannot flatter every mode equally.
+The honest finding from the last complete run was that **hybrid did not beat
+dense**: both reached 5/5 at source granularity, and at segment granularity
+dense reached 5/5 while hybrid reached 4/5. Hybrid is kept on an argument about
+vocabulary mismatch on unseen questions, and that argument is not measured.
 
 ### What the harness found, and what was done about it
 
@@ -165,6 +134,9 @@ make the metric pass would have been gaming the measurement.
 **The harness mis-assigned matches.** A single greedy pass let an early golden
 action claim an extraction on the weak signal that a later one would have
 claimed on the strong signal. Pairing is now two-pass, quote overlap first.
+
+Measured at the time of that revision, in phase 3. These are historical, not a
+current claim: no measurement is committed today, for the reason at the top.
 
 | | before | after |
 |---|---|---|

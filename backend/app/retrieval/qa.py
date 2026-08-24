@@ -81,6 +81,12 @@ class Answer(StrictModel):
     prompt_version: str | None = None
 
     dropped_claims: list[str] = Field(default_factory=list)
+    #: True when the model call itself failed, typically a rate limit. A
+    #: not-found produced this way looks identical to a genuine refusal, and
+    #: the difference matters enormously: one is the system working and the
+    #: other is a measurement that never happened. The eval harness reads this
+    #: to decide whether a run may be written.
+    model_failed: bool = False
     duration_ms: int = 0
     answered_at: str = ""
 
@@ -105,13 +111,22 @@ def render_sources(hits: list[SearchHit]) -> str:
     return "\n\n".join(blocks)
 
 
-def _not_found(question: str, mode: str, hits: list[SearchHit], reason: str, started: float) -> Answer:
+def _not_found(
+    question: str,
+    mode: str,
+    hits: list[SearchHit],
+    reason: str,
+    started: float,
+    *,
+    model_failed: bool = False,
+) -> Answer:
     return Answer(
         question=question,
         found=False,
         answer=f"{NOT_FOUND}. {reason}".strip(),
         retrieval_mode=mode,
         considered=hits,
+        model_failed=model_failed,
         duration_ms=int((time.perf_counter() - started) * 1000),
         answered_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -177,6 +192,7 @@ def answer_question(
             question, chosen_mode, hits,
             "The model could not produce a citable answer for this question.",
             started,
+            model_failed=True,
         )
 
     if not draft.answerable:

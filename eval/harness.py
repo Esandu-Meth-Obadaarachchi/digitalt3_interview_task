@@ -446,7 +446,9 @@ def case_m5_risks(golden: list[GoldenRisk], extractions) -> list[Metric]:
     ]
 
 
-def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
+def case_6_retrieval(
+    settings: Settings, run_model: bool, failures: list[str] | None = None
+) -> list[Metric]:
     """Golden case 6, and the mode comparison the brief's warning deserves.
 
     "All five golden questions return the correct source in the top three
@@ -524,6 +526,11 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
         detail = []
         for question in unanswerable:
             answer = answer_question(question.question, settings)
+            if answer.model_failed and failures is not None:
+                # A not-found produced by a rate limit is indistinguishable
+                # from a genuine refusal in the metric, and one of them is a
+                # measurement that never happened.
+                failures.append(f"question {question.id}")
             refused += int(not answer.found)
             if answer.found:
                 detail.append(f"{question.id} was answered when it should not have been")
@@ -542,6 +549,11 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
         answered = cited = 0
         for question in answerable:
             answer = answer_question(question.question, settings)
+            if answer.model_failed and failures is not None:
+                # A not-found produced by a rate limit is indistinguishable
+                # from a genuine refusal in the metric, and one of them is a
+                # measurement that never happened.
+                failures.append(f"question {question.id}")
             answered += int(answer.found)
             cited += int(bool(answer.claims))
         metrics.append(
@@ -796,9 +808,7 @@ def run_evaluation(
         golden_actions=len(golden),
         extracted_actions=len(extractions),
         incomplete_reason=(
-            f"{len(failed_chunks)} of the transcript chunks could not be extracted, "
-            f"typically a rate limit or an exhausted free-tier quota. The numbers below "
-            f"describe only the chunks that succeeded and measure nothing."
+            _incomplete_reason(failed_chunks)
             if failed_chunks
             else None
         ),
@@ -830,10 +840,28 @@ def run_evaluation(
     if "risks" in capabilities or risk_rows:
         report.metrics += case_m5_risks(golden_risks, risk_rows)
     if VectorIndex(cfg).ready() or cfg.retrieval_mode == "keyword":
-        report.metrics += case_6_retrieval(cfg, run_model="qa" in capabilities)
+        report.metrics += case_6_retrieval(
+            cfg, run_model="qa" in capabilities, failures=failed_chunks
+        )
     report.metrics += case_7_signals(cfg)
     report.calibration = calibration(pairing, extractions, len(golden))
+
+    # Recomputed, because case 6 asks the model and its failures are only known
+    # now. The reason is built once, above, from the extraction chunks alone,
+    # and a run whose questions were rate-limited is exactly as incomplete as a
+    # run whose chunks were: both report a metric for work that never happened.
+    report.incomplete_reason = _incomplete_reason(failed_chunks)
     return report
+
+
+def _incomplete_reason(failed: list[str]) -> str | None:
+    if not failed:
+        return None
+    return (
+        f"{len(failed)} chunk(s) or question(s) could not be completed, typically a rate "
+        f"limit or an exhausted free-tier quota. The numbers below describe only the work "
+        f"that succeeded and measure nothing."
+    )
 
 
 # =============================================================================
@@ -1045,9 +1073,11 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=1,
                         help="repeat the whole pipeline N times and report the range")
     parser.add_argument("--capabilities", default=",".join(ALL_CAPABILITIES),
-                        help="comma-separated: actions, decisions, risks. One full run over "
-                             "all three costs eighteen model requests against a free-tier "
-                             "allowance of twenty a day.")
+                        help="comma-separated: actions, decisions, risks, qa, signals. A "
+                             "subset prints its numbers and writes nothing, because the "
+                             "capabilities it skipped would score zero for never having run. "
+                             "One full run costs about eighteen model requests against a "
+                             "free-tier allowance of twenty a day.")
     parser.add_argument("--sources", default=None,
                         help="comma-separated source ids to score instead of the committed "
                              "corpus. Results are printed but never written, so scoring a "
@@ -1099,8 +1129,27 @@ def main() -> int:
               f"Choose from {', '.join(ALL_CAPABILITIES)}.")
         return 1
 
+    partial = set(chosen) != set(ALL_CAPABILITIES)
+
     report = run_evaluation(settings, extract=not args.score_only, capabilities=chosen)
     print(render(report, colour=sys.stdout.isatty()))
+
+    if partial and not args.score_only:
+        # A subset run scores every capability, including the ones it never
+        # ran, and scores them as zero. This is not hypothetical: a
+        # `--capabilities signals` run during phase 7 wrote a results file
+        # reporting action recall 0.00, decision recall 0.00 and risk recall
+        # 0.00 for a build that measured 0.92, 1.00 and 1.00, and it stood in
+        # the repository for six phases contradicting the README.
+        #
+        # --sources already refused for the same reason. This is the same rule
+        # applied to the other axis.
+        missing = ", ".join(sorted(set(ALL_CAPABILITIES) - set(chosen)))
+        print(f"results not written: this run extracted only {', '.join(chosen)}, so "
+              f"{missing} scored zero for never having run.\n"
+              f"eval/results.txt describes a full run and stays that way. Re-run without "
+              f"--capabilities to write one.\n")
+        return 1 if report.failed else 0
 
     if scoring_other_sources:
         print(f"results not written: --sources was given, so this scored "
