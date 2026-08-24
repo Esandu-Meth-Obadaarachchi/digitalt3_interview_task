@@ -26,6 +26,9 @@ class RunRequest(StrictModel):
     instruction: str
     #: Optional override, capped so a request cannot ask for an unbounded loop.
     max_steps: int | None = None
+    #: Metadata filter. The tools enforce it, so a run scoped to one project
+    #: cannot read another even if the model asks.
+    sources: list[str] | None = None
 
 
 @router.get("/tools", summary="What the loop is allowed to do")
@@ -48,4 +51,9 @@ def list_tools() -> list[dict]:
 def run(request: RunRequest = Body(...), max_steps: int | None = Query(default=None)) -> AgentRun:
     settings = get_settings()
     budget = request.max_steps or max_steps or settings.agent_max_steps
-    return run_agent(request.instruction, settings, max_steps=min(budget, 20))
+    return run_agent(
+        request.instruction,
+        settings,
+        max_steps=min(budget, 20),
+        sources=set(request.sources) if request.sources else None,
+    )

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from langchain_core.tools import tool
@@ -45,6 +46,41 @@ from app.review import queue
 #: thousand characters spends the context window on one step.
 MAX_OBSERVATION_CHARS = 4000
 
+# =============================================================================
+# Scope: metadata filtering, enforced rather than requested
+# =============================================================================
+# A person running the loop can point it at one project. That is not a hint in
+# the prompt: the tools read the scope themselves, so an agent that forgets the
+# instruction still cannot read another project's transcripts.
+#
+# Two levels, and the relationship between them is the whole design:
+#
+#   ceiling   set by the caller. The agent cannot widen it, ever.
+#   focus     set by the agent with focus_on_source, to narrow within the
+#             ceiling while it works.
+#
+# The agent may narrow and may never widen, which is the same shape as every
+# other rule here: the machine gets freedom inside a boundary a person drew.
+
+_ceiling: ContextVar[frozenset[str] | None] = ContextVar("agent_scope_ceiling", default=None)
+_focus: ContextVar[frozenset[str] | None] = ContextVar("agent_scope_focus", default=None)
+
+
+def set_scope(sources: set[str] | None) -> None:
+    """The caller's ceiling. None means every source."""
+    _ceiling.set(frozenset(sources) if sources else None)
+    _focus.set(None)
+
+
+def current_scope() -> frozenset[str] | None:
+    """What the tools are allowed to read right now."""
+    return _focus.get() or _ceiling.get()
+
+
+def scope_label() -> str:
+    scope = current_scope()
+    return "every source" if scope is None else ", ".join(sorted(scope))
+
 
 def _trim(text: str) -> str:
     if len(text) <= MAX_OBSERVATION_CHARS:
@@ -63,10 +99,13 @@ def list_sources() -> str:
 
     Use this first when the instruction names a meeting loosely, to find its id.
     """
+    scope = current_scope()
     with database.connect(get_settings()) as conn:
         rows = source_repo.list_sources(conn)
+    if scope is not None:
+        rows = [s for s in rows if s.id in scope]
     if not rows:
-        return "no sources are stored"
+        return "no sources are stored" if scope is None else f"nothing in scope ({scope_label()})"
     return "\n".join(
         f"{s.id} | {s.source_type.value} | {s.status.value} | {s.title}"
         + (f" | {s.meeting_date}" if s.meeting_date else "")
@@ -84,9 +123,9 @@ def search_transcripts(query: str, limit: int = 6) -> str:
     This does NOT cover chat channels. For those use search_chat_messages, and
     use both when a question could be answered from either.
     """
-    hits = search(query, get_settings(), limit=limit)
+    hits = search(query, get_settings(), limit=limit, sources=current_scope())
     if not hits:
-        return f"nothing matched {query!r}"
+        return f"nothing matched {query!r} within {scope_label()}"
     return _trim(
         "\n\n".join(
             f"[{i}] {h.source_title or h.source_id} | {h.speaker or 'unattributed'} at "
@@ -103,6 +142,9 @@ def read_transcript(source_id: str, start_segment: int = 0, count: int = 20) -> 
     Use it after search when a passage needs its surrounding context, or to read
     a short meeting end to end.
     """
+    scope = current_scope()
+    if scope is not None and source_id not in scope:
+        return f"REFUSED: {source_id} is outside this run's scope ({scope_label()})"
     with database.connect(get_settings()) as conn:
         segments = segment_repo.list_segments(conn, source_id)
     if not segments:
@@ -122,6 +164,9 @@ def list_extractions(source_id: str = "", extraction_type: str = "", status: str
     extraction_type: action, decision, risk or signal. status: pending,
     approved, rejected or expired. Empty means no filter.
     """
+    scope = current_scope()
+    if scope is not None and source_id and source_id not in scope:
+        return f"REFUSED: {source_id} is outside this run's scope ({scope_label()})"
     with database.connect(get_settings()) as conn:
         rows = extraction_repo.list_extractions(
             conn,
@@ -129,6 +174,8 @@ def list_extractions(source_id: str = "", extraction_type: str = "", status: str
             extraction_type=ExtractionType(extraction_type) if extraction_type else None,
             status=ReviewStatus(status) if status else None,
         )
+    if scope is not None:
+        rows = [r for r in rows if r.source_id in scope]
     if not rows:
         return "no extractions match that filter"
     return _trim(
@@ -154,16 +201,22 @@ def search_chat_messages(query: str, limit: int = 10) -> str:
     Chat lives in its own index and the transcript search cannot see it, so a
     question about something raised in a channel needs this tool.
     """
+    scope = current_scope()
+    clause, params = "", []
+    if scope is not None:
+        clause = " AND m.source_id IN (" + ",".join("?" for _ in scope) + ")"
+        params = sorted(scope)
+
     with database.connect(get_settings()) as conn:
         rows = conn.execute(
             "SELECT m.external_id, m.channel, m.author, m.ts, m.classification, m.text"
             " FROM chat_messages_fts f JOIN chat_messages m ON m.rowid = f.rowid"
-            " WHERE chat_messages_fts MATCH ? ORDER BY rank LIMIT ?",
-            (query, limit),
+            " WHERE chat_messages_fts MATCH ?" + clause + " ORDER BY rank LIMIT ?",
+            (query, *params, limit),
         ).fetchall()
 
     if not rows:
-        return f"no stored chat message matches {query!r}"
+        return f"no stored chat message matches {query!r} within {scope_label()}"
     return _trim(
         "\n".join(
             f"{r['external_id']} | #{r['channel']} | {r['author']} at {r['ts']} | "
@@ -179,6 +232,7 @@ def read_chat_messages(channel: str = "", classification: str = "", limit: int =
 
     Noise is never stored, so anything returned here survived classification.
     """
+    scope = current_scope()
     with database.connect(get_settings()) as conn:
         rows = chat_repo.list_messages(
             conn,
@@ -186,8 +240,10 @@ def read_chat_messages(channel: str = "", classification: str = "", limit: int =
             classification=classification or None,
             limit=limit,
         )
+    if scope is not None:
+        rows = [r for r in rows if r.source_id in scope]
     if not rows:
-        return "no stored messages match that filter"
+        return f"no stored messages match that filter within {scope_label()}"
     return _trim(
         "\n".join(
             f"{m.external_id} | #{m.channel} | {m.author} | "
@@ -204,7 +260,7 @@ def answer_with_citations(question: str) -> str:
     Prefer this over search_transcripts when the instruction is a question of
     fact, because the answer comes back already checked against its sources.
     """
-    answer = answer_question(question, get_settings())
+    answer = answer_question(question, get_settings(), sources=current_scope())
     if not answer.found:
         return f"NOT FOUND: {answer.answer}"
     lines = [answer.answer, ""]
@@ -233,6 +289,37 @@ def list_tracker_items() -> str:
     )
 
 
+@tool
+def focus_on_source(source_id: str) -> str:
+    """Narrow every later tool call to one source, for the rest of this run.
+
+    Use it once you know which meeting or export the instruction is about, so
+    later searches are not diluted by the others. Pass an empty string to widen
+    again to whatever the run was given.
+
+    You cannot focus on something outside the scope this run was started with.
+    """
+    ceiling = _ceiling.get()
+
+    if not source_id.strip():
+        _focus.set(None)
+        return f"focus cleared. Back to this run's scope: {scope_label()}"
+
+    if ceiling is not None and source_id not in ceiling:
+        return (
+            f"REFUSED: {source_id} is outside this run's scope ({', '.join(sorted(ceiling))}). "
+            f"A run can be narrowed and never widened."
+        )
+
+    with database.connect(get_settings()) as conn:
+        source = source_repo.get_source(conn, source_id)
+    if source is None:
+        return f"REFUSED: no source with id {source_id}"
+
+    _focus.set(frozenset({source_id}))
+    return f"focused on {source_id} ({source.title}). Later calls see only this source."
+
+
 # =============================================================================
 # Proposing, which is the only thing here that writes, and it writes pending
 # =============================================================================
@@ -248,6 +335,9 @@ def propose_action_item(source_id: str, what: str, verbatim_quote: str, owner: s
     Leave owner empty when nobody was named. Never guess an owner.
     """
     cfg = get_settings()
+    scope = current_scope()
+    if scope is not None and source_id not in scope:
+        return f"REFUSED: {source_id} is outside this run's scope ({scope_label()})"
     with database.connect(cfg) as conn:
         source = source_repo.get_source(conn, source_id)
         if source is None:
@@ -308,6 +398,7 @@ TOOLS = [
     read_chat_messages,
     answer_with_citations,
     list_tracker_items,
+    focus_on_source,
     propose_action_item,
 ]
 

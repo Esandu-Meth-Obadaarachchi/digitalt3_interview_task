@@ -219,8 +219,13 @@ export const api = {
 
   // --- M14 the agent loop ----------------------------------------------------
   agentTools: () => request<AgentTool[]>("/api/agent/tools"),
-  runAgent: (instruction: string, maxSteps?: number) =>
-    post<AgentRun>("/api/agent", { instruction, max_steps: maxSteps }),
+  /** `sources` is a hard ceiling the tools enforce, not a hint in the prompt. */
+  runAgent: (instruction: string, maxSteps?: number, sources?: string[]) =>
+    post<AgentRun>("/api/agent", {
+      instruction,
+      max_steps: maxSteps,
+      sources: sources && sources.length ? sources : null,
+    }),
 
   // --- M13 per-person digests -----------------------------------------------
   people: () => request<Person[]>("/api/digests/people"),

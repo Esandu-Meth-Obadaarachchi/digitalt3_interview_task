@@ -2,7 +2,7 @@
 
 **Capability:** M14 (the catalogue's *"multi-step tool use, if you need it"*)
 **Code:** `backend/app/agent/` — 3 modules
-**Tests:** 18 — `test_agent.py`
+**Tests:** 25 — `test_agent.py`
 
 ```
 instruction
@@ -91,6 +91,7 @@ assert "queue.approve" not in source
 | `read_chat_messages` | classified messages, filtered by channel or class |
 | `answer_with_citations` | the M8 pipeline, already quote-verified |
 | `list_tracker_items` | what the tracker holds |
+| `focus_on_source` | narrows the run to one source, within the ceiling |
 | **`propose_action_item`** | **writes one pending row, and only with a verified quote** |
 
 `propose_action_item` is held to the same evidence standard as the model reading
@@ -100,6 +101,45 @@ refused and nothing is stored:
 ```
 REFUSED: that quote does not appear in the source. Copy it character for
 character from the transcript, or propose nothing.
+```
+
+---
+
+## Scope: metadata filtering, enforced rather than requested
+
+A run can be pointed at one project. The decision worth defending is that this
+is **not a line in the prompt**. The tools read the scope themselves, so a model
+ignoring the instruction still cannot reach another project's transcripts.
+Asking a model not to look somewhere is a request. A tool that refuses is a rule.
+
+Two levels, and their relationship is the design:
+
+| | Set by | May be changed |
+|---|---|---|
+| **ceiling** | the caller, through the interface or the API | never widened |
+| **focus** | the agent, with `focus_on_source` | narrows within the ceiling |
+
+Clearing the focus returns to **the ceiling**, not to everything. That is the
+obvious way to get it wrong, so a test pins it.
+
+The filter is applied **in the query, not to the results**. BM25 ranks within
+what it was given, so filtering afterwards returns the best matches in the
+corpus that happen to be in scope, rather than the best matches in scope. The
+dense half cannot do that: `IndexFlatIP` holds vectors and no metadata, so it
+over-fetches by ten and filters after. At this corpus size scanning is free; a
+real deployment would use a FAISS `IDSelector` or an index per tenant.
+
+Scope covers the write too. A proposal into a source outside the ceiling is
+refused before the quote is even checked.
+
+A scoped run against the live model, four steps, all inside one meeting:
+
+```
+[1] focus_on_source(meeting-hotel-kickoff-2026-09-15)
+[2] list_extractions(source_id=meeting-hotel-kickoff-2026-09-15)
+[3] search_transcripts(query="will|action|commit|take|send|owner|by")
+[4] read_transcript(source_id=…, start_segment=10)
+→ three commitments, each with its owner and a verbatim quote
 ```
 
 ---

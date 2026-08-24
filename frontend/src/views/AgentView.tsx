@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiFailure } from "../api/client";
-import type { AgentRun, AgentTool } from "../api/types";
+import type { AgentRun, AgentTool, Source } from "../api/types";
 import { Badge, Button, Empty, ErrorNote, Field, Panel } from "../components/ui";
 
 const EXAMPLES = [
@@ -26,6 +26,8 @@ const EXAMPLES = [
 
 export function AgentView() {
   const [tools, setTools] = useState<AgentTool[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [scope, setScope] = useState("");
   const [instruction, setInstruction] = useState(EXAMPLES[0]);
   const [budget, setBudget] = useState(6);
   const [run, setRun] = useState<AgentRun | null>(null);
@@ -35,6 +37,10 @@ export function AgentView() {
 
   useEffect(() => {
     api.agentTools().then(setTools).catch(() => setTools([]));
+    api
+      .sources()
+      .then((all) => setSources(all.filter((s) => s.status === "ingested")))
+      .catch(() => setSources([]));
   }, []);
 
   const go = async () => {
@@ -43,7 +49,7 @@ export function AgentView() {
     setError(null);
     setRun(null);
     try {
-      setRun(await api.runAgent(instruction.trim(), budget));
+      setRun(await api.runAgent(instruction.trim(), budget, scope ? [scope] : undefined));
     } catch (exc) {
       setError(exc instanceof ApiFailure ? { code: exc.code, message: exc.message } : { message: String(exc) });
     } finally {
@@ -58,6 +64,25 @@ export function AgentView() {
         subtitle="Plans, calls tools, reads what came back, decides again. It cannot approve, write or send."
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            {/* A metadata filter, not a prompt instruction. The tools refuse
+                anything outside it, so the model cannot wander into another
+                project by forgetting. */}
+            <label className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
+              scope
+              <select
+                className="max-w-[16rem] rounded border border-[var(--color-line)] px-2 py-1 text-xs"
+                value={scope}
+                onChange={(e) => setScope(e.target.value)}
+                title="Restricts every tool to one source. Enforced in the tools, not asked for in the prompt."
+              >
+                <option value="">every source</option>
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
               step budget
               <input
@@ -111,6 +136,13 @@ export function AgentView() {
                 </Badge>
               </Field>
               <Field label="Tool calls">{run.steps_used}</Field>
+              <Field label="Scope">
+                {run.scope.length === 0 ? (
+                  "every source"
+                ) : (
+                  <Badge tone="info">{run.scope.join(", ")}</Badge>
+                )}
+              </Field>
               <Field label="Planner">{run.provider}:{run.model}</Field>
               <Field label="Took">{(run.duration_ms / 1000).toFixed(1)}s</Field>
             </div>
@@ -190,8 +222,9 @@ export function AgentView() {
         )}
         <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
           There is no tool for approving an extraction, writing to the tracker or sending a
-          follow-up. The loop may read anything and propose into the review queue, and a person
-          still holds all three gates.
+          follow-up. The loop may read anything in scope and propose into the review queue, and a
+          person still holds all three gates. When a scope is set the tools refuse anything outside
+          it, and <code>focus_on_source</code> can narrow further but never widen.
         </p>
       </Panel>
     </div>

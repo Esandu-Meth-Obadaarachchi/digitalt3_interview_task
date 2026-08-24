@@ -1623,3 +1623,51 @@ project that already ran fine.
 
 `curl localhost:5173/health` and `curl localhost:5173/api/agent/tools` both
 answer through nginx, so the one-origin claim holds.
+
+---
+
+## Phase 16 — Scoping a run to a project
+
+### Decisions
+
+**The scope is enforced in the tools, not asked for in the prompt.** A person
+running the loop can point it at one project, and every tool reads that scope
+itself. A model ignoring the instruction still cannot reach another project's
+transcripts. Rejected: a line in the system prompt saying which source to use.
+Asking a model not to look somewhere is a request, and the whole build is
+organised around the difference between a request and a rule.
+
+**A ceiling the agent cannot widen, and a focus it can narrow.** The caller sets
+the ceiling. `focus_on_source` lets the agent narrow within it once it knows
+which source matters, which is real multi-step behaviour: discover, then commit.
+Clearing the focus returns to the ceiling rather than to everything, which is
+the obvious way to write it and an escape, so a test pins it. The shape is the
+same as every other rule here: freedom inside a boundary a person drew.
+
+**The filter is applied in the query, not to the results.** BM25 ranks within
+what it was given, so filtering afterwards returns the best matches in the
+corpus that happen to be in scope rather than the best matches in scope. Those
+are different lists and the second is the one asked for.
+
+**The dense half cannot do the same, and says so.** `IndexFlatIP` holds vectors
+and no metadata, so there is nothing to filter on inside the index. It
+over-fetches by ten and filters after, with the constant named and the reason
+beside it. At 150 vectors scanning is free. A real deployment would use a FAISS
+`IDSelector` or one index per tenant, and that is written down rather than
+implied.
+
+**Scope covers the write.** A proposal into a source outside the ceiling is
+refused before the quote is checked, because a scoped run writing into another
+project would be worse than a scoped run reading one.
+
+### Known limitations
+
+**L46.** Scope is a set of source ids and nothing else. There is no filter by
+date range, participant, or source type, and no notion of a project above a
+source. A meeting belongs to a project only in the sense that somebody selected
+it.
+
+**L47.** The dense over-fetch multiplier is a constant, not a function of how
+selective the scope is. Scoping to one source in a corpus of a hundred would
+need a larger multiplier or a real index filter, and would silently return
+fewer results than asked for rather than failing.
