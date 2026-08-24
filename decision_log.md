@@ -1328,3 +1328,76 @@ by having to explain a claim precisely enough to check it.
 **L38.** The same drift is possible anywhere a demo control and a scheduled path
 are wired separately. Nothing structural prevents it. The guard here is one
 shared function and one test, applied to this pair only.
+
+---
+
+## Phase 12 — Audio ingestion, and the signal class in the queue
+
+### Decisions
+
+**The transcriber is a parser, not a pipeline.** It returns `RawSegment`s
+exactly as the txt, vtt and json parsers do, so validation, normalisation,
+character offsets and quote verification are the same code afterwards. Audio
+adds an input rather than a second path. `TranscriptFormat.AUDIO` had existed
+since Phase 1, so the shape was already there.
+
+**Whisper runs in a subprocess, and the reason is measured rather than
+stylistic.** faiss and ctranslate2 each link their own OpenMP runtime. A faiss
+search followed by a whisper load in one process aborts on this machine with
+`OMP: Error #15`, and the API loads faiss for retrieval. Rejected:
+`KMP_DUPLICATE_LIB_OK=TRUE`, which the runtime itself describes as unsafe and
+capable of silently producing incorrect results. Silently incorrect is the
+failure mode this build refuses everywhere else, and taking the workaround to
+make a demo run would be choosing a wrong answer over a slow one. The worker
+costs a few seconds of startup for a file uploaded by hand, and a decoder
+failure now kills a worker rather than the API.
+
+**`available()` probes with `find_spec` rather than importing.** The first
+version imported `faster_whisper` to answer the question, which loaded
+ctranslate2 and PyAV, which aborted the whole test suite the moment a later
+test touched faiss. An availability check has no business initialising two
+native runtimes.
+
+**Nobody is attributed, ever.** Whisper returns words and timings, not
+speakers. Every segment carries `speaker = None` and every named participant is
+reported as silent, which is accurate: nothing knows who spoke. Rejected:
+inferring the speaker from the participant list or from the previous line. Rule
+one of the brief forbids inventing a speaker, and a recording is exactly where
+that temptation is strongest.
+
+**Every audio source carries a warning naming the model.** Transcribing a test
+clip turned "Nuwan" into "new one" and "I am blocked" into "I unblocked". A
+verbatim quote from a recording is faithful to the transcript and not
+necessarily to the room, so the distinction is written onto the record rather
+than left for a reviewer to work out.
+
+**Silence is an error, not an empty success.** A recording producing no
+segments reports an error. An empty transcript read as success would report a
+meeting in which nothing was said, which is a claim the system cannot support.
+
+**A worker that prints nothing is a failure, not an empty transcript.** A
+worker killed by the OS produces no stdout, and reading that as "no speech"
+would turn a crash into a silent meeting. Tested directly.
+
+**The review queue badges a signal with its class, not with the word Signal.**
+Twelve chat items all badged "Signal" tells a reviewer nothing, and the class
+was in muted grey between the channel and the author. For an action, a decision
+or a risk the type is the whole story. For a signal the type is the container
+and the class is the story, so `KindView` gained an optional badge and only the
+signal kind uses it.
+
+### Known limitations
+
+**L39.** No diarisation. A recording produces unattributed segments, so actions
+extracted from audio will mostly carry `owner: UNSPECIFIED` unless a name is
+spoken aloud. Adding it means a second model and a second measurement, and
+guessing without one is worse than abstaining.
+
+**L40.** Transcription quality is not measured. There is no golden audio file
+and no word error rate, so the harness says nothing about how well the words
+were heard. The evidence a reviewer has is the warning on the record and the
+audio itself.
+
+**L41.** The worker is spawned per file with no queue and no cancellation. A
+long recording holds a request open for minutes. Fine for a review tool where
+somebody uploads one file at a time, and wrong for anything concurrent.
