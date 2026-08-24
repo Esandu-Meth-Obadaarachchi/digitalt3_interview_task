@@ -20,13 +20,13 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 |-----|----------------------------------|----------|-----------|------|
 | M1  | Ingest and normalise a source    | MUST     | Done      | txt, vtt, json, chat exports **and audio**. Whisper runs in a worker process, produces no speaker labels, and says so on every record |
 | M2  | Consent gate                     | MUST     | Done      | Enforced on metadata before the file is opened, again before any model call, and again by database trigger |
-| M3  | Extract action items             | MUST     | Done      | Scored by golden cases 1 to 4. No measurement committed, see below |
-| M4  | Extract decisions                | MUST     | Done      | Scored by golden case 5, including the proposed-then-deferred item |
-| M5  | Extract risks and blockers       | SHOULD   | Done      | Scored by golden case M5, severity defensible from the quote |
+| M3  | Extract action items             | MUST     | Done      | Measured. Recall 0.77, precision 0.59, zero fabricated quotes, zero invented dates |
+| M4  | Extract decisions                | MUST     | Done      | Measured. Recall 0.67, **below the 0.70 target**. The deferred item correctly absent |
+| M5  | Extract risks and blockers       | SHOULD   | Done      | Measured. Recall 1.00, every severity defensible from its quote |
 | M6  | Review and approval queue        | MUST     | Done      | Enforced in the service layer, by database trigger, and proven against raw SQLite with no Python in the path |
 | M7  | Write approved items to tracker  | MUST     | Done      | Approve three, re-run twice, exactly three items. Every attempt logged, blocked ones included |
-| M8  | Cross-source question answering  | MUST     | Done      | Scored by golden case 6. Refuses the unanswerable rather than guessing |
-| M9  | Chat signal classification       | SHOULD   | Done      | Scored by golden case 7. An export can be uploaded, not only seeded |
+| M8  | Cross-source question answering  | MUST     | Done      | Measured. 5/5 correct source, 5/5 carrying a verified citation, refuses the unanswerable |
+| M9  | Chat signal classification       | SHOULD   | Done      | Measured. Precision 0.93, zero direct-message records. An export can be uploaded, not only seeded |
 | M10 | Scheduled end-of-day digest      | SHOULD   | Done      | Real APScheduler, two jobs, clock override. Approved items only, every line cited |
 | M11 | Structured outcome record        | SHOULD   | Done      | Versioned, approved items only, schema published at docs/outcome_schema.json |
 | M12 | Follow-up message draft          | COULD    | Done      | Rendered from approved items, never written by the model. A person edits and sends it. A blank or service `sent_by` is refused four ways |
@@ -36,57 +36,57 @@ Built for the DigitalT3 intern selection challenge. The brief is committed at
 
 ## Measured quality
 
-**There is no measurement committed in this repository right now, and no number
-in this README is quoted as a result.** The reason is in
-[`eval/NO_MEASUREMENT_COMMITTED.md`](eval/NO_MEASUREMENT_COMMITTED.md), and it is
-short: the free tier is 20 requests per day per project, a full run costs about
-eighteen, and every attempt on 24 August 2026 ended with the five retrieval
-questions refused by 429 before the model saw them.
+Produced by `make eval` on **24 August 2026**, `gemini-3.6-flash`, prompt
+`extract_actions v2+44157f`. Committed at [`eval/results.txt`](eval/results.txt)
+and [`results.json`](eval/results.json). Reproduce with `make eval-fresh`, which
+bypasses the response cache.
 
-The harness refuses to write a results file when any chunk **or question** could
-not be completed. It refused three times that day, which is the guard doing its
-job. A run whose questions were rate-limited reports *answers carrying a
-verified citation 1/5* for a capability that is not broken, and committing that
-would be reporting a quota artefact as a quality result.
+**13 hand-labelled actions, 3 decisions, 2 risks and 1 proposed-then-deferred
+decision across the two scored transcripts. 17 actions extracted.**
 
-To produce one, on a key with an untouched daily quota:
+| # | Metric | Measured | Target | |
+|---|---|---|---|---|
+| 1  | Action recall | 0.77 | ≥ 0.70 | pass |
+| 1b | Precision | 0.59 | reported | see below |
+| 2  | **Fabricated quotes** | **0** | 0 | pass |
+| 3a | Owner accuracy where named | 0.90 | ≥ 0.90 | pass |
+| 4  | **Invented dates** | **0** | 0 | pass |
+| 4b | Relative dates resolved | 5 | reported | each carries the rule that produced it |
+| 5  | **Deferred item recorded** | **0** | 0 | pass |
+| 5b | Decision recall | **0.67** | ≥ 0.70 | **FAIL** |
+| M5 | Risk recall | 1.00 | ≥ 0.70 | pass |
+| M5b | Severity defensible from the quote | 4/4 | all | pass |
+| 6  | Retrieval, correct source in top 3 | 5/5 | 5/5 | pass |
+| 6b | **Not-found on the unanswerable** | **1/1** | all | pass |
+| 6d | Answers carrying a verified citation | 5/5 | all | pass |
+| 7  | Chat signal precision | 0.93 | ≥ 0.70 | pass |
+| 7b | **Direct messages in the store** | **0** | 0 | pass |
+| 8  | Approval enforcement | 19 tests | all refuse | pass |
 
-```bash
-make eval                 # writes eval/results.txt and results.json, or refuses and says why
-make eval-fresh           # the same, cache bypassed
-make eval-repeat          # three uncached runs, reported as a range
-make eval-source SOURCE=meeting-hotel-kickoff-2026-09-15   # the held-out transcript
-```
+**One metric is below target and it is reported as a failure, not rounded
+away.** Decision recall is 0.67: two of three, missing `decision_sp_02`. The
+harness exits non-zero because of it.
 
-### What is measured, and against what
+### What these numbers do and do not say
 
-Eight golden cases, scored against hand-labelled ground truth in
-[`sample_data/golden/`](sample_data/golden/): 13 actions, 9 decisions including
-2 proposed-then-deferred, 4 risks, 6 questions of which 1 is genuinely
-unanswerable, and 20 labelled chat messages with 12 direct-message ids that must
-never appear in the store.
+**The three integrity numbers are the ones that matter, and all three are
+clean.** Zero fabricated quotes, recomputed against the stored transcript rather
+than read from the flag the pipeline set. Zero invented dates. The
+proposed-then-deferred decision correctly absent. A system that finds every
+decision and *also* records the deferral has not passed: it has recorded
+something that never happened, and the quote will be perfectly genuine.
 
-| # | Case | Target |
-|---|---|---|
-| 1 | Action recall, with precision reported beside it | ≥ 0.70 |
-| 2 | **Fabricated quotes**, recomputed against the stored transcript | 0 |
-| 3 | Owner accuracy where named, and UNSPECIFIED where not | ≥ 0.90, all |
-| 4 | Invented dates | 0 |
-| 5 | **The deferred decision must not appear** | 0 |
-| M5 | Risk recall, and severity defensible from the quote alone | ≥ 0.70, all |
-| 6 | Retrieval source, the not-found, and verified citations | 5/5, 1/1, all |
-| 7 | Chat signal precision, and direct-message records | ≥ 0.70, 0 |
-| 8 | Approval enforcement, driven against raw SQLite | all refuse |
+**Precision 0.59 is a lower bound.** Reading the seven false positives by hand,
+most are genuine commitments the golden set does not contain. They were
+deliberately not added: labelling ground truth after seeing model output is
+fitting labels to the output. The honest fix is a second person labelling both
+transcripts blind, and it is not built.
 
-Case 5 is the one the brief singles out. A system that finds every decision and
-*also* records the deferral has not passed: it has recorded something that never
-happened, and a reviewer cannot tell, because the quote will be perfectly
-genuine.
-
-Case 2 is deliberately paranoid: it re-reads every stored quote and searches the
-transcript again rather than trusting the flag the pipeline set, because the
-most important number in the submission must not depend on the code path that
-produced it.
+**Recall moved between runs.** The same corpus and prompt measured 0.92 in phase
+3 and 0.77 here. Gemini is not deterministic at temperature 0, and the harness
+supports `--runs N`, reporting the worst run rather than the average. Running it
+meaningfully needs a quota this build does not have: the free tier is 20
+requests per day per project and one run costs about eighteen.
 
 ### Three things the harness refuses to do
 
@@ -94,13 +94,15 @@ produced it.
 |---|---|
 | The provider is the deterministic stub | `NOT A MEASUREMENT` banner, no file written |
 | Any chunk **or question** failed | `INCOMPLETE` banner, no file, exit 2, names the file it left alone |
-| `--capabilities` names a subset | prints its numbers, writes nothing, says which capabilities scored zero for never having run |
+| `--capabilities` names a subset | prints its numbers, writes nothing, names which capabilities scored zero for never having run |
 | `--sources` given | prints, writes nothing — `results.txt` describes one fixed corpus |
 
-Each of those exists because the failure happened. The second overwrote a good
-results file with recall 0.00 when a quota ran out. The third wrote a file
-scoring three capabilities that never ran, and it stood in the repository for
-six phases contradicting this README.
+Each exists because the failure happened. The second overwrote a good results
+file with recall 0.00 when a quota ran out. The third wrote a file scoring three
+capabilities that never ran, and it stood in the repository for six phases
+contradicting this README. On the day these numbers were produced the second
+guard refused three runs before one completed, which is the guard working rather
+than a problem with the build.
 
 ### The retrieval mode comparison
 

@@ -1,0 +1,590 @@
+{
+  "export_date": "2026-09-18T18:00:00+05:30",
+  "messages": [
+    {
+      "id": "msg_001",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-16T08:41:00+05:30",
+      "thread_id": null,
+      "text": "Morning all.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_002",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T08:43:00+05:30",
+      "thread_id": null,
+      "text": "Morning. Kettle's on.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_003",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-16T08:52:00+05:30",
+      "thread_id": null,
+      "text": "Repo is up, you should both have invites. Branch protection is on main so everything goes through a PR.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_004",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T08:54:00+05:30",
+      "thread_id": null,
+      "text": "Got it, thanks.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_005",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-16T09:10:00+05:30",
+      "thread_id": null,
+      "text": "I've started on the room availability queries. Nothing to show yet.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_006",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-16T09:31:00+05:30",
+      "thread_id": null,
+      "text": "Can someone confirm whether we're on Postgres 16 or 15 for local dev? My compose file says 15.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_007",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-16T09:34:00+05:30",
+      "thread_id": null,
+      "text": "16. I'll update the compose file today, mine drifted.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_008",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T10:02:00+05:30",
+      "thread_id": null,
+      "text": "The seed script is failing on my machine. Alembic says target database is not up to date and then just stops.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_009",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-16T10:04:00+05:30",
+      "thread_id": null,
+      "text": "Run alembic upgrade head first. I should have written that down somewhere.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_010",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T10:05:00+05:30",
+      "thread_id": null,
+      "text": "That did it.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_011",
+      "channel": "proj-hotelos-ops",
+      "author": "Dilini Rajapaksa",
+      "timestamp": "2026-09-16T10:40:00+05:30",
+      "thread_id": null,
+      "text": "Anyone know if we're still paying for the old staging box?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_012",
+      "channel": "proj-hotelos-ops",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-16T10:52:00+05:30",
+      "thread_id": null,
+      "text": "I think so. I'll check the billing next week.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_013",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Jayasuriya",
+      "timestamp": "2026-09-16T11:15:00+05:30",
+      "thread_id": null,
+      "text": "Joining this channel, hello. I'm picking up the invoicing PDF work from Thursday.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_014",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-16T11:16:00+05:30",
+      "thread_id": null,
+      "text": "Welcome Nuwan.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_015",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-16T11:44:00+05:30",
+      "thread_id": null,
+      "text": "Right, decided: we're using Postgres 16 everywhere, local and staging. No more version drift.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_016",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T13:30:00+05:30",
+      "thread_id": null,
+      "text": "Lunch was a mistake.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_017",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-16T14:05:00+05:30",
+      "thread_id": null,
+      "text": "Blocked on the room availability endpoint. The bookings table has no index on check_in_date and the query takes 40 seconds on the seed data. I can't test anything until that's sorted.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_018",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-16T14:09:00+05:30",
+      "thread_id": null,
+      "text": "Nuwan, can you write the migration for that index? You're closest to the query.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_019",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-16T14:11:00+05:30",
+      "thread_id": null,
+      "text": "Will do.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_020",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-16T15:20:00+05:30",
+      "thread_id": null,
+      "text": "https://www.postgresql.org/docs/16/indexes-multicolumn.html",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_021",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-16T15:21:00+05:30",
+      "thread_id": null,
+      "text": "nice one",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_022",
+      "channel": "proj-hotelos-ops",
+      "author": "Dilini Rajapaksa",
+      "timestamp": "2026-09-16T16:48:00+05:30",
+      "thread_id": null,
+      "text": "Reminder that the office wifi is being replaced on Friday, so work from home if you can.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_023",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T08:39:00+05:30",
+      "thread_id": null,
+      "text": "Morning.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_024",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-17T09:02:00+05:30",
+      "thread_id": null,
+      "text": "Index migration is merged. Query is down to 80ms.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_025",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T09:03:00+05:30",
+      "thread_id": null,
+      "text": "+1",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_026",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-17T09:26:00+05:30",
+      "thread_id": null,
+      "text": "Are we doing soft deletes on bookings or actually removing the row? It changes how I write the cancellation flow.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_027",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T09:40:00+05:30",
+      "thread_id": null,
+      "text": "Soft delete I'd say. Hotels get audited and a deleted booking is exactly the thing someone asks about six months later.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_028",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T09:44:00+05:30",
+      "thread_id": null,
+      "text": "I'd rather hard delete and keep an audit table separately. Mixing deleted rows into every query is how you end up with bugs where cancelled rooms still show as occupied.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_029",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-17T09:51:00+05:30",
+      "thread_id": null,
+      "text": "Both have a point. Can we park it until Friday? I can work around it either way for now.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_030",
+      "channel": "proj-hotelos-ops",
+      "author": "Dilini Rajapaksa",
+      "timestamp": "2026-09-17T10:30:00+05:30",
+      "thread_id": null,
+      "text": "The staging SSL certificate expires on the 24th. Nobody has renewed it and I don't have access to the registrar account.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_031",
+      "channel": "proj-hotelos-ops",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T10:33:00+05:30",
+      "thread_id": null,
+      "text": "I have access. I'll do it before the weekend.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_032",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Jayasuriya",
+      "timestamp": "2026-09-17T11:12:00+05:30",
+      "thread_id": null,
+      "text": "Quick question, is the invoice number format decided? Sequential per hotel or global?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_033",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T11:20:00+05:30",
+      "thread_id": null,
+      "text": "Per hotel. Global would leak how many bookings we're doing across all clients.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_034",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Jayasuriya",
+      "timestamp": "2026-09-17T11:48:00+05:30",
+      "thread_id": null,
+      "text": "Makes sense, thanks.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_035",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-17T12:15:00+05:30",
+      "thread_id": null,
+      "text": "brb",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_036",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-17T13:55:00+05:30",
+      "thread_id": "thr_pr41",
+      "text": "Esandu, could you review PR 41 when you get a chance? It's the availability endpoint, about 200 lines.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_037",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T14:30:00+05:30",
+      "thread_id": "thr_pr41",
+      "text": "Will look this afternoon.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_038",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-17T16:02:00+05:30",
+      "thread_id": "thr_pr41",
+      "text": "Ignore that for now, I found a bug in the date handling and I'm reworking it. I'll ping you when it's ready again.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_039",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T16:04:00+05:30",
+      "thread_id": "thr_pr41",
+      "text": "Righto.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_040",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T17:20:00+05:30",
+      "thread_id": null,
+      "text": "Heading off, back on early tomorrow.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_041",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Jayasuriya",
+      "timestamp": "2026-09-18T08:47:00+05:30",
+      "thread_id": null,
+      "text": "Morning both. Or all five of you.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_042",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-18T09:15:00+05:30",
+      "thread_id": null,
+      "text": "The Gemini API key we're using for the pricing prototype has hit its daily quota. Every request is coming back 429 and I can't run the comparison until it resets tonight.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_043",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-18T09:18:00+05:30",
+      "thread_id": null,
+      "text": "Can you put the key rotation on the list? Two keys and we'd have twice the headroom.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_044",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-18T09:22:00+05:30",
+      "thread_id": null,
+      "text": "Adding it.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_045",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-18T10:05:00+05:30",
+      "thread_id": null,
+      "text": "Decision from the call just now: Phase 1 ships without the AI pricing feature. It goes in Phase 2 once the OTA data question is answered.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_046",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-18T10:08:00+05:30",
+      "thread_id": null,
+      "text": "Good. That was going to sink the timeline.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_047",
+      "channel": "proj-hotelos-ops",
+      "author": "Dilini Rajapaksa",
+      "timestamp": "2026-09-18T10:44:00+05:30",
+      "thread_id": null,
+      "text": "Who is on support this weekend?",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_048",
+      "channel": "proj-hotelos-ops",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-18T10:58:00+05:30",
+      "thread_id": null,
+      "text": "Me I think. I'll double check the rota.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_049",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Jayasuriya",
+      "timestamp": "2026-09-18T11:30:00+05:30",
+      "thread_id": null,
+      "text": "The PDF library we picked doesn't support Sinhala characters and half the guest names in the test data are in Sinhala. Invoices come out as boxes. I've stopped work on it until we choose another one.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_050",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-18T11:35:00+05:30",
+      "thread_id": null,
+      "text": "That's a proper problem. Haritha, can you look at what the alternatives are? You did the font work on the last project.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_051",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-18T11:37:00+05:30",
+      "thread_id": null,
+      "text": "Yes, I'll have a shortlist by tomorrow.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_052",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-18T13:02:00+05:30",
+      "thread_id": null,
+      "text": "Anyone want coffee",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_053",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-18T13:03:00+05:30",
+      "thread_id": null,
+      "text": "always",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_054",
+      "channel": "proj-hotelos-dev",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-18T14:20:00+05:30",
+      "thread_id": null,
+      "text": "Settled on soft deletes for bookings, with a deleted_at column and a default scope that excludes them. Ranidu's audit concern is handled by the same column.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_055",
+      "channel": "proj-hotelos-dev",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-18T14:25:00+05:30",
+      "thread_id": null,
+      "text": "Fine by me.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_056",
+      "channel": "proj-hotelos-dev",
+      "author": "Nuwan Perera",
+      "timestamp": "2026-09-18T15:40:00+05:30",
+      "thread_id": "thr_pr41",
+      "text": "PR 41 is ready for review again, date handling fixed.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_057",
+      "channel": "proj-hotelos-ops",
+      "author": "Dilini Rajapaksa",
+      "timestamp": "2026-09-18T16:30:00+05:30",
+      "thread_id": null,
+      "text": "Certificate renewed, staging is fine until next September.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_058",
+      "channel": "proj-hotelos-dev",
+      "author": "Haritha Silva",
+      "timestamp": "2026-09-18T17:05:00+05:30",
+      "thread_id": null,
+      "text": "Right, that's me. Good day all.",
+      "is_direct_message": false
+    },
+    {
+      "id": "msg_059",
+      "channel": "dm-ranidu-esandu",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T09:12:00+05:30",
+      "thread_id": null,
+      "text": "Did you see what Haritha said about the deletes? I still think she's wrong.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_060",
+      "channel": "dm-ranidu-esandu",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T09:14:00+05:30",
+      "thread_id": null,
+      "text": "Take it to the channel, not here.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_061",
+      "channel": "dm-ranidu-esandu",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T09:15:00+05:30",
+      "thread_id": null,
+      "text": "Fair enough.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_062",
+      "channel": "dm-ranidu-esandu",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-17T15:02:00+05:30",
+      "thread_id": null,
+      "text": "Are we paying Nuwan J the same rate as Nuwan P?",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_063",
+      "channel": "dm-ranidu-esandu",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-17T15:06:00+05:30",
+      "thread_id": null,
+      "text": "Let's talk about that offline, not in writing.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_064",
+      "channel": "dm-ranidu-esandu",
+      "author": "Esandu Meth",
+      "timestamp": "2026-09-18T12:40:00+05:30",
+      "thread_id": null,
+      "text": "Can you handle standup tomorrow, I have a dentist appointment.",
+      "is_direct_message": true
+    },
+    {
+      "id": "msg_065",
+      "channel": "dm-ranidu-esandu",
+      "author": "Ranidu Fernando",
+      "timestamp": "2026-09-18T12:41:00+05:30",
+      "thread_id": null,
+      "text": "No problem.",
+      "is_direct_message": true
+    }
+  ]
+}
