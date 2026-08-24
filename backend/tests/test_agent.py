@@ -275,3 +275,27 @@ def test_every_observation_tells_the_model_where_it_is_in_its_budget(agent_setti
     sent_to_the_model = result["messages"][0].content
     assert sent_to_the_model.startswith("[step 2 of 4, 2 left]")
     assert not result["trace"][0].observation.startswith("[step"), "the trace stays clean"
+
+
+def test_chat_is_searchable_because_the_transcript_search_cannot_see_it(agent_settings):
+    """A real run answered "no meeting mentions staging being down" while a
+    stored chat message said exactly that. The transcript index holds segments
+    and approved extractions, and chat lives in its own FTS table nothing
+    searched."""
+    from app.agent.tools import search_chat_messages, search_transcripts
+
+    ingest_from_manifest(agent_settings)
+
+    found = search_chat_messages.invoke({"query": "staging", "limit": 5})
+    assert "staging environment is down" in found
+    assert "Marcus Webb" in found
+
+    transcripts = search_transcripts.invoke({"query": "staging environment is down", "limit": 5})
+    assert "Marcus Webb" not in transcripts, "the gap this tool exists to close"
+
+
+def test_the_transcript_search_says_it_does_not_cover_chat(agent_settings):
+    """The description is the whole interface a model reads before choosing."""
+    from app.agent.tools import search_transcripts
+
+    assert "does NOT cover chat" in search_transcripts.description

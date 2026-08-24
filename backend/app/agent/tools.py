@@ -76,10 +76,13 @@ def list_sources() -> str:
 
 @tool
 def search_transcripts(query: str, limit: int = 6) -> str:
-    """Search stored transcripts and approved extractions for a phrase or topic.
+    """Search MEETING transcripts and approved extractions for a phrase or topic.
 
     Returns numbered passages with their meeting, speaker and timestamp. Use it
     to find where something was discussed before quoting it.
+
+    This does NOT cover chat channels. For those use search_chat_messages, and
+    use both when a question could be answered from either.
     """
     hits = search(query, get_settings(), limit=limit)
     if not hits:
@@ -142,6 +145,32 @@ def review_queue_summary() -> str:
     """How much is waiting for a human, by status and by type."""
     summary = queue.summary(get_settings())
     return json.dumps(summary.model_dump(), indent=1)
+
+
+@tool
+def search_chat_messages(query: str, limit: int = 10) -> str:
+    """Search stored chat messages for a word or phrase, across every channel.
+
+    Chat lives in its own index and the transcript search cannot see it, so a
+    question about something raised in a channel needs this tool.
+    """
+    with database.connect(get_settings()) as conn:
+        rows = conn.execute(
+            "SELECT m.external_id, m.channel, m.author, m.ts, m.classification, m.text"
+            " FROM chat_messages_fts f JOIN chat_messages m ON m.rowid = f.rowid"
+            " WHERE chat_messages_fts MATCH ? ORDER BY rank LIMIT ?",
+            (query, limit),
+        ).fetchall()
+
+    if not rows:
+        return f"no stored chat message matches {query!r}"
+    return _trim(
+        "\n".join(
+            f"{r['external_id']} | #{r['channel']} | {r['author']} at {r['ts']} | "
+            f"{r['classification'] or 'unclassified'}\n{r['text']}"
+            for r in rows
+        )
+    )
 
 
 @tool
@@ -275,6 +304,7 @@ TOOLS = [
     read_transcript,
     list_extractions,
     review_queue_summary,
+    search_chat_messages,
     read_chat_messages,
     answer_with_citations,
     list_tracker_items,
