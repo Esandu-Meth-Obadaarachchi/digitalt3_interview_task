@@ -293,7 +293,46 @@ gives a 20-minute reading order through the rest.
 
 ---
 
-## Setup
+## Run it with Docker
+
+The shortest path, and the one that needs nothing installed but Docker and a
+Gemini key.
+
+```bash
+cp .env.example .env          # then add GEMINI_API_KEY
+make docker-up                # builds both images and starts them
+make docker-seed              # load the committed sample data
+```
+
+Interface on <http://localhost:5173>, API on <http://localhost:8000/health>.
+
+```bash
+make docker-test              # the whole suite, inside the image
+make docker-seed-empty        # schema and the tracker backlog only, for your own data
+make docker-down              # stop, keeping the store
+make docker-clean             # stop and delete the store, logs and model cache
+```
+
+Two services. The API holds every rule. The interface is built to static files
+and served by nginx, which proxies `/api` and `/health` through, so the browser
+talks to one origin and CORS never comes into it. Three volumes: the store, the
+write logs, and the model cache. Everything else is rebuilt from the image,
+which is what makes a run reproducible.
+
+`make docker-test` is the check worth having. `make verify-clone` proves the
+repository holds everything; running the suite inside the image proves the
+dependencies do.
+
+Two notes on the build. The image installs **CPU-only torch explicitly**,
+because `sentence-transformers` pulls torch and the default index serves the
+CUDA build, roughly 2.5GB of NVIDIA libraries for a container with no GPU. The
+MiniLM embedding model is **baked into the image** so retrieval works with no
+network; whisper's weights are not, since audio is optional and its model is
+140MB, so it caches to a volume on first use.
+
+---
+
+## Setup without Docker
 
 Requires Python 3.11 (newest version with settled wheels for `faiss-cpu`,
 `sentence-transformers` and `ctranslate2` on Apple Silicon) and Node 20+.

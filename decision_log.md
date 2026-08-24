@@ -1501,3 +1501,73 @@ classification.
 
 **L42.** No memory between runs and no parallel tool calls. Each instruction
 starts clean, and tools requested in one turn run in order.
+
+---
+
+## Phase 14 — Containerised
+
+The build spec lists Docker and docker-compose for packaging. The claim being
+made is narrow and worth stating: **a reviewer with Docker and a Gemini key
+needs nothing else installed.** No Python version, no Node, no faiss wheel, no
+model weights.
+
+### Decisions
+
+**CPU-only torch, installed explicitly and before everything else.**
+`sentence-transformers` pulls torch, and on Linux the default index serves the
+CUDA build: roughly 2.5GB of NVIDIA libraries for a container with no GPU.
+Installing the CPU wheel from PyTorch's own index first leaves the resolver with
+torch already satisfied when it reaches sentence-transformers. Rejected: letting
+pip resolve it. The image would work and be four times the size, and nobody
+would notice until the first push.
+
+**The embedding model is baked into the image, whisper's is not.** Retrieval is
+the default path, so a container downloading 90MB on its first question is a
+container that fails behind a corporate proxy or on a plane. Audio is optional
+and its model is 140MB, so it caches to a volume on first use instead. The split
+is a judgement about which failure is more likely to be seen by a reviewer.
+
+**Two stages, so the compiler never ships.** `build-essential` is needed to
+install and useless to run. Keeping it would add about 200MB of tooling to the
+image that serves HTTP.
+
+**The interface is static files behind nginx, not a dev server.** `vite dev` in
+a container ships the whole toolchain to serve a page. nginx also proxies `/api`
+and `/health`, so the browser talks to one origin, `CORS_ORIGINS` is empty in
+the container rather than widened, and what a reviewer sees behind nginx matches
+what a developer sees behind Vite.
+
+**The healthcheck waits on `/health` answering, not on the process existing.**
+compose then holds the interface back until the schema is applied. A UI loading
+first shows empty panels and reads as broken.
+
+**`.env` is excluded from the build context entirely.** A key baked into a layer
+is a key that cannot be rotated and travels with the image. It arrives through
+`env_file` at run time.
+
+**Only the store and the logs are on volumes.** Everything else is rebuilt from
+the image, which is the whole basis of the reproducibility claim: code and
+dependencies come from the build, and data is the only thing that survives.
+
+**`make docker-test` runs the suite inside the image.** `make verify-clone`
+proves the repository holds everything. Running the tests in the container
+proves the dependencies do, which is a different claim and the one a reviewer on
+another machine cares about.
+
+### Known limitations
+
+**L43.** Neither image has been built. The Docker daemon is not running on this
+machine, so the compose file was validated with `docker compose config` and the
+Dockerfiles were written against the same pins the local build uses, but the
+first real build has to happen elsewhere. Anything wrong with a wheel on
+linux/amd64 will surface then rather than now.
+
+**L44.** No image is pinned by digest and no lock file covers the Python side.
+`pip install -r requirements.txt` resolves transitive dependencies at build
+time, so two builds a month apart can differ. The direct pins are exact, which
+is what determines behaviour, and a full lock file is the honest fix.
+
+**L45.** One process per service and no orchestration beyond compose. The
+scheduler runs in the API container, so scaling the API to two replicas would
+run every job twice. The same limitation the local build has, now with a
+tempting way to trip over it.
