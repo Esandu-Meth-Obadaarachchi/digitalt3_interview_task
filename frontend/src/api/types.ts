@@ -433,6 +433,44 @@ export interface FollowUpDraft {
 
 /** What one run of the end-of-day job wrote. Both kinds, because the button in
  *  the interface calls the same function the scheduler calls. */
+// --- M14 the tool-dispatch loop ----------------------------------------------
+
+export interface AgentToolCall {
+  step: number;
+  tool: string;
+  arguments: Record<string, unknown>;
+  /** Trimmed for display. The full text went to the model. */
+  observation: string;
+  observation_chars: number;
+  ok: boolean;
+  error: string | null;
+  duration_ms: number;
+}
+
+export interface AgentRun {
+  id: string;
+  instruction: string;
+  steps: AgentToolCall[];
+  answer: string;
+  finished: boolean;
+  /** answered · step_budget · model_error */
+  stop_reason: string;
+  steps_used: number;
+  step_budget: number;
+  tools_available: string[];
+  provider: string;
+  model: string;
+  duration_ms: number;
+  started_at: string;
+}
+
+export interface AgentTool {
+  name: string;
+  description: string;
+  /** True for the one tool that writes, and it writes a pending row. */
+  writes: boolean;
+}
+
 export interface EndOfDayResult {
   channels: Digest[];
   people: PersonDigest[];

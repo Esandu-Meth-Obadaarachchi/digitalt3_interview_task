@@ -8,10 +8,11 @@ import { AskView } from "./views/AskView";
 import { ChannelsView } from "./views/ChannelsView";
 import { OutputsView } from "./views/OutputsView";
 import { PeopleView } from "./views/PeopleView";
+import { AgentView } from "./views/AgentView";
 import { PipelineView } from "./views/PipelineView";
 import { TrackerView } from "./views/TrackerView";
 
-type Tab = "sources" | "pipeline" | "channels" | "review" | "tracker" | "outputs" | "people" | "ask";
+type Tab = "sources" | "pipeline" | "channels" | "review" | "tracker" | "outputs" | "people" | "ask" | "agent";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("sources");
@@ -68,6 +69,7 @@ export default function App() {
             ["outputs", "Digests & records"],
             ["people", "People & recaps"],
             ["ask", "Ask"],
+            ["agent", "Agent"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -94,6 +96,7 @@ export default function App() {
         {tab === "outputs" && <OutputsView />}
         {tab === "people" && <PeopleView reviewer={reviewer} />}
         {tab === "ask" && <AskView />}
+        {tab === "agent" && <AgentView />}
       </main>
 
       <footer className="border-t border-[var(--color-line)] pt-3 text-xs text-[var(--color-muted)]">
