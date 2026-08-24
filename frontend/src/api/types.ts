@@ -458,6 +458,8 @@ export interface AgentRun {
   steps_used: number;
   step_budget: number;
   tools_available: string[];
+  /** Sources this run was allowed to read. Empty means every source. */
+  scope: string[];
   provider: string;
   model: string;
   duration_ms: number;
