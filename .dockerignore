@@ -29,3 +29,10 @@ models/
 docs/
 *.md
 !README.md
+
+# One exception, and it is not documentation. docs/outcome_schema.json is the
+# published contract a downstream consumer reads, and two tests assert the
+# published file still matches the Pydantic model. Excluding it made those two
+# fail inside the image while passing locally, which is the container earning
+# its place.
+!docs/outcome_schema.json
