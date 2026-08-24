@@ -28,3 +28,8 @@ rich==15.0.0                  # tables for the eval harness output
 faiss-cpu==1.15.0             # exact vector search, IndexFlatIP over cosine
 sentence-transformers==6.0.0  # all-MiniLM-L6-v2, run locally, no rate limit
 numpy==2.4.6                  # the array contract between the two
+
+# --- Phase 12: audio ingestion (M1) ------------------------------------------
+# Runs in a subprocess, never in the API process: ctranslate2 and faiss each
+# link their own OpenMP runtime and loading both aborts on macOS.
+faster-whisper==1.2.1         # whisper on CTranslate2, CPU, int8
