@@ -264,12 +264,11 @@ def test_a_transcript_uploaded_as_a_chat_export_fails_with_a_readable_reason(cli
     assert body["report"]["rejection_reason"], "an error must say why"
 
 
-def test_audio_is_named_as_not_built_rather_than_misrouted(client):
-    """Without this it reaches the transcript parser and reports a parse
-    failure, which describes the wrong problem."""
+def test_a_recording_is_transcribed_into_segments(client):
+    """Under the stub transcriber, so no test downloads a model."""
     response = client.post(
         "/api/sources/upload",
-        files={"file": ("meeting.wav", io.BytesIO(b"RIFF"), "audio/wav")},
+        files={"file": ("meeting.wav", io.BytesIO(b"RIFF...."), "audio/wav")},
         data={
             "source_id": "upload-audio",
             "title": "Recording",
@@ -278,8 +277,34 @@ def test_audio_is_named_as_not_built_rather_than_misrouted(client):
         },
     )
 
-    assert response.status_code == 422
-    assert "not built" in response.json()["detail"]
+    body = response.json()
+    assert body["source"]["status"] == "ingested"
+    assert body["source"]["source_type"] == "audio"
+    assert body["source"]["origin_format"] == "audio"
+    assert body["report"]["segments_parsed"] > 0
+    assert body["report"]["speakers"] == [], "whisper does not diarise, so nobody is named"
+    assert any("no speaker labels" in d["detail"] for d in body["report"]["defects"]), (
+        "an audio source has to say its words are a machine's best guess"
+    )
+
+
+def test_a_text_file_uploaded_as_audio_is_refused_by_name(client):
+    """Refused on the extension, before any decoder is handed the bytes, so
+    the message names the real problem."""
+    response = client.post(
+        "/api/sources/upload",
+        files={"file": ("notes.txt", io.BytesIO(b"[00:00:01] Sarah Chen: Hello.\n"), "text/plain")},
+        data={
+            "source_id": "upload-not-audio",
+            "title": "Not audio",
+            "consent_flag": "true",
+            "source_type": "audio",
+        },
+    )
+
+    body = response.json()
+    assert body["source"]["status"] == "error"
+    assert "not an audio format" in body["report"]["rejection_reason"]
 
 
 def test_an_unknown_source_type_is_refused(client):

@@ -52,6 +52,10 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Settin
     monkeypatch.setenv("SAMPLE_DATA_DIR", str(REPO_ROOT / "sample_data"))
     monkeypatch.setenv("SCHEMA_PATH", str(REPO_ROOT / "backend" / "app" / "db" / "schema.sql"))
     monkeypatch.setenv("LLM_PROVIDER", "fake")
+    # No test downloads a 140MB whisper model or needs audio libraries. The
+    # stub keeps the real shape: no speaker labels, real timestamps, one
+    # segment per line.
+    monkeypatch.setenv("AUDIO_PROVIDER", "fake")
     monkeypatch.setenv("LLM_CACHE_ENABLED", "false")
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
     monkeypatch.setenv("LLM_BACKOFF_BASE_SECONDS", "0")
