@@ -18,6 +18,7 @@ from app.db import database
 from app.db.repositories import extractions as extraction_repo
 from app.extraction.llm.factory import set_provider_override
 from app.extraction.llm.fake import FakeProvider
+from app.ingestion.service import ingest_from_manifest
 from app.models.common import UNSPECIFIED, ExtractionType
 
 
@@ -354,7 +355,7 @@ def test_one_chunk_failing_outright_makes_the_whole_run_incomplete(settings, gol
         set_provider_override(None)
 
     assert report.incomplete_reason is not None
-    assert "could not be extracted" in report.incomplete_reason
+    assert "could not be completed" in report.incomplete_reason
 
 
 def test_a_complete_run_is_not_marked_incomplete(scored):
@@ -430,3 +431,40 @@ def test_a_full_run_still_writes(settings, scripted_model, tmp_path, monkeypatch
     # The stub refuses for a different reason, which is the point: a fake run
     # is not a measurement either. Both guards hold at once.
     assert not out.exists()
+
+
+def test_a_rate_limited_question_makes_the_run_incomplete(settings, scripted_model, monkeypatch):
+    """The hole the second real run found.
+
+    answer_question swallows an LLMError and returns a not-found, which is
+    indistinguishable in the metric from a genuine refusal. So a run whose
+    questions were all rate-limited scored "answers carrying a verified
+    citation 1/5" and wrote it, reporting a quota artefact as a quality result.
+    """
+    from app.errors import RateLimitedError
+    from app.retrieval import qa
+
+    ingest_from_manifest(settings)
+    scripted_model()
+
+    def refuse(*args, **kwargs):
+        raise RateLimitedError("quota exhausted")
+
+    monkeypatch.setattr(qa, "call_structured", refuse)
+    answer = qa.answer_question("anything at all", settings)
+
+    assert answer.found is False
+    assert answer.model_failed is True, "a call that never happened is not a refusal"
+
+
+def test_a_genuine_refusal_is_not_marked_as_a_failed_call(settings, scripted_model):
+    """The other half. Without this the guard would refuse every honest
+    not-found and no run could ever be written."""
+    from app.retrieval import qa
+
+    ingest_from_manifest(settings)
+    scripted_model()
+
+    answer = qa.answer_question("what is the marketing budget for this project", settings)
+
+    assert answer.model_failed is False

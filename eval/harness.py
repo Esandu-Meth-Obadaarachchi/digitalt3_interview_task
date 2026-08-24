@@ -446,7 +446,9 @@ def case_m5_risks(golden: list[GoldenRisk], extractions) -> list[Metric]:
     ]
 
 
-def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
+def case_6_retrieval(
+    settings: Settings, run_model: bool, failures: list[str] | None = None
+) -> list[Metric]:
     """Golden case 6, and the mode comparison the brief's warning deserves.
 
     "All five golden questions return the correct source in the top three
@@ -524,6 +526,11 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
         detail = []
         for question in unanswerable:
             answer = answer_question(question.question, settings)
+            if answer.model_failed and failures is not None:
+                # A not-found produced by a rate limit is indistinguishable
+                # from a genuine refusal in the metric, and one of them is a
+                # measurement that never happened.
+                failures.append(f"question {question.id}")
             refused += int(not answer.found)
             if answer.found:
                 detail.append(f"{question.id} was answered when it should not have been")
@@ -542,6 +549,11 @@ def case_6_retrieval(settings: Settings, run_model: bool) -> list[Metric]:
         answered = cited = 0
         for question in answerable:
             answer = answer_question(question.question, settings)
+            if answer.model_failed and failures is not None:
+                # A not-found produced by a rate limit is indistinguishable
+                # from a genuine refusal in the metric, and one of them is a
+                # measurement that never happened.
+                failures.append(f"question {question.id}")
             answered += int(answer.found)
             cited += int(bool(answer.claims))
         metrics.append(
@@ -796,9 +808,7 @@ def run_evaluation(
         golden_actions=len(golden),
         extracted_actions=len(extractions),
         incomplete_reason=(
-            f"{len(failed_chunks)} of the transcript chunks could not be extracted, "
-            f"typically a rate limit or an exhausted free-tier quota. The numbers below "
-            f"describe only the chunks that succeeded and measure nothing."
+            _incomplete_reason(failed_chunks)
             if failed_chunks
             else None
         ),
@@ -830,10 +840,28 @@ def run_evaluation(
     if "risks" in capabilities or risk_rows:
         report.metrics += case_m5_risks(golden_risks, risk_rows)
     if VectorIndex(cfg).ready() or cfg.retrieval_mode == "keyword":
-        report.metrics += case_6_retrieval(cfg, run_model="qa" in capabilities)
+        report.metrics += case_6_retrieval(
+            cfg, run_model="qa" in capabilities, failures=failed_chunks
+        )
     report.metrics += case_7_signals(cfg)
     report.calibration = calibration(pairing, extractions, len(golden))
+
+    # Recomputed, because case 6 asks the model and its failures are only known
+    # now. The reason is built once, above, from the extraction chunks alone,
+    # and a run whose questions were rate-limited is exactly as incomplete as a
+    # run whose chunks were: both report a metric for work that never happened.
+    report.incomplete_reason = _incomplete_reason(failed_chunks)
     return report
+
+
+def _incomplete_reason(failed: list[str]) -> str | None:
+    if not failed:
+        return None
+    return (
+        f"{len(failed)} chunk(s) or question(s) could not be completed, typically a rate "
+        f"limit or an exhausted free-tier quota. The numbers below describe only the work "
+        f"that succeeded and measure nothing."
+    )
 
 
 # =============================================================================

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T11:52:57+00:00",
+  "generated_at": "2026-08-24T12:45:10+00:00",
   "is_measurement": true,
   "incomplete_reason": null,
   "provider": "gemini",
@@ -11,23 +11,23 @@
     "meeting-sprint-planning-2024-11-18"
   ],
   "golden_actions": 13,
-  "extracted_actions": 0,
+  "extracted_actions": 17,
   "metrics": [
     {
       "case": "1",
       "name": "Action recall",
-      "measured": "0.00",
+      "measured": "0.77",
       "target": ">= 0.70",
-      "passed": false,
-      "detail": "0/13 hand-labelled actions found"
+      "passed": true,
+      "detail": "10/13 hand-labelled actions found"
     },
     {
       "case": "1b",
       "name": "Precision",
-      "measured": "0.00",
+      "measured": "0.59",
       "target": "reported",
       "passed": null,
-      "detail": "0 extraction(s) matched no golden action"
+      "detail": "7 extraction(s) matched no golden action"
     },
     {
       "case": "2",
@@ -40,10 +40,10 @@
     {
       "case": "3a",
       "name": "Owner accuracy (named)",
-      "measured": "0.00",
+      "measured": "0.90",
       "target": ">= 0.90",
-      "passed": null,
-      "detail": "0/0 matched actions where an owner is stated"
+      "passed": true,
+      "detail": "9/10 matched actions where an owner is stated"
     },
     {
       "case": "3b",
@@ -51,7 +51,7 @@
       "measured": "0/0",
       "target": "all",
       "passed": null,
-      "detail": "a guessed owner counts as a failure, not a near-miss. no owner was guessed"
+      "detail": "a guessed owner counts as a failure, not a near-miss. action_cs_02: expected 'David Park', got 'UNSPECIFIED'"
     },
     {
       "case": "4",
@@ -60,6 +60,14 @@
       "target": "= 0",
       "passed": true,
       "detail": "no date was produced without support"
+    },
+    {
+      "case": "4b",
+      "name": "Relative dates resolved",
+      "measured": "5",
+      "target": "reported",
+      "passed": null,
+      "detail": "e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19"
     },
     {
       "case": "5",
@@ -72,26 +80,58 @@
     {
       "case": "5b",
       "name": "Decision recall",
-      "measured": "0.00",
+      "measured": "0.67",
       "target": ">= 0.70",
       "passed": false,
-      "detail": "0/3 hand-labelled decisions found. Missed: decision_sp_01, decision_sp_02, decision_cs_01"
+      "detail": "2/3 hand-labelled decisions found. Missed: decision_sp_02"
     },
     {
       "case": "M5",
       "name": "Risk recall",
-      "measured": "0.00",
+      "measured": "1.00",
       "target": ">= 0.70",
-      "passed": false,
-      "detail": "0/2 hand-labelled risks found"
+      "passed": true,
+      "detail": "2/2 hand-labelled risks found"
     },
     {
       "case": "M5b",
       "name": "Severity defensible",
-      "measured": "0/0",
+      "measured": "4/4",
       "target": "all",
-      "passed": null,
+      "passed": true,
       "detail": "every high-severity quote states the consequence it rests on"
+    },
+    {
+      "case": "6",
+      "name": "Retrieval, correct source",
+      "measured": "5/5",
+      "target": "5/5",
+      "passed": true,
+      "detail": "correct source in the top three, mode=hybrid"
+    },
+    {
+      "case": "6c",
+      "name": "Mode comparison",
+      "measured": "hybrid",
+      "target": "reported",
+      "passed": null,
+      "detail": "keyword: source 5/5, segment 4/5, mean rank 2.4 | dense: source 5/5, segment 5/5, mean rank 2.0 | hybrid: source 5/5, segment 4/5, mean rank 2.0 [embedder: sentence-transformers/all-MiniLM-L6-v2]"
+    },
+    {
+      "case": "6b",
+      "name": "Not-found on the unanswerable",
+      "measured": "1/1",
+      "target": "all",
+      "passed": true,
+      "detail": "the question with no answer in the corpus was correctly refused"
+    },
+    {
+      "case": "6d",
+      "name": "Answers carrying a verified citation",
+      "measured": "1/5",
+      "target": "all",
+      "passed": false,
+      "detail": "1 answered, 1 with at least one citation that verified against the source it cites"
     },
     {
       "case": "7b",
@@ -99,15 +139,15 @@
       "measured": "0",
       "target": "= 0",
       "passed": true,
-      "detail": "12 DM ids checked against 30 stored messages"
+      "detail": "12 DM ids checked against 27 stored messages"
     },
     {
       "case": "7",
       "name": "Chat signal precision",
-      "measured": "0.87",
+      "measured": "0.93",
       "target": ">= 0.70",
       "passed": true,
-      "detail": "13/15 non-noise labels correct, 16/20 of the labelled subset matched exactly"
+      "detail": "13/14 non-noise labels correct, 17/20 of the labelled subset matched exactly"
     },
     {
       "case": "7c",
@@ -115,72 +155,71 @@
       "measured": "",
       "target": "reported",
       "passed": null,
-      "detail": "blocker: P 1.00 R 0.75 (3/3) | decision: P 1.00 R 1.00 (3/3) | noise: P 0.60 R 0.60 (3/5) | question: P 1.00 R 1.00 (4/4) | request: P 0.60 R 0.75 (3/5)"
+      "detail": "blocker: P 1.00 R 0.75 (3/3) | decision: P 1.00 R 1.00 (3/3) | noise: P 0.67 R 0.80 (4/6) | question: P 1.00 R 1.00 (4/4) | request: P 0.75 R 0.75 (3/4)"
     }
   ],
   "calibration": [
     {
       "threshold": 0.0,
-      "kept": 0,
-      "correct": 0,
-      "precision": null,
-      "recall": 0.0
+      "kept": 17,
+      "correct": 10,
+      "precision": 0.588,
+      "recall": 0.769
     },
     {
       "threshold": 0.5,
-      "kept": 0,
-      "correct": 0,
-      "precision": null,
-      "recall": 0.0
+      "kept": 17,
+      "correct": 10,
+      "precision": 0.588,
+      "recall": 0.769
     },
     {
       "threshold": 0.7,
-      "kept": 0,
-      "correct": 0,
-      "precision": null,
-      "recall": 0.0
+      "kept": 17,
+      "correct": 10,
+      "precision": 0.588,
+      "recall": 0.769
     },
     {
       "threshold": 0.8,
-      "kept": 0,
-      "correct": 0,
-      "precision": null,
-      "recall": 0.0
+      "kept": 17,
+      "correct": 10,
+      "precision": 0.588,
+      "recall": 0.769
     },
     {
       "threshold": 0.9,
-      "kept": 0,
-      "correct": 0,
-      "precision": null,
-      "recall": 0.0
+      "kept": 16,
+      "correct": 9,
+      "precision": 0.562,
+      "recall": 0.692
     }
   ],
   "misses": [
-    "action_sp_01",
-    "action_sp_02",
     "action_sp_03",
-    "action_sp_04",
-    "action_sp_05",
     "action_sp_06",
-    "action_sp_07",
-    "action_sp_08",
-    "action_cs_01",
-    "action_cs_02",
-    "action_cs_03",
-    "action_cs_04",
-    "action_cs_05"
+    "action_sp_07"
   ],
-  "false_positives": [],
+  "false_positives": [
+    "meeting-client-status-2024-08-19::action::58e18295",
+    "meeting-client-status-2024-08-19::action::c0fb68b2",
+    "meeting-client-status-2024-08-19::action::bddc4a4f",
+    "meeting-sprint-planning-2024-11-18::action::e4ca1b02",
+    "meeting-sprint-planning-2024-11-18::action::4351823e",
+    "meeting-sprint-planning-2024-11-18::action::e9f48faf",
+    "meeting-sprint-planning-2024-11-18::action::c86b69d1"
+  ],
   "usage": {
-    "attempts": 5,
-    "calls": 5,
-    "retry_rate": 0.0,
-    "cache_hits": 0,
-    "prompt_tokens": 8893,
-    "completion_tokens": 6579,
-    "total_latency_ms": 70423,
+    "attempts": 133,
+    "calls": 70,
+    "retry_rate": 0.474,
+    "cache_hits": 4,
+    "prompt_tokens": 86385,
+    "completion_tokens": 15890,
+    "total_latency_ms": 497743,
     "outcomes": {
-      "ok": 5
+      "ok": 44,
+      "rate_limited": 89
     }
   }
 }
