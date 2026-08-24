@@ -135,7 +135,7 @@ export const api = {
     consent_flag: boolean;
     /** transcript or chat_export. The same endpoint and the same consent gate
      *  serve both; only the parser differs. */
-    source_type?: "transcript" | "chat_export";
+    source_type?: "transcript" | "audio" | "chat_export";
     meeting_date?: string;
     participants: string[];
   }) => {

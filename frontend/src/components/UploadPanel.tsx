@@ -23,15 +23,17 @@ import { api, ApiFailure } from "../api/client";
 import type { IngestionOutcome } from "../api/types";
 import { Badge, Button, ErrorNote, Field, Panel } from "./ui";
 
-type Kind = "transcript" | "chat_export";
+type Kind = "transcript" | "audio" | "chat_export";
 
 const ACCEPTED: Record<Kind, string> = {
   transcript: ".txt,.vtt,.json,.md,.log",
+  audio: ".wav,.mp3,.m4a,.aiff,.aif,.flac,.ogg,.webm,.mp4",
   chat_export: ".json",
 };
 
 const KINDS: { value: Kind; label: string; hint: string }[] = [
   { value: "transcript", label: "Meeting transcript", hint: "txt, vtt or json. The format is detected from the content." },
+  { value: "audio", label: "Recording", hint: "Transcribed locally by whisper. Nobody is attributed: whisper returns words, not speakers." },
   { value: "chat_export", label: "Channel chat export", hint: "One json file holding every channel. Direct messages are dropped at ingestion." },
 ];
 
@@ -161,7 +163,9 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
             <span className="text-[var(--color-muted)]">
               {kind === "chat_export"
                 ? "Drop a channel export here, or click to choose one"
-                : "Drop a transcript here, or click to choose one"}
+                : kind === "audio"
+                  ? "Drop a recording here, or click to choose one"
+                  : "Drop a transcript here, or click to choose one"}
             </span>
           )}
         </div>
@@ -201,7 +205,9 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
           <label className="block">
             <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
               {kind === "chat_export" ? "Channel members" : "Participants"}{" "}
-              <span className="normal-case">(comma separated)</span>
+              <span className="normal-case">
+                {kind === "audio" ? "(recorded, never matched to a voice)" : "(comma separated)"}
+              </span>
             </span>
             <input
               className="mt-0.5 w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm"
@@ -211,6 +217,15 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
             />
           </label>
         </div>
+
+        {kind === "audio" && (
+          <p className="rounded border border-[var(--color-line)] bg-[var(--color-warn-bg)] px-3 py-2 text-xs">
+            Transcription runs locally in a worker process, taking roughly a third of the
+            recording's length, and several minutes more the first time while the model
+            downloads. <strong>Whisper returns words, not speakers</strong>, so every line is
+            unattributed and an owner can only be extracted where somebody is named aloud.
+          </p>
+        )}
 
         {/* No default. A source that has not declared consent is not processed,
             and pre-ticking this would quietly make that guarantee meaningless. */}
@@ -274,7 +289,16 @@ export function UploadPanel({ onIngested }: { onIngested: (outcome: IngestionOut
                   {outcome.report.bytes_read.toLocaleString()}
                 </span>
               </Field>
-              {outcome.source.source_type === "chat_export" ? (
+              {outcome.source.source_type === "audio" ? (
+                <>
+                  <Field label="Segments">{outcome.report.segments_parsed}</Field>
+                  <Field label="Audio length">
+                    {outcome.report.duration_seconds
+                      ? `${Math.round(outcome.report.duration_seconds)}s`
+                      : "—"}
+                  </Field>
+                </>
+              ) : outcome.source.source_type === "chat_export" ? (
                 <>
                   <Field label="Messages">{outcome.report.messages_parsed}</Field>
                   {/* The count is the only trace a direct message was ever seen,
