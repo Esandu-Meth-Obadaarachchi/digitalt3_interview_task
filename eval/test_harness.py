@@ -11,6 +11,7 @@ import json
 
 import pytest
 from golden import GoldenAction, load_actions, matches, pair, quotes_overlap
+import harness
 from harness import SCORED_SOURCES, render, run_evaluation
 
 from app.db import database
@@ -380,3 +381,52 @@ def test_score_only_reports_the_model_that_produced_the_rows(settings, scripted_
     assert report.model == "some-other-model"
     assert report.provider == "gemini"
     assert report.is_measurement is True
+
+
+# --- the guard that the committed results file needed --------------------------
+
+
+def test_a_subset_run_prints_its_numbers_and_writes_nothing(settings, scripted_model, tmp_path, monkeypatch):
+    """A `--capabilities signals` run once wrote a results file reporting action
+    recall 0.00 for a build measuring 0.92, and it stood in the repository for
+    six phases contradicting the README.
+
+    --sources already refused for this reason. This is the same rule on the
+    other axis.
+    """
+    import sys
+
+    from app.ingestion.service import ingest_from_manifest
+
+    ingest_from_manifest(settings)
+    scripted_model()
+
+    out = tmp_path / "results.txt"
+    out.write_text("the committed run, which must survive", encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys, "argv",
+        ["harness", "--provider", "fake", "--capabilities", "signals", "--out", str(out)],
+    )
+    harness.main()
+
+    assert out.read_text(encoding="utf-8") == "the committed run, which must survive"
+    assert not out.with_suffix(".json").exists()
+
+
+def test_a_full_run_still_writes(settings, scripted_model, tmp_path, monkeypatch):
+    """The guard must not refuse the run it exists to protect."""
+    import sys
+
+    from app.ingestion.service import ingest_from_manifest
+
+    ingest_from_manifest(settings)
+    scripted_model()
+
+    out = tmp_path / "results.txt"
+    monkeypatch.setattr(sys, "argv", ["harness", "--provider", "fake", "--out", str(out)])
+    harness.main()
+
+    # The stub refuses for a different reason, which is the point: a fake run
+    # is not a measurement either. Both guards hold at once.
+    assert not out.exists()

@@ -1045,9 +1045,11 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=1,
                         help="repeat the whole pipeline N times and report the range")
     parser.add_argument("--capabilities", default=",".join(ALL_CAPABILITIES),
-                        help="comma-separated: actions, decisions, risks. One full run over "
-                             "all three costs eighteen model requests against a free-tier "
-                             "allowance of twenty a day.")
+                        help="comma-separated: actions, decisions, risks, qa, signals. A "
+                             "subset prints its numbers and writes nothing, because the "
+                             "capabilities it skipped would score zero for never having run. "
+                             "One full run costs about eighteen model requests against a "
+                             "free-tier allowance of twenty a day.")
     parser.add_argument("--sources", default=None,
                         help="comma-separated source ids to score instead of the committed "
                              "corpus. Results are printed but never written, so scoring a "
@@ -1099,8 +1101,27 @@ def main() -> int:
               f"Choose from {', '.join(ALL_CAPABILITIES)}.")
         return 1
 
+    partial = set(chosen) != set(ALL_CAPABILITIES)
+
     report = run_evaluation(settings, extract=not args.score_only, capabilities=chosen)
     print(render(report, colour=sys.stdout.isatty()))
+
+    if partial and not args.score_only:
+        # A subset run scores every capability, including the ones it never
+        # ran, and scores them as zero. This is not hypothetical: a
+        # `--capabilities signals` run during phase 7 wrote a results file
+        # reporting action recall 0.00, decision recall 0.00 and risk recall
+        # 0.00 for a build that measured 0.92, 1.00 and 1.00, and it stood in
+        # the repository for six phases contradicting the README.
+        #
+        # --sources already refused for the same reason. This is the same rule
+        # applied to the other axis.
+        missing = ", ".join(sorted(set(ALL_CAPABILITIES) - set(chosen)))
+        print(f"results not written: this run extracted only {', '.join(chosen)}, so "
+              f"{missing} scored zero for never having run.\n"
+              f"eval/results.txt describes a full run and stays that way. Re-run without "
+              f"--capabilities to write one.\n")
+        return 1 if report.failed else 0
 
     if scoring_other_sources:
         print(f"results not written: --sources was given, so this scored "
