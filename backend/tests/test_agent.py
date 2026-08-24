@@ -205,3 +205,34 @@ def test_a_proposal_for_an_unknown_source_is_refused(agent_settings):
     ])
 
     assert "REFUSED" in run_agent("propose", agent_settings).steps[0].observation
+
+
+# --- the HTTP surface ---------------------------------------------------------
+
+
+def test_the_api_reports_the_toolbelt_and_which_tool_writes(agent_settings, client):
+    body = client.get("/api/agent/tools").json()
+
+    assert len(body) == len(agent_tools.TOOLS)
+    writers = [t["name"] for t in body if t["writes"]]
+    assert writers == ["propose_action_item"], "exactly one tool writes, and it writes pending"
+    assert all(t["description"] for t in body)
+
+
+def test_the_api_runs_the_loop_and_returns_the_trace(agent_settings, client):
+    set_script([call("list_sources"), AIMessage(content="two meetings are stored")])
+
+    body = client.post("/api/agent", json={"instruction": "what is stored"}).json()
+
+    assert body["finished"] is True
+    assert [s["tool"] for s in body["steps"]] == ["list_sources"]
+    assert body["answer"] == "two meetings are stored"
+    assert body["step_budget"] >= 1
+
+
+def test_a_request_cannot_ask_for_an_unbounded_loop(agent_settings, client):
+    set_script([AIMessage(content="done")])
+
+    body = client.post("/api/agent", json={"instruction": "x", "max_steps": 5000}).json()
+
+    assert body["step_budget"] == 20, "the endpoint caps what a caller may ask for"
