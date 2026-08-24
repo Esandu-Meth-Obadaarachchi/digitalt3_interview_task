@@ -23,7 +23,7 @@ DIM  := \033[2m
 OFF  := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup seed seed-empty run api ui test test-inventory verify-clone outcome-schema eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
+.PHONY: help setup seed seed-empty run docker-build docker-up docker-down docker-clean docker-seed docker-seed-empty docker-test docker-logs api ui test test-inventory verify-clone outcome-schema eval eval-fresh eval-repeat eval-source llm-smoke clean distclean check-env cache-clear
 
 help: ## Show this help
 	@printf "\n$(BOLD)Meeting & Channel Intelligence Agent$(OFF)\n\n"
@@ -108,6 +108,39 @@ eval-repeat: ## Three uncached runs, reported as a range (the model is not deter
 eval-source: ## Score one source against its golden labels: make eval-source SOURCE=<id>
 	@test -n "$(SOURCE)" || { printf "usage: make eval-source SOURCE=<source_id>\n"; exit 1; }
 	$(PY) eval/harness.py --sources $(SOURCE)
+
+# --- Docker ------------------------------------------------------------------
+# The reproducibility claim: these five targets are the whole contract. A
+# reviewer with Docker and a key needs nothing else installed, no Python
+# version, no Node, no model weights.
+
+docker-build: ## Build both images
+	docker compose build
+
+docker-up: ## Build if needed and run the whole thing
+	@if [ ! -f .env ]; then cp .env.example .env; printf "created .env from .env.example, add your key\n"; fi
+	docker compose up --build -d
+	@printf "\n$(BOLD)interface$(OFF) http://localhost:5173    $(BOLD)api$(OFF) http://localhost:8000/health\n"
+	@printf "$(DIM)next: make docker-seed, or upload your own on the Sources tab$(OFF)\n"
+
+docker-down: ## Stop everything, keeping the store
+	docker compose down
+
+docker-clean: ## Stop everything and delete the store, the logs and the model cache
+	docker compose down --volumes
+
+docker-seed: ## Load the committed sample data into the running container
+	docker compose exec api python scripts/seed.py
+
+docker-seed-empty: ## Schema and the tracker backlog only, ready for your own data
+	docker compose exec api python scripts/seed.py --empty
+
+docker-test: ## Run the whole suite inside the image, which is the real check
+	docker compose run --rm --no-deps api python -m pytest -q
+
+docker-logs: ## Follow both services
+	docker compose logs -f
+
 
 clean: ## Remove the database, indexes and generated artefacts
 	rm -rf data/*.db data/*.db-wal data/*.db-shm data/faiss data/llm_cache \
