@@ -1,0 +1,68 @@
+# =============================================================================
+# The whole thing, reproducibly, on any machine with Docker
+# =============================================================================
+#   docker compose up --build      build and run
+#   docker compose exec api make-style commands are in the Makefile
+#
+# Two services. The API holds every rule and the interface is static files
+# behind nginx, which proxies to the API so the browser sees one origin.
+#
+# One volume, for the store and the logs. Everything else in the container is
+# rebuilt from the image, which is what makes a run reproducible: the code and
+# the dependencies come from the build, and only data survives.
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: meeting-agent-api:local
+    # The key and any overrides come from .env at run time, never from a layer.
+    # Copy .env.example to .env first; the file is required.
+    env_file: [.env]
+    environment:
+      # Paths inside the container, so the volume is the only writable place.
+      DB_PATH: /app/data/meetings.db
+      DOCUMENT_STORE_DIR: /app/data/documents
+      DIGEST_OUTPUT_DIR: /app/data/digests
+      OUTCOME_RECORD_DIR: /app/data/outcome_records
+      LLM_CACHE_DIR: /app/data/llm_cache
+      FAISS_INDEX_DIR: /app/data/faiss
+      AUDIO_DIR: /app/data/audio
+      WRITE_LOG_PATH: /app/write_log/tracker_writes.jsonl
+      NOTIFICATION_LOG_PATH: /app/write_log/notifications.jsonl
+      API_HOST: 0.0.0.0
+      # nginx serves the interface on the same origin, so no cross-origin
+      # request is made and this stays empty rather than being widened.
+      CORS_ORIGINS: ""
+    volumes:
+      - store:/app/data
+      - logs:/app/write_log
+      # Whisper's weights, downloaded once on first audio upload and kept.
+      # Not baked into the image: 140MB for a capability many reviewers will
+      # not exercise.
+      - models:/opt/models
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui.Dockerfile
+    image: meeting-agent-ui:local
+    depends_on:
+      api:
+        # Waits for /health to answer, not merely for the process to exist. A
+        # UI that loads before the schema is applied shows empty panels and
+        # looks broken.
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+volumes:
+  store:
+  logs:
+  models:

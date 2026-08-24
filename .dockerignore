@@ -1,0 +1,31 @@
+# The build context is the repository root, so everything heavy and everything
+# machine-specific is excluded. A context including .venv and node_modules
+# takes minutes to send to the daemon and produces a different image on every
+# developer's machine.
+
+.git
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+
+frontend/node_modules
+frontend/dist
+
+# Runtime state. The container builds its own, and copying a local database in
+# would make the image depend on whatever happened to be seeded that day.
+data/
+write_log/
+models/
+.cache/
+
+# Secrets never enter an image layer. The key arrives through env_file at run
+# time, where it can be changed without a rebuild.
+.env
+
+docs/
+*.md
+!README.md
