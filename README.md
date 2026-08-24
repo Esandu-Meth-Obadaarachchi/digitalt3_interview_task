@@ -256,12 +256,13 @@ backend/app/scheduler/               M10 APScheduler, two jobs, clock override
                                      M13 per-person digests, cross-source
 backend/app/people/identity.py       M13 which commitments belong to one person
 backend/app/followup/draft.py        M12 the recap draft, and the send refusal
+backend/app/agent/                   the tool-dispatch loop: 10 tools, none crossing a gate
 backend/app/outcome/record.py        M11 versioned outcome record
 backend/app/adapters/                3 interfaces, 3 mocks, one factory
 backend/app/routers/                 thin HTTP, 8 routers
-frontend/src/                        React 19 + TypeScript + Tailwind, 8 views
+frontend/src/                        React 19 + TypeScript + Tailwind, 9 views
 eval/harness.py golden.py            the golden cases and the scoring
-backend/tests/ eval/                 448 passing tests, counted by make test-inventory
+backend/tests/ eval/                 466 passing tests, counted by make test-inventory
 scripts/                             seed, check-env, llm-smoke, verify-clone, fixtures
 sample_data/                         4 transcripts, 1 chat export, 5 golden files
 ```

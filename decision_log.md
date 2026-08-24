@@ -1401,3 +1401,103 @@ audio itself.
 **L41.** The worker is spawned per file with no queue and no cancellation. A
 long recording holds a request open for minutes. Fine for a review tool where
 somebody uploads one file at a time, and wrong for anything concurrent.
+
+---
+
+## Phase 13 — A tool-dispatch loop, on LangGraph
+
+The catalogue asks for *"multi-step tool use, if you need it"* and offers two
+routes: plain functions plus a dispatch loop, recommended for a build this size,
+or a framework if you already know one.
+
+### Decisions
+
+**A framework, and it has to earn the choice.** The loop itself is four lines
+either way, so LangGraph is not justified by the loop. It is justified by three
+things it gives as data rather than as code I would otherwise write and test.
+The state is a value, so every message, observation and step count comes back in
+one object and the trace shown to a reviewer is what executed rather than a log
+written beside it. The budget sits on an edge, enforced where it is visible
+rather than inside a condition somebody can forget. And `@tool` derives the JSON
+schema from the docstring, so the description a model reads and the function a
+developer reads are the same text. Rejected: a hand-written while loop. It would
+have been smaller and I would have had to build the trace and the budget check
+myself, which is the part with the bugs in it.
+
+**No tool crosses a gate, and that is the architecture.** Nine tools read, one
+writes and it writes `pending`, and there is no tool for approving, writing
+outward or sending. An agent able to approve its own proposals makes the
+approval gate reachable by a model deciding it was confident, which would undo
+the property the rest of the build is organised around. The catalogue asks for
+multi-step tool use, not for autonomy over the gate.
+
+**The guard is structural, not a naming convention.** One test checks the tool
+names, and a second reads the module source and asserts it imports neither the
+tracker service nor the follow-up sender and never calls `queue.approve`. A tool
+crossing a gate could be added tomorrow by somebody who did not read this entry,
+and the name check alone would not catch a tool called `finalise_item`.
+
+**`propose_action_item` is held to the evidence standard the chunk reader is
+held to.** The quote must be a literal substring of the source or the proposal
+is refused and nothing is stored. An agent allowed to propose on its own
+recollection would fill the queue with items no reviewer could check, which is
+worse than an agent with no write at all.
+
+**Every planning call is recorded.** A callback writes one `llm_calls` row per
+call with capability `agent`. Without it a run would spend requests invisibly
+and the usage panel would understate what the loop cost, turning a cost claim
+into a guess.
+
+**The endpoint caps the budget at 20.** A caller asking for five thousand steps
+gets twenty. An endpoint accepting an unbounded loop is an endpoint that can be
+asked to spend a whole day's quota in one request.
+
+**The planner is scripted in every test.** A test asserting the model chose the
+right tool would be measuring the model, and that belongs in the harness.
+
+### What the first real run against Gemini found
+
+Every test passed against the stub. Then the loop met the real planner and
+produced three faults in one run.
+
+**The answer arrived as a JSON blob.** Gemini returns content as a list of parts
+rather than a string. The stub returns strings, so nothing caught it.
+
+**The loop spent its whole budget browsing**: five steps, four of them
+single-word searches, no answer. The planner had no way to see its own budget.
+Observations now carry `[step 2 of 4, 2 left]`.
+
+**And the answer was wrong.** Asked which meetings mention the staging
+environment being down, it said none did. `msg_003` in the stored chat export
+says exactly that, raised by Marcus Webb. The cause was a gap between two things
+that both look like search: `search_transcripts` covers segments and approved
+extractions and cannot see chat, while `read_chat_messages` takes filters rather
+than a query and its first twenty rows were all from the other channel.
+`chat_messages_fts` had existed since Phase 7 and nothing searched it.
+
+The third is the one worth keeping. The answer was confident, quoted real text,
+and came from a system built around verifiable output. Nothing in 466 tests
+could have caught it, because it was not a code fault: it was a hole in what the
+agent could reach. Reading the answer against data whose contents were already
+known is what caught it, which is the argument for demonstrating on a corpus you
+know by heart.
+
+### Known limitations
+
+**L39.** Three dependencies and a second path to the model. Extraction calls go
+through `call_structured` with its cache, retry policy and per-attempt
+telemetry. The agent's planning calls go through LangChain instead, and only
+telemetry is shared. Two paths to one provider is a real cost of the framework.
+
+**L40.** The closing prose is verified by nobody. Individual observations are
+evidence and `answer_with_citations` verifies its own quotes, but the paragraph
+the loop writes at the end is not checked against them. A verifier over the
+final answer is the obvious next step and is not built.
+
+**L41.** The loop is demonstrated, not measured. Scoring it needs a golden set
+of instructions with expected tool sequences and acceptable answers, which does
+not exist. Every number in `eval/results.txt` is about extraction, retrieval and
+classification.
+
+**L42.** No memory between runs and no parallel tool calls. Each instruction
+starts clean, and tools requested in one turn run in order.

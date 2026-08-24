@@ -9,6 +9,8 @@
  */
 
 import type {
+  AgentRun,
+  AgentTool,
   Answer,
   ChatSummary,
   Chunk,
@@ -214,6 +216,11 @@ export const api = {
   runAllDigests: (now?: string) => post<EndOfDayResult>(`/api/digests/run/all${query({ now })}`),
   notifications: (limit?: number) =>
     request<Notification[]>(`/api/digests/posts/log${query({ limit })}`),
+
+  // --- M14 the agent loop ----------------------------------------------------
+  agentTools: () => request<AgentTool[]>("/api/agent/tools"),
+  runAgent: (instruction: string, maxSteps?: number) =>
+    post<AgentRun>("/api/agent", { instruction, max_steps: maxSteps }),
 
   // --- M13 per-person digests -----------------------------------------------
   people: () => request<Person[]>("/api/digests/people"),

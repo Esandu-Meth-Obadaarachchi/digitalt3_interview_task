@@ -20,6 +20,7 @@ tested, and what it does not do.
 | 12 | Evaluation | scored separately | [12-evaluation.md](12-evaluation.md) |
 | 13 | Per-person digests | M13 | [13-person-digests.md](13-person-digests.md) |
 | 14 | The follow-up draft | M12 | [14-followup-draft.md](14-followup-draft.md) |
+| 15 | The tool-dispatch loop | multi-step tool use | [15-agent-loop.md](15-agent-loop.md) |
 
 ## Reading order
 

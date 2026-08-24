@@ -23,6 +23,7 @@ from app.config import get_settings
 from app.db import database
 from app.errors import AgentError
 from app.routers import (
+    agent,
     chat,
     digests,
     extractions,
@@ -130,3 +131,4 @@ app.include_router(chat.router)
 app.include_router(outcome.router)
 app.include_router(digests.router)
 app.include_router(followups.router)
+app.include_router(agent.router)

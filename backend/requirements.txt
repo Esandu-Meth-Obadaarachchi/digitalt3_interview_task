@@ -33,3 +33,8 @@ numpy==2.4.6                  # the array contract between the two
 # Runs in a subprocess, never in the API process: ctranslate2 and faiss each
 # link their own OpenMP runtime and loading both aborts on macOS.
 faster-whisper==1.2.1         # whisper on CTranslate2, CPU, int8
+
+# --- Phase 13: the tool-dispatch loop (M14) ----------------------------------
+langgraph==1.2.11             # the loop as a state machine, with the state as a value
+langchain-core==1.6.0         # tool definitions and the message contract
+langchain-google-genai==4.3.5 # the planner, bound to the same model as extraction
