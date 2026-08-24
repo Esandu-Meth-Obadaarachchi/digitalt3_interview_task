@@ -190,7 +190,7 @@ surface.
 | M1 audio, and the worker boundary | 34 | `test_audio_ingestion.py` |
 | M12 recap draft and the send gate | 32 | `test_followup_draft.py` |
 | M13 name grouping | 25 | `test_person_identity.py` |
-| Harness scoring | 24 | `eval/test_harness.py` |
+| Harness scoring | 28 | `eval/test_harness.py` |
 | M3 extraction end to end | 21 | `test_action_extraction.py` |
 | M7 tracker adapter and mock | 21 | `test_tracker_adapter.py` |
 | M1 validation and storage | 20 | `test_ingestion_pipeline.py` |
@@ -199,7 +199,7 @@ surface.
 | M9 chat signals, DMs excluded | 19 | `test_chat_signals.py` |
 | M13 per-person digests | 19 | `test_person_digest.py` |
 | Database-enforced rules | 19 | `test_schema_guarantees.py` |
-| The tool-dispatch loop, and its boundary | 18 | `test_agent.py` |
+| The tool-dispatch loop, its boundary and its scope | 25 | `test_agent.py` |
 | HTTP surface, all three upload kinds | 18 | `test_api_sources.py` |
 | M1 parsing, three formats | 18 | `test_transcript_parsers.py` |
 | LLM wrapper, retry and repair | 17 | `test_llm_client.py` |
@@ -210,7 +210,7 @@ surface.
 | M4 decisions, golden case 5 | 11 | `test_decision_extraction.py` |
 | M5 risks, severity defensibility | 10 | `test_risk_extraction.py` |
 | M2 consent gate | 8 | `test_consent_gate.py` |
-| **Total** | **466** | `make test-inventory` |
+| **Total** | **477** | `make test-inventory` |
 
 The counts come from `make test-inventory`, which exists because they were
 stated from memory twice and were wrong twice.
