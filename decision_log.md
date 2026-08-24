@@ -1556,11 +1556,9 @@ another machine cares about.
 
 ### Known limitations
 
-**L43.** Neither image has been built. The Docker daemon is not running on this
-machine, so the compose file was validated with `docker compose config` and the
-Dockerfiles were written against the same pins the local build uses, but the
-first real build has to happen elsewhere. Anything wrong with a wheel on
-linux/amd64 will surface then rather than now.
+**L43.** ~~Neither image has been built.~~ **Resolved.** Both images built on
+2026-08-24 on arm64, and the first run found three faults. Recorded below.
+Neither image has been built for `linux/amd64`, which is still untested.
 
 **L44.** No image is pinned by digest and no lock file covers the Python side.
 `pip install -r requirements.txt` resolves transitive dependencies at build
@@ -1571,3 +1569,57 @@ is what determines behaviour, and a full lock file is the honest fix.
 scheduler runs in the API container, so scaling the API to two replicas would
 run every job twice. The same limitation the local build has, now with a
 tempting way to trip over it.
+
+
+---
+
+## Phase 14a — What the first container build found
+
+Three faults in one afternoon, and none of them was reachable by any test on a
+machine that already worked.
+
+**The API would not start: `ModuleNotFoundError: No module named 'apscheduler'`.**
+`app/scheduler/jobs.py` has imported it since Phase 8 and it was never declared
+in `requirements.txt`. It was present locally as a transitive dependency of
+something else, so the application started on every machine where pip had
+already run for another reason, and died on the first machine where it had not.
+
+`make verify-clone` could not have caught it, and the distinction is worth being
+precise about. verify-clone clones the repository into a temporary directory and
+runs the suite **in the same virtualenv**. It proves the repository holds every
+file. It says nothing about whether the dependency list is complete. A container
+build is the only thing here that starts from nothing.
+
+An audit of every third-party import across `backend/`, `eval/` and `scripts/`
+against `requirements.txt` found no other omission.
+
+**The suite failed inside the image on two tests reading
+`docs/outcome_schema.json`**, which `.dockerignore` excluded along with the rest
+of `docs/`. That file is not documentation: it is the published contract a
+downstream consumer reads, and the two tests assert the published file still
+matches the Pydantic model. It is now the single exception in the ignore rules,
+with the reason written beside it. The container did not break anything here, it
+revealed a file filed under the wrong idea.
+
+**The interface reported itself unhealthy while serving every request
+correctly.** Inside the container `localhost` resolves to `::1` first, nginx
+listens on IPv4 only, and busybox `wget` does not fall back to `127.0.0.1` the
+way curl does. So the healthcheck got connection refused from a server answering
+200 on every path. The check now names `127.0.0.1`. Rejected: adding
+`listen [::]:80` to nginx, which fixes a client-side fault by widening what the
+server binds.
+
+**What the three have in common.** Each was invisible on a machine that had
+already been made to work, and each surfaced the first time the system was
+built from nothing on a clean base. That is the argument for containerising a
+project that already ran fine.
+
+### Verified in the container
+
+    make docker-build     both images, 2.7GB api and 76MB ui
+    make docker-up        api healthy, ui healthy
+    make docker-seed      6 sources, 1 refused, 1 malformed, as expected
+    make docker-test      466 tests, all passing inside the image
+
+`curl localhost:5173/health` and `curl localhost:5173/api/agent/tools` both
+answer through nginx, so the one-origin claim holds.
