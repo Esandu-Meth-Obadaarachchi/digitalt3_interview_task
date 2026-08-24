@@ -14,6 +14,10 @@ type Tone = "ok" | "warn" | "bad" | "info" | "neutral";
 
 export interface KindView {
   label: string;
+  /** What the badge says for one item. A signal's type is the thing a reviewer
+   *  triages on, so "Signal" on every row of a chat queue says nothing: a
+   *  blocker and a greeting-shaped request need different attention. */
+  badge?: (payload: Record<string, unknown>) => { label: string; tone?: Tone };
   /** The one line that identifies this item in a list. */
   headline: (payload: Record<string, unknown>) => string;
   /** The facts a reviewer scans before opening it. */
@@ -73,9 +77,13 @@ export const KINDS: Record<ExtractionType, KindView> = {
   },
   signal: {
     label: "Signal",
+    badge: (p) => ({
+      label: str(p.classification, "signal"),
+      tone: SIGNAL_TONE[String(p.classification)] ?? "neutral",
+    }),
     headline: (p) => str(p.text),
+    // classification is not repeated here: it is the badge now.
     facts: (p) => [
-      { label: "class", value: str(p.classification), tone: SIGNAL_TONE[String(p.classification)] },
       { label: "channel", value: `#${str(p.channel)}` },
       { label: "from", value: str(p.author) },
     ],
