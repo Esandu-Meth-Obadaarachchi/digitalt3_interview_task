@@ -1,0 +1,73 @@
+
+Meeting & Channel Intelligence Agent - evaluation
+2026-08-24T13:06:20+00:00   provider gemini:gemini-3.6-flash   prompt extract_actions v2+44157f   cache on
+sources: meeting-client-status-2024-08-19, meeting-sprint-planning-2024-11-18
+13 hand-labelled actions, 17 extracted
+
+      Metric                        Measured   Target     Status
+  --------------------------------------------------------------------
+  1   Action recall                     0.77   >= 0.70    PASS
+      10/13 hand-labelled actions found
+  1b  Precision                         0.59   reported   reported
+      7 extraction(s) matched no golden action
+  2   Fabricated quotes                    0   = 0        PASS
+      recomputed against the stored transcript, not read from the stored flag
+  3a  Owner accuracy (named)            0.90   >= 0.90    PASS
+      9/10 matched actions where an owner is stated
+  3b  UNSPECIFIED compliance             0/0   all        reported
+      a guessed owner counts as a failure, not a near-miss. action_cs_02: expected 'David Park', got 'UNSPECIFIED'
+  4   Invented dates                       0   = 0        PASS
+      no date was produced without support
+  4b  Relative dates resolved              5   reported   reported
+      e.g. 'Wednesday' -> 2024-08-21, rule: wednesday = the first wednesday strictly after the meeting date 2024-08-19
+  5   Deferred items recorded              0   = 0        PASS
+      1 proposed-then-deferred item(s) correctly absent
+  5b  Decision recall                   0.67   >= 0.70    FAIL
+      2/3 hand-labelled decisions found. Missed: decision_sp_02
+  M5  Risk recall                       1.00   >= 0.70    PASS
+      2/2 hand-labelled risks found
+  M5b Severity defensible                4/4   all        PASS
+      every high-severity quote states the consequence it rests on
+  6   Retrieval, correct source          5/5   5/5        PASS
+      correct source in the top three, mode=hybrid
+  6c  Mode comparison                 hybrid   reported   reported
+      keyword: source 5/5, segment 4/5, mean rank 2.4 | dense: source 5/5, segment 5/5, mean rank 2.0 | hybrid: source 5/5, segment 4/5, mean rank 2.0 [embedder: sentence-transformers/all-MiniLM-L6-v2]
+  6b  Not-found on the unanswerable       1/1   all        PASS
+      the question with no answer in the corpus was correctly refused
+  6d  Answers carrying a verified citation       5/5   all        PASS
+      5 answered, 5 with at least one citation that verified against the source it cites
+  7b  Direct messages in the store         0   = 0        PASS
+      12 DM ids checked against 27 stored messages
+  7   Chat signal precision             0.93   >= 0.70    PASS
+      13/14 non-noise labels correct, 17/20 of the labelled subset matched exactly
+  7c  Per class                                reported   reported
+      blocker: P 1.00 R 0.75 (3/3) | decision: P 1.00 R 1.00 (3/3) | noise: P 0.67 R 0.80 (4/6) | question: P 1.00 R 1.00 (4/4) | request: P 0.75 R 0.75 (3/4)
+
+  Confidence calibration  does the model's own confidence predict correctness
+  threshold     kept  correct  precision   recall
+  >= 0.00         17       10       0.59     0.77
+  >= 0.50         17       10       0.59     0.77
+  >= 0.70         17       10       0.59     0.77
+  >= 0.80         17       10       0.59     0.77
+  >= 0.90         16        9       0.56     0.69
+
+  Model usage  244 attempt(s) for 157 call(s), retry rate 36%, 77 cache hit(s)
+  225870 prompt + 47987 completion tokens, 1792654 ms total
+  outcomes: {'ok': 119, 'rate_limited': 125}
+
+  Missed (in the golden set, not extracted)
+    action_sp_03
+    action_sp_06
+    action_sp_07
+
+  False positives (extracted, matching no golden action)
+    meeting-client-status-2024-08-19::action::0e835be4
+    meeting-client-status-2024-08-19::action::c91c045d
+    meeting-client-status-2024-08-19::action::468d9973
+    meeting-sprint-planning-2024-11-18::action::aa5df9c3
+    meeting-sprint-planning-2024-11-18::action::34f59d2e
+    meeting-sprint-planning-2024-11-18::action::912692a0
+    meeting-sprint-planning-2024-11-18::action::41ae4f95
+
+  1 metric(s) below target: Decision recall
+

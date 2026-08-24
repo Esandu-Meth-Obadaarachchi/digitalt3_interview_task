@@ -15,27 +15,34 @@ make eval-source SOURCE=<id>   one source against its golden labels
 
 ## Results
 
-`gemini-3.6-flash`, prompt `extract_actions` v2. Committed at
+`gemini-3.6-flash`, prompt `extract_actions` v2, run 24 August 2026. Committed at
 [`../../eval/results.txt`](../../eval/results.txt).
 
 | # | Metric | Measured | Target | |
 |---|---|---|---|---|
-| 1 | Action recall | **0.92** | ≥ 0.70 | pass |
-| 1b | Precision | 0.71 | reported | see below |
+| 1 | Action recall | 0.77 | ≥ 0.70 | pass |
+| 1b | Precision | 0.59 | reported | lower bound, see below |
 | 2 | **Fabricated quotes** | **0** | 0 | pass |
 | 3a | Owner accuracy where named | 0.90 | ≥ 0.90 | pass |
-| 3b | UNSPECIFIED compliance | 2/2 | all | pass |
 | 4 | Invented dates | **0** | 0 | pass |
-| 5 | **Deferred items recorded** | **0** | 0 | pass |
-| 5b | Decision recall | 1.00 | ≥ 0.70 | pass |
+| 4b | Relative dates resolved | 5 | reported | each carries its rule |
+| 5 | **Deferred item recorded** | **0** | 0 | pass |
+| 5b | Decision recall | **0.67** | ≥ 0.70 | **FAIL** |
 | M5 | Risk recall | 1.00 | ≥ 0.70 | pass |
 | M5b | Severity defensible | 4/4 | all | pass |
 | 6 | Retrieval, correct source | 5/5 | 5/5 | pass |
-| 6b | **Not-found on the unanswerable** | 1/1 | all | pass |
+| 6b | **Not-found on the unanswerable** | **1/1** | all | pass |
 | 6d | Answers carrying a verified citation | 5/5 | all | pass |
-| 7 | Chat signal precision | 0.87 | ≥ 0.70 | pass |
+| 7 | Chat signal precision | 0.93 | ≥ 0.70 | pass |
 | 7b | Direct messages in the store | **0** | 0 | pass |
 | 8 | Approval enforcement | 19 tests | all fail correctly | pass |
+
+**One metric is below target and stays reported as a failure.** Decision recall
+0.67, two of three, missing `decision_sp_02`. The harness exits non-zero for it.
+
+**The same corpus measured 0.92 recall in phase 3 and 0.77 here.** Gemini is not
+deterministic at temperature 0. `--runs N` reports the worst run rather than the
+average, and running it meaningfully needs more than 20 requests a day.
 
 An **independent transcript**, written by the candidate about a different domain
 and never used to tune a prompt: recall 0.83, **precision 1.00**, zero
@@ -54,11 +61,23 @@ Three separate refusals:
 | Stub provider | `NOT A MEASUREMENT` banner, **no results file** |
 | Any chunk failed | `INCOMPLETE` banner, **no results file**, exit 2, names the file it left alone |
 | `--sources` given | Results printed, **nothing written** — `results.txt` describes one fixed corpus |
+| `--capabilities` a subset | Printed, **nothing written**, names which capabilities scored zero for never having run |
 
-**This was written after it happened.** A three-run evaluation exhausted the
+**Both were written after it happened.** A three-run evaluation exhausted the
 Gemini free tier's daily cap, every chunk failed with a 429, and the harness
 scored the empty result at recall 0.00 and **overwrote a good results file with
-it.** Committing that would have been fabricated evaluation results — an
+it.** Separately, a `--capabilities signals` run wrote a file scoring actions,
+decisions and risks as zero for never having run, and it stood in the repository
+for six phases contradicting the README.
+
+**And the guard had a hole of its own.** It counted failed extraction chunks and
+knew nothing about questions. `answer_question` swallows a rate-limit error and
+returns a not-found, which is indistinguishable in the metric from the model
+looking and finding nothing, so a run whose questions were all 429'd reported
+*answers carrying a verified citation 1/5* for a capability measuring 5/5 and
+wrote it. `Answer.model_failed` now carries the difference. On the day the
+committed numbers were produced this guard refused three runs before one
+completed. Committing that would have been fabricated evaluation results — an
 automatic failure.
 
 A test pins the distinction: **a single transient 429 absorbed by the retry loop
