@@ -253,6 +253,53 @@ def test_a_quote_the_model_will_not_fix_is_flagged_rather_than_discarded(ingeste
     assert all(e.needs_override_to_approve for e in stored if not e.quote_verified)
 
 
+def test_one_fabricated_quote_does_not_poison_its_neighbours(ingested, golden_actions):
+    """The bug a live demo found: quote_verified was set per chunk rather than
+    per item. When one action in a model's response had a fabricated quote,
+    the retry budget exhausted and the whole response was accepted, and every
+    item from it - including ones whose own quote genuinely located in the
+    source - was marked unverified.
+
+    A decision quoting "End of October for Phase 1 complete..." verbatim was
+    flagged unverified, sent to the queue demanding an override for a quote
+    that was never in question, purely because a sibling in the same response
+    had failed.
+    """
+    real = next(g for g in golden_actions if g["source_id"] == SPRINT)
+    batch_with_one_bad_apple = json.dumps({"actions": [
+        {
+            "what": real["what"], "owner": real["owner"], "due_date": real["due_date"],
+            "verbatim_quote": real["verbatim_quote"],
+            "speaker": real["speaker"], "timestamp": real["timestamp"], "confidence": 0.9,
+        },
+        {
+            "what": "Something nobody said", "owner": UNSPECIFIED, "due_date": UNSPECIFIED,
+            "verbatim_quote": "a quote that appears nowhere in this meeting",
+            "speaker": real["speaker"], "timestamp": real["timestamp"], "confidence": 0.9,
+        },
+    ]})
+
+    set_provider_override(FakeProvider().default(lambda request: batch_with_one_bad_apple))
+    try:
+        extract_actions(SPRINT, ingested)
+    finally:
+        set_provider_override(None)
+
+    with database.connect(ingested) as conn:
+        stored = extraction_repo.list_extractions(conn, source_id=SPRINT)
+
+    genuine = next(e for e in stored if e.verbatim_quote == real["verbatim_quote"])
+    fabricated = next(e for e in stored if "appears nowhere" in e.verbatim_quote)
+
+    assert genuine.quote_verified is True, (
+        "a quote that independently locates in the source must not be marked "
+        "unverified because another item in the same response was fabricated"
+    )
+    assert genuine.needs_override_to_approve is False
+    assert fabricated.quote_verified is False
+    assert fabricated.needs_override_to_approve is True
+
+
 def test_a_model_returning_nothing_is_a_valid_outcome(ingested):
     """A transcript with no commitments must produce no actions, not a crash."""
     set_provider_override(FakeProvider())
