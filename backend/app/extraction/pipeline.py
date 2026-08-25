@@ -132,12 +132,19 @@ def _extract_chunk(
     settings: Settings,
     source_id: str,
 ) -> tuple[list[Any], bool]:
-    """Return (items, quotes_were_verified) for one chunk.
+    """Return (items, quote_validator_exhausted_for_this_response) for one chunk.
 
-    The second element is False when the quote validator was exhausted and the
-    last schema-valid response was accepted anyway. Those items are stored and
-    flagged rather than discarded: discarding them would make the
-    fabricated-quote metric zero by construction.
+    The second element is False when the model's response was accepted without
+    the quote validator having confirmed every quote in it, typically because
+    the retry budget ran out. Items from that response are stored rather than
+    discarded: discarding them would make the fabricated-quote metric zero by
+    construction, hiding exactly the failures it exists to measure.
+
+    This is a signal about the response, not a verdict on any one item's
+    quote. The caller still runs `locate_quote` per item afterwards, and that
+    independent, per-quote check is what actually sets `quote_verified` -
+    correctly, so one bad quote in a response cannot mark its innocent
+    neighbours as unverified too.
     """
     rendered = prompt.render(context=chunk.context, chunk=chunk.text)
 
@@ -261,9 +268,28 @@ def run_extraction(
             extraction_repo.delete_for_source(conn, source_id, spec.extraction_type)
 
         for candidate in survivors:
-            item, chunk, chunk_verified = drafts[candidate.key]
+            # chunk_verified deliberately unused below: see the comment on
+            # `verified`. Kept in the tuple because drafts is shared with the
+            # (item, chunk) unpacking elsewhere in this loop.
+            item, chunk, _chunk_verified = drafts[candidate.key]
             location = candidate.location
-            verified = bool(location) and chunk_verified
+            # `location` is authoritative on its own: locate_quote runs the
+            # same strict, whitespace-normalised substring check as
+            # verify_quote, so finding one *is* the definition of verified.
+            #
+            # `chunk_verified` used to gate this too, on the theory that a
+            # chunk which needed the fallback path deserved extra suspicion
+            # applied to everything in it. In practice it poisoned innocent
+            # neighbours: one bad quote elsewhere in the same model response
+            # marked every other extraction from that chunk unverified, even
+            # ones whose own quote independently located just fine. A
+            # decision quoting "End of October for Phase 1 complete..."
+            # verbatim was flagged unverified, sent to the review queue
+            # demanding an override, and would have carried a false
+            # "WARNING: this quote could not be verified" onto the tracker
+            # item had it been approved. All because a sibling in the same
+            # chunk had failed the check.
+            verified = bool(location)
 
             payload = spec.payload_of(item, source)
             merge = merge_by_key.get(candidate.key)
