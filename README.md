@@ -137,17 +137,6 @@ make the metric pass would have been gaming the measurement.
 action claim an extraction on the weak signal that a later one would have
 claimed on the strong signal. Pairing is now two-pass, quote overlap first.
 
-Measured at the time of that revision, in phase 3. These are historical, not a
-current claim: no measurement is committed today, for the reason at the top.
-
-| | before | after |
-|---|---|---|
-| Recall | 0.85 | **0.92** |
-| Precision | 0.52 | **0.63** |
-| Invented dates | 2 (fail) | **0** (pass) |
-| UNSPECIFIED compliance | not measured | **2/2** (pass) |
-| Owner accuracy | 1.00 | 0.90 |
-
 **The harness found an error in the golden set, twice.** In Phase 3 the client
 status call's metadata date contradicted its own content. In Phase 5 three
 actions were labelled as having no due date when the transcript plainly states
@@ -435,5 +424,5 @@ conversation three times would double-count it and skew every golden metric.
 ## AI assistant usage
 
 Built with Claude Code as the primary coding assistant, used for scaffolding,
-implementation and debugging. Every design decision recorded here was made and
-is defended by the candidate.
+implementation and debugging. Every design decision recorded here was made by 
+esandu obadaarachchi.
